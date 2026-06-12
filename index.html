@@ -293,6 +293,23 @@
   .book-row-name { font-size: 0.9rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .book-row-meta { font-size: 0.72rem; color: var(--text-faint); }
   .modal-footer { margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end; }
+  .modal h3.sync-title { margin: 22px 0 4px; }
+  .sync-note { font-size: 0.78rem; color: var(--text-dim); margin: 6px 0 10px; }
+  .sync-note a { color: var(--green); }
+  .sync-err { color: var(--red); }
+  .sync-row { display: flex; gap: 8px; }
+  .sync-row input {
+    flex: 1;
+    min-width: 0;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 8px 12px;
+    font: inherit;
+    font-size: 0.85rem;
+    outline: none;
+  }
 
   /* ---------- Toast ---------- */
   #toast {
@@ -367,6 +384,8 @@
   <div class="modal">
     <h3>📚 Library</h3>
     <div id="book-list"></div>
+    <h3 class="sync-title">☁ Sync across devices</h3>
+    <div id="sync-box"></div>
     <div class="modal-footer">
       <button id="btn-modal-import">＋ Add PDF</button>
       <button id="btn-modal-close">Close</button>
@@ -407,7 +426,9 @@ function load() {
 let data = load();
 
 function save() {
+  data.updatedAt = Date.now();
   localStorage.setItem(STORE_KEY, JSON.stringify(data));
+  scheduleSync();
 }
 
 function uuid() {
@@ -428,6 +449,7 @@ function ticksKey() { return 'ticks_' + currentDay; }
 function getTicks() { return data[ticksKey()] || []; }
 function setTicks(arr) {
   data[ticksKey()] = arr;
+  data.tickStamp = { [currentDay]: Date.now() }; // per-day timestamp drives sync conflict resolution
   // prune tick records from previous days
   for (const k of Object.keys(data)) {
     if (k.startsWith('ticks_') && k !== ticksKey()) delete data[k];
@@ -449,6 +471,12 @@ function allRules() {
 }
 
 function isDone(uid) { return getTicks().includes(uid); }
+
+// ticks that still point at an existing rule (stale ids can appear after a book is re-imported on another device)
+function validTicks() {
+  const uids = new Set(allRules().map(r => r.uid));
+  return getTicks().filter(u => uids.has(u));
+}
 
 function spotlightRule() {
   const all = allRules();
@@ -478,7 +506,7 @@ function bookTag(book) {
 
 function renderProgress() {
   const total = allRules().length;
-  const done = getTicks().length;
+  const done = validTicks().length;
   const pct = total ? Math.round(done / total * 100) : 0;
   const r = 20, circ = 2 * Math.PI * r;
   const bar = $('ring-bar');
@@ -634,7 +662,7 @@ function renderCountdown() {
   const mins = Math.max(0, Math.floor((midnight - now) / 60000));
   const h = Math.floor(mins / 60), m = mins % 60;
   const el = $('countdown');
-  const undone = allRules().length - getTicks().length;
+  const undone = allRules().length - validTicks().length;
   el.textContent = (h ? `${h}h ${m}m` : `${m}m`) + ' left today' +
     (undone > 0 ? ` · ${undone} to go` : ' · all done 🎉');
   el.classList.toggle('urgent', h < 2 && undone > 0);
@@ -649,6 +677,7 @@ function renderAll() {
   renderChips();
   renderGrid();
   renderLibrary();
+  renderSyncUI();
 }
 
 /* ================= Actions ================= */
@@ -870,6 +899,185 @@ async function importFiles(fileList) {
   }
 }
 
+/* ================= Cloud sync (private GitHub Gist) ================= */
+
+const SYNC_KEY = 'mastery_sync';
+const GIST_FILE = 'daily-mastery.json';
+const GIST_DESC = 'Daily Mastery sync data';
+
+let syncCfg = null; // { token, gistId }
+try { syncCfg = JSON.parse(localStorage.getItem(SYNC_KEY)); } catch (e) { /* ignore */ }
+let syncStatus = { state: 'off', lastSync: null, error: null }; // off | syncing | ok | error
+let syncTimer = null;
+
+function saveSyncCfg() { localStorage.setItem(SYNC_KEY, JSON.stringify(syncCfg)); }
+
+function ghFetch(path, opts = {}) {
+  return fetch('https://api.github.com' + path, {
+    cache: 'no-store', // GitHub API responses are cacheable for 60s — stale lists break gist discovery
+    ...opts,
+    headers: {
+      'Authorization': 'Bearer ' + syncCfg.token,
+      'Accept': 'application/vnd.github+json',
+      ...(opts.headers || {})
+    }
+  });
+}
+
+async function findOrCreateGist() {
+  if (syncCfg.gistId) {
+    const r = await ghFetch('/gists/' + syncCfg.gistId);
+    if (r.ok) return;
+    syncCfg.gistId = null; // stale id — fall through to search/create
+  }
+  const candidates = [];
+  for (let page = 1; page <= 5; page++) {
+    const r = await ghFetch(`/gists?per_page=100&page=${page}`);
+    if (!r.ok) throw new Error(r.status === 401 ? 'Invalid token' : 'GitHub error ' + r.status);
+    const gists = await r.json();
+    candidates.push(...gists.filter(g => g.files && g.files[GIST_FILE]));
+    if (gists.length < 100) break;
+  }
+  if (candidates.length) {
+    // if duplicates exist, prefer the one holding real data over an empty shell
+    candidates.sort((a, b) => b.files[GIST_FILE].size - a.files[GIST_FILE].size);
+    syncCfg.gistId = candidates[0].id;
+    saveSyncCfg();
+    return;
+  }
+  const r = await ghFetch('/gists', {
+    method: 'POST',
+    body: JSON.stringify({
+      description: GIST_DESC,
+      public: false,
+      files: { [GIST_FILE]: { content: JSON.stringify(data) } }
+    })
+  });
+  if (!r.ok) throw new Error(r.status === 401 ? 'Invalid token' : 'Could not create sync storage (' + r.status + ')');
+  const g = await r.json();
+  syncCfg.gistId = g.id;
+  saveSyncCfg();
+}
+
+async function pullRemote() {
+  const r = await ghFetch('/gists/' + syncCfg.gistId);
+  if (!r.ok) throw new Error('GitHub error ' + r.status);
+  const g = await r.json();
+  const f = g.files && g.files[GIST_FILE];
+  if (!f) return null;
+  const content = f.truncated ? await (await fetch(f.raw_url)).text() : f.content;
+  try {
+    const d = JSON.parse(content);
+    return (d && Array.isArray(d.books)) ? d : null;
+  } catch (e) { return null; }
+}
+
+async function pushRemote() {
+  const r = await ghFetch('/gists/' + syncCfg.gistId, {
+    method: 'PATCH',
+    body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(data) } } })
+  });
+  if (!r.ok) throw new Error('GitHub error ' + r.status);
+}
+
+// Whole-state last-write-wins; ticks resolved per day by their own timestamp so
+// unticking/resetting propagates, while a day's ticks are unioned when neither side is newer.
+function mergeRemote(remote) {
+  if (!remote) return;
+  const base = (data.updatedAt || 0) >= (remote.updatedAt || 0) ? data : remote;
+  const merged = { ...base };
+  const ls = data.tickStamp || {}, rs = remote.tickStamp || {};
+  const stamps = {};
+  const keys = [...new Set([...Object.keys(data), ...Object.keys(remote)])].filter(k => k.startsWith('ticks_'));
+  for (const k of keys) {
+    const day = k.slice('ticks_'.length);
+    const lt = ls[day] || 0, rt = rs[day] || 0;
+    if (lt === rt) merged[k] = [...new Set([...(data[k] || []), ...(remote[k] || [])])];
+    else merged[k] = (lt > rt ? data[k] : remote[k]) || [];
+    stamps[day] = Math.max(lt, rt);
+  }
+  merged.tickStamp = stamps;
+  data = merged;
+  localStorage.setItem(STORE_KEY, JSON.stringify(data)); // direct write: no save() to avoid re-scheduling sync
+}
+
+function scheduleSync() {
+  if (!syncCfg) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => syncNow(true), 3000);
+}
+
+async function syncNow(silent) {
+  if (!syncCfg || syncStatus.state === 'syncing') return;
+  syncStatus = { state: 'syncing', lastSync: syncStatus.lastSync, error: null };
+  renderSyncUI();
+  try {
+    await findOrCreateGist();
+    mergeRemote(await pullRemote());
+    await pushRemote();
+    syncStatus = { state: 'ok', lastSync: new Date(), error: null };
+    renderAll();
+    if (!silent) toast('Synced ✓');
+  } catch (e) {
+    syncStatus = { state: 'error', lastSync: syncStatus.lastSync, error: e.message };
+    renderSyncUI();
+    if (!silent) toast('Sync failed: ' + e.message);
+  }
+}
+
+async function connectSync(token) {
+  syncCfg = { token: token.trim(), gistId: null };
+  saveSyncCfg();
+  await syncNow(false);
+  if (syncStatus.state === 'error') {
+    syncCfg = null;
+    localStorage.removeItem(SYNC_KEY);
+    renderSyncUI();
+  }
+}
+
+function renderSyncUI() {
+  const box = $('sync-box');
+  if (!box) return;
+  if (!syncCfg) {
+    box.innerHTML = `
+      <p class="sync-note">Keep your library and daily ticks identical on every device. Data is stored in a
+        private Gist on your own GitHub account — nothing else sees it.
+        <a href="https://github.com/settings/tokens/new?scopes=gist&description=Daily+Mastery+Sync"
+           target="_blank" rel="noopener">Create an access token</a> (keep the pre-selected "gist" scope,
+        press Generate, copy it), then paste the same token on every device:</p>
+      <div class="sync-row">
+        <input type="password" id="sync-token" placeholder="ghp_…" autocomplete="off">
+        <button id="btn-sync-connect">Connect</button>
+      </div>`;
+    $('btn-sync-connect').onclick = () => {
+      const t = $('sync-token').value.trim();
+      if (!t) { toast('Paste your GitHub token first'); return; }
+      connectSync(t);
+    };
+  } else {
+    const when = syncStatus.lastSync
+      ? syncStatus.lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+    const line = syncStatus.state === 'syncing' ? '⏳ Syncing…'
+      : syncStatus.state === 'error' ? `<span class="sync-err">⚠ ${esc(syncStatus.error || 'Sync error')}</span>`
+      : `✓ Connected · last synced ${when}`;
+    box.innerHTML = `
+      <p class="sync-note">${line}</p>
+      <div class="sync-row">
+        <button id="btn-sync-now">Sync now</button>
+        <button id="btn-sync-off" class="danger">Disconnect</button>
+      </div>`;
+    $('btn-sync-now').onclick = () => syncNow(false);
+    $('btn-sync-off').onclick = () => {
+      syncCfg = null;
+      localStorage.removeItem(SYNC_KEY);
+      syncStatus = { state: 'off', lastSync: null, error: null };
+      renderSyncUI();
+      toast('Sync disconnected on this device');
+    };
+  }
+}
+
 /* ================= Toast ================= */
 
 let toastTimer = null;
@@ -928,6 +1136,7 @@ setInterval(() => {
 }, 60 * 1000);
 
 renderAll();
+if (syncCfg) syncNow(true);
 </script>
 </body>
 </html>
