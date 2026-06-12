@@ -483,6 +483,29 @@ function validTicks() {
 }
 
 const NEVER_TICKED = 9999;
+const SPOT_OVERRIDE_KEY = 'mastery_spot_override'; // local-only, not synced
+
+function getSpotOverride() {
+  try {
+    const o = JSON.parse(localStorage.getItem(SPOT_OVERRIDE_KEY));
+    return (o && o.day === currentDay) ? o : null;
+  } catch (e) { return null; }
+}
+
+function shuffleSpotlight() {
+  const all = allRules();
+  if (all.length < 2) return;
+  const cur = spotlightRule();
+  let pick;
+  do { pick = all[Math.floor(Math.random() * all.length)]; } while (cur && pick.uid === cur.uid);
+  localStorage.setItem(SPOT_OVERRIDE_KEY, JSON.stringify({ day: currentDay, uid: pick.uid }));
+  renderSpotlight();
+}
+
+function smartSpotlight() {
+  localStorage.removeItem(SPOT_OVERRIDE_KEY);
+  renderSpotlight();
+}
 
 // Smart spotlight: surface the rule that has gone unticked the longest.
 // Selection only looks at history before today, so it stays stable all day
@@ -501,6 +524,12 @@ function spotlightRule() {
     for (const uid of data[k] || []) {
       if (!(uid in lastTicked) || dn > lastTicked[uid]) lastTicked[uid] = dn;
     }
+  }
+
+  const o = getSpotOverride();
+  if (o) {
+    const hit = all.find(r => r.uid === o.uid);
+    if (hit) return { ...hit, score: -1, random: true };
   }
 
   let best = [], bestScore = -1;
@@ -549,7 +578,8 @@ function renderSpotlight() {
   const box = $('spotlight-box');
   if (!spot) { box.innerHTML = ''; return; }
   const done = isDone(spot.uid);
-  const why = spot.score >= NEVER_TICKED ? 'never ticked yet'
+  const why = spot.random ? 'random pick'
+    : spot.score >= NEVER_TICKED ? 'never ticked yet'
     : spot.score === 1 ? 'last done yesterday'
     : `not done in ${spot.score} days`;
   box.innerHTML = `
@@ -560,10 +590,14 @@ function renderSpotlight() {
       <div class="std">${esc(spot.rule.standard)}</div>
       <div class="spot-actions">
         <button id="spot-jump">Jump to rule ↓</button>
+        <button id="spot-shuffle" title="Show a random rule instead">🎲</button>
+        ${spot.random ? '<button id="spot-smart" title="Back to the rule picked for you">★ Smart pick</button>' : ''}
         <button class="tick ${done ? 'on' : ''}" id="spot-tick" title="Mark done">✓</button>
       </div>
     </div>`;
   $('spot-jump').onclick = () => jumpTo(spot.uid);
+  $('spot-shuffle').onclick = shuffleSpotlight;
+  if (spot.random) $('spot-smart').onclick = smartSpotlight;
   $('spot-tick').onclick = () => toggleTick(spot.uid);
 }
 
