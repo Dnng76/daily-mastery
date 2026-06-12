@@ -368,6 +368,8 @@
   <div class="toolbar">
     <input type="search" id="search" placeholder="Search rules…" autocomplete="off">
     <button id="btn-random" title="Pick a random undone rule">🎲 Random</button>
+    <button id="btn-mix" title="Shuffle the order of the cards">🔀 Mix</button>
+    <button id="btn-order" title="Back to rule-number order" hidden>1→50 Order</button>
     <button id="btn-import">＋ Add PDF</button>
     <button id="btn-library" class="icon-btn" title="Library">📚</button>
     <button id="btn-reset" class="icon-btn danger" title="Reset today's ticks">↺</button>
@@ -620,9 +622,48 @@ function renderChips() {
   }
 }
 
+// Optional shuffled card order — per device, persists until "Order" is pressed
+const MIX_KEY = 'mastery_mix_order';
+let mixOrder = null;
+try { mixOrder = JSON.parse(localStorage.getItem(MIX_KEY)); } catch (e) { /* ignore */ }
+
+function applyMix(rules) {
+  if (!Array.isArray(mixOrder)) return rules;
+  const pos = new Map(mixOrder.map((uid, i) => [uid, i]));
+  // rules not in the stored order (e.g. newly imported) keep their place at the end
+  return [...rules].sort((a, b) =>
+    (pos.has(a.uid) ? pos.get(a.uid) : Infinity) - (pos.has(b.uid) ? pos.get(b.uid) : Infinity));
+}
+
+function updateMixButtons() {
+  const mixed = Array.isArray(mixOrder);
+  $('btn-order').hidden = !mixed;
+  $('btn-mix').textContent = mixed ? '🔀 Re-mix' : '🔀 Mix';
+}
+
+function mixCards() {
+  const uids = allRules().map(r => r.uid);
+  for (let i = uids.length - 1; i > 0; i--) {   // Fisher–Yates
+    const j = Math.floor(Math.random() * (i + 1));
+    [uids[i], uids[j]] = [uids[j], uids[i]];
+  }
+  mixOrder = uids;
+  localStorage.setItem(MIX_KEY, JSON.stringify(mixOrder));
+  updateMixButtons();
+  renderGrid();
+  toast('Cards mixed — press "1→50 Order" to restore');
+}
+
+function orderCards() {
+  mixOrder = null;
+  localStorage.removeItem(MIX_KEY);
+  updateMixButtons();
+  renderGrid();
+}
+
 function visibleRules() {
   const term = searchTerm.trim().toLowerCase();
-  return allRules().filter(({ book, rule, uid }) => {
+  return applyMix(allRules()).filter(({ book, rule, uid }) => {
     if (filter === 'todo' && isDone(uid)) return false;
     if (filter === 'done' && !isDone(uid)) return false;
     if (filter !== 'all' && filter !== 'todo' && filter !== 'done' && book.id !== filter) return false;
@@ -1161,6 +1202,9 @@ $('search').addEventListener('input', (e) => {
   renderGrid();
 });
 $('btn-random').onclick = randomRule;
+$('btn-mix').onclick = mixCards;
+$('btn-order').onclick = orderCards;
+updateMixButtons();
 $('btn-reset').onclick = resetToday;
 $('btn-import').onclick = () => $('file-input').click();
 $('btn-modal-import').onclick = () => $('file-input').click();
