@@ -436,12 +436,15 @@ function uuid() {
     : 'b-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9);
 }
 
-function todayKey() {
-  const d = new Date();
+function dateKey(d) {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${m}-${day}`;
 }
+
+function todayKey() { return dateKey(new Date()); }
+
+const HISTORY_DAYS = 60; // how long tick history is kept (drives the smart spotlight)
 
 let currentDay = todayKey();
 
@@ -450,9 +453,10 @@ function getTicks() { return data[ticksKey()] || []; }
 function setTicks(arr) {
   data[ticksKey()] = arr;
   data.tickStamp = { [currentDay]: Date.now() }; // per-day timestamp drives sync conflict resolution
-  // prune tick records from previous days
+  // keep history (for the smart spotlight), but prune anything older than HISTORY_DAYS
+  const cutoff = dateKey(new Date(Date.now() - HISTORY_DAYS * 86400000));
   for (const k of Object.keys(data)) {
-    if (k.startsWith('ticks_') && k !== ticksKey()) delete data[k];
+    if (k.startsWith('ticks_') && k.slice(6) < cutoff) delete data[k];
   }
   save();
 }
@@ -478,11 +482,35 @@ function validTicks() {
   return getTicks().filter(u => uids.has(u));
 }
 
+const NEVER_TICKED = 9999;
+
+// Smart spotlight: surface the rule that has gone unticked the longest.
+// Selection only looks at history before today, so it stays stable all day
+// and is identical on every synced device. Ties rotate by date.
 function spotlightRule() {
   const all = allRules();
   if (!all.length) return null;
   const dayN = Math.floor(Date.parse(currentDay + 'T00:00:00') / 86400000);
-  return all[dayN % all.length];
+
+  const lastTicked = {}; // uid -> day number of most recent past tick
+  for (const k of Object.keys(data)) {
+    if (!k.startsWith('ticks_')) continue;
+    const day = k.slice(6);
+    if (day >= currentDay) continue;
+    const dn = Math.floor(Date.parse(day + 'T00:00:00') / 86400000);
+    for (const uid of data[k] || []) {
+      if (!(uid in lastTicked) || dn > lastTicked[uid]) lastTicked[uid] = dn;
+    }
+  }
+
+  let best = [], bestScore = -1;
+  for (const r of all) {
+    const score = (r.uid in lastTicked) ? Math.min(dayN - lastTicked[r.uid], NEVER_TICKED) : NEVER_TICKED;
+    if (score > bestScore) { bestScore = score; best = [r]; }
+    else if (score === bestScore) best.push(r);
+  }
+  const pick = best[dayN % best.length];
+  return { ...pick, score: bestScore };
 }
 
 /* ================= UI state ================= */
@@ -521,9 +549,12 @@ function renderSpotlight() {
   const box = $('spotlight-box');
   if (!spot) { box.innerHTML = ''; return; }
   const done = isDone(spot.uid);
+  const why = spot.score >= NEVER_TICKED ? 'never ticked yet'
+    : spot.score === 1 ? 'last done yesterday'
+    : `not done in ${spot.score} days`;
   box.innerHTML = `
     <div class="spotlight" style="border-left-color:${spot.book.color}">
-      <div class="kicker">★ Today's Spotlight</div>
+      <div class="kicker">★ Today's Spotlight · ${why}</div>
       ${bookTag(spot.book)}
       <h2>Rule ${spot.rule.n} — ${esc(spot.rule.title)}</h2>
       <div class="std">${esc(spot.rule.standard)}</div>
