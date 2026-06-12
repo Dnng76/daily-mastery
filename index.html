@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Mastery</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --surface: #131316;
+    --surface-2: #1b1b20;
+    --border: #26262c;
+    --text: #e8e8ea;
+    --text-dim: #8b8b93;
+    --text-faint: #5a5a62;
+    --green: #2ecc71;
+    --green-dim: #1d7a47;
+    --red: #e05252;
+    --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+    padding-bottom: 80px;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+
+  /* ---------- Header ---------- */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 0 20px;
+  }
+  header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+  header h1 span { color: var(--text-faint); font-weight: 400; }
+  .day-left { font-size: 0.72rem; color: var(--text-faint); margin-top: 2px; }
+  .day-left.urgent { color: var(--red); }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+
+  /* Progress ring */
+  .ring-box { display: flex; align-items: center; gap: 10px; }
+  .ring { width: 48px; height: 48px; }
+  .ring circle { fill: none; stroke-width: 4; }
+  .ring .track { stroke: var(--surface-2); }
+  .ring .bar {
+    stroke: var(--green);
+    stroke-linecap: round;
+    transform: rotate(-90deg);
+    transform-origin: center;
+    transition: stroke-dashoffset 0.4s ease;
+  }
+  .ring text {
+    fill: var(--text);
+    font-size: 11px;
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+  .ring-label { font-size: 0.72rem; color: var(--text-dim); line-height: 1.3; }
+
+  /* ---------- Buttons ---------- */
+  button {
+    font: inherit;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    transition: background 0.15s, border-color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:hover { background: var(--surface-2); }
+  button.danger { color: var(--red); border-color: #3a2424; }
+  button.danger:hover { background: #241616; }
+  button.icon-btn { padding: 8px 10px; }
+
+  /* ---------- Toolbar ---------- */
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .toolbar input[type="search"] {
+    flex: 1 1 180px;
+    min-width: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 8px 12px;
+    font: inherit;
+    font-size: 0.85rem;
+    outline: none;
+  }
+  .toolbar input[type="search"]:focus { border-color: var(--text-faint); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+  .chip {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    border-radius: 999px;
+    padding: 5px 13px;
+    font-size: 0.78rem;
+  }
+  .chip.active { color: var(--bg); font-weight: 600; }
+  .chip.active.neutral { background: var(--text); border-color: var(--text); }
+
+  /* ---------- Spotlight ---------- */
+  .spotlight {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--green);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 22px;
+  }
+  .spotlight .kicker {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 8px;
+  }
+  .spotlight h2 { font-size: 1.15rem; margin: 4px 0 8px; letter-spacing: -0.01em; }
+  .spotlight .std { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 12px; }
+  .spotlight .spot-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* ---------- Book tag ---------- */
+  .book-tag {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 2px 9px;
+    border-radius: 999px;
+    color: var(--bg);
+  }
+
+  /* ---------- Grid & cards ---------- */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  @media (min-width: 560px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 880px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    border-left-width: 4px;
+  }
+  .card:hover { background: var(--surface-2); }
+  .card.done { opacity: 0.55; }
+  .card.done .card-title { text-decoration: line-through; text-decoration-color: var(--text-faint); }
+  .card.flash { animation: flash 1.6s ease; }
+  @keyframes flash {
+    0%, 60% { border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
+    100% { box-shadow: none; }
+  }
+  .card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .card-top-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .rule-n { font-size: 0.72rem; color: var(--text-faint); font-weight: 600; white-space: nowrap; }
+  .card-title { font-size: 0.95rem; font-weight: 600; letter-spacing: -0.01em; }
+
+  .tick {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    border: 1.5px solid var(--text-faint);
+    background: transparent;
+    color: transparent;
+    font-size: 0.95rem;
+    line-height: 1;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tick:hover { border-color: var(--green); background: transparent; }
+  .tick.on { background: var(--green); border-color: var(--green); color: var(--bg); }
+
+  .card-body { display: none; margin-top: 12px; font-size: 0.84rem; }
+  .card.open .card-body { display: block; }
+  .card-body h4 {
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 12px 0 5px;
+  }
+  .card-body h4:first-child { margin-top: 0; }
+  .card-body h4.gain-h { color: var(--green); }
+  .card-body h4.lose-h { color: var(--red); }
+  .card-body ul { list-style: none; }
+  .card-body li {
+    color: var(--text-dim);
+    padding-left: 14px;
+    position: relative;
+    margin-bottom: 3px;
+  }
+  .card-body li::before { content: "–"; position: absolute; left: 0; color: var(--text-faint); }
+  .card-body .para { color: var(--text-dim); }
+  .card-body .standard-text {
+    color: var(--text);
+    font-weight: 500;
+    background: var(--surface-2);
+    border-radius: 8px;
+    padding: 9px 11px;
+  }
+
+  /* ---------- Empty / drop zone ---------- */
+  .empty {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 48px 20px;
+    text-align: center;
+    color: var(--text-dim);
+    margin-top: 10px;
+  }
+  .empty strong { color: var(--text); display: block; font-size: 1.05rem; margin-bottom: 6px; }
+  .empty p { font-size: 0.85rem; margin-bottom: 16px; }
+
+  .drop-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 10, 12, 0.92);
+    border: 3px dashed var(--green);
+    border-radius: 16px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--green);
+    pointer-events: none;
+  }
+  body.dragging .drop-overlay { display: flex; }
+
+  /* ---------- Modal (library) ---------- */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 50;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    width: 100%;
+    max-width: 520px;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 20px;
+  }
+  @media (min-width: 560px) {
+    .modal-backdrop.show { align-items: center; }
+    .modal { border-radius: 16px; }
+  }
+  .modal h3 { font-size: 1.05rem; margin-bottom: 14px; }
+  .book-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .book-row:last-of-type { border-bottom: none; }
+  .book-row-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .book-dot { width: 12px; height: 12px; border-radius: 999px; flex-shrink: 0; }
+  .book-row-name { font-size: 0.9rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .book-row-meta { font-size: 0.72rem; color: var(--text-faint); }
+  .modal-footer { margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* ---------- Toast ---------- */
+  #toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    z-index: 200;
+    transition: transform 0.25s ease;
+    max-width: 90vw;
+    text-align: center;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  .section-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 4px 0 10px;
+  }
+  .count-note { font-size: 0.78rem; color: var(--text-faint); margin: 14px 0 0; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="drop-overlay">Drop PDF to add to library</div>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Daily Mastery <span id="date-label"></span></h1>
+      <div class="day-left" id="countdown"></div>
+    </div>
+    <div class="header-right">
+      <div class="ring-box">
+        <svg class="ring" viewBox="0 0 48 48">
+          <circle class="track" cx="24" cy="24" r="20"></circle>
+          <circle class="bar" id="ring-bar" cx="24" cy="24" r="20"></circle>
+          <text id="ring-text" x="24" y="24">0</text>
+        </svg>
+        <div class="ring-label" id="ring-label">0 / 0<br>done today</div>
+      </div>
+    </div>
+  </header>
+
+  <div id="spotlight-box"></div>
+
+  <div class="toolbar">
+    <input type="search" id="search" placeholder="Search rules…" autocomplete="off">
+    <button id="btn-random" title="Pick a random undone rule">🎲 Random</button>
+    <button id="btn-import">＋ Add PDF</button>
+    <button id="btn-library" class="icon-btn" title="Library">📚</button>
+    <button id="btn-reset" class="icon-btn danger" title="Reset today's ticks">↺</button>
+  </div>
+
+  <div class="chips" id="chips"></div>
+
+  <div class="grid" id="grid"></div>
+  <div id="empty-box"></div>
+  <p class="count-note" id="count-note"></p>
+</div>
+
+<div class="modal-backdrop" id="library-modal">
+  <div class="modal">
+    <h3>📚 Library</h3>
+    <div id="book-list"></div>
+    <div class="modal-footer">
+      <button id="btn-modal-import">＋ Add PDF</button>
+      <button id="btn-modal-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept="application/pdf,.pdf" multiple hidden>
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* ================= Storage ================= */
+
+const STORE_KEY = 'mastery_data';
+
+const PALETTE = [
+  '#1D9E75', '#4F8EF7', '#E0A53C', '#C75FC1',
+  '#E06552', '#54B8C7', '#8E7CF0', '#9CB23E',
+  '#E0708F', '#5FA8E0'
+];
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (d && Array.isArray(d.books)) return d;
+    }
+  } catch (e) { /* corrupted store — start fresh */ }
+  return { books: [] };
+}
+
+let data = load();
+
+function save() {
+  localStorage.setItem(STORE_KEY, JSON.stringify(data));
+}
+
+function uuid() {
+  return (crypto.randomUUID) ? crypto.randomUUID()
+    : 'b-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9);
+}
+
+function todayKey() {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+let currentDay = todayKey();
+
+function ticksKey() { return 'ticks_' + currentDay; }
+function getTicks() { return data[ticksKey()] || []; }
+function setTicks(arr) {
+  data[ticksKey()] = arr;
+  // prune tick records from previous days
+  for (const k of Object.keys(data)) {
+    if (k.startsWith('ticks_') && k !== ticksKey()) delete data[k];
+  }
+  save();
+}
+
+/* ================= Derived state ================= */
+
+// Flat ordered list of every rule across every book
+function allRules() {
+  const out = [];
+  for (const book of data.books) {
+    for (const rule of book.rules) {
+      out.push({ book, rule, uid: book.id + ':' + rule.n });
+    }
+  }
+  return out;
+}
+
+function isDone(uid) { return getTicks().includes(uid); }
+
+function spotlightRule() {
+  const all = allRules();
+  if (!all.length) return null;
+  const dayN = Math.floor(Date.parse(currentDay + 'T00:00:00') / 86400000);
+  return all[dayN % all.length];
+}
+
+/* ================= UI state ================= */
+
+let filter = 'all';        // 'all' | 'todo' | 'done' | book id
+let searchTerm = '';
+const expanded = new Set();
+
+/* ================= Rendering ================= */
+
+const $ = (id) => document.getElementById(id);
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function bookTag(book) {
+  return `<span class="book-tag" style="background:${book.color}">${esc(book.name)}</span>`;
+}
+
+function renderProgress() {
+  const total = allRules().length;
+  const done = getTicks().length;
+  const pct = total ? Math.round(done / total * 100) : 0;
+  const r = 20, circ = 2 * Math.PI * r;
+  const bar = $('ring-bar');
+  bar.style.strokeDasharray = circ;
+  bar.style.strokeDashoffset = total ? circ * (1 - done / total) : circ;
+  $('ring-text').textContent = pct + '%';
+  $('ring-label').innerHTML = `${done} / ${total}<br>done today`;
+}
+
+function renderSpotlight() {
+  const spot = spotlightRule();
+  const box = $('spotlight-box');
+  if (!spot) { box.innerHTML = ''; return; }
+  const done = isDone(spot.uid);
+  box.innerHTML = `
+    <div class="spotlight" style="border-left-color:${spot.book.color}">
+      <div class="kicker">★ Today's Spotlight</div>
+      ${bookTag(spot.book)}
+      <h2>Rule ${spot.rule.n} — ${esc(spot.rule.title)}</h2>
+      <div class="std">${esc(spot.rule.standard)}</div>
+      <div class="spot-actions">
+        <button id="spot-jump">Jump to rule ↓</button>
+        <button class="tick ${done ? 'on' : ''}" id="spot-tick" title="Mark done">✓</button>
+      </div>
+    </div>`;
+  $('spot-jump').onclick = () => jumpTo(spot.uid);
+  $('spot-tick').onclick = () => toggleTick(spot.uid);
+}
+
+function renderChips() {
+  const chips = [
+    { id: 'all', label: 'All' },
+    { id: 'todo', label: 'To Do' },
+    { id: 'done', label: 'Done' },
+    ...data.books.map(b => ({ id: b.id, label: b.name, color: b.color }))
+  ];
+  $('chips').innerHTML = chips.map(c => {
+    const active = filter === c.id;
+    const style = (active && c.color)
+      ? `style="background:${c.color};border-color:${c.color}"` : '';
+    return `<button class="chip ${active ? 'active' : ''} ${c.color ? '' : 'neutral'}"
+      data-filter="${c.id}" ${style}>${esc(c.label)}</button>`;
+  }).join('');
+  for (const el of $('chips').querySelectorAll('.chip')) {
+    el.onclick = () => { filter = el.dataset.filter; renderAll(); };
+  }
+}
+
+function visibleRules() {
+  const term = searchTerm.trim().toLowerCase();
+  return allRules().filter(({ book, rule, uid }) => {
+    if (filter === 'todo' && isDone(uid)) return false;
+    if (filter === 'done' && !isDone(uid)) return false;
+    if (filter !== 'all' && filter !== 'todo' && filter !== 'done' && book.id !== filter) return false;
+    if (term) {
+      const hay = (rule.title + ' ' + rule.standard).toLowerCase();
+      if (!hay.includes(term)) return false;
+    }
+    return true;
+  });
+}
+
+function renderGrid() {
+  const rules = visibleRules();
+  const total = allRules().length;
+
+  if (!total) {
+    $('grid').innerHTML = '';
+    $('empty-box').innerHTML = `
+      <div class="empty">
+        <strong>Your library is empty</strong>
+        <p>Drop a rules PDF anywhere on this page, or pick a file to import your first book.</p>
+        <button onclick="document.getElementById('file-input').click()">＋ Import a PDF</button>
+      </div>`;
+    $('count-note').textContent = '';
+    return;
+  }
+
+  $('empty-box').innerHTML = '';
+  $('grid').innerHTML = rules.map(({ book, rule, uid }) => {
+    const done = isDone(uid);
+    const open = expanded.has(uid);
+    return `
+    <div class="card ${done ? 'done' : ''} ${open ? 'open' : ''}"
+         id="card-${cssId(uid)}" data-uid="${uid}" style="border-left-color:${book.color}">
+      <div class="card-top">
+        <div class="card-top-left">
+          ${bookTag(book)}
+          <span class="rule-n">RULE ${rule.n}</span>
+        </div>
+        <button class="tick ${done ? 'on' : ''}" data-tick="${uid}" title="Mark done">✓</button>
+      </div>
+      <div class="card-title">${esc(rule.title)}</div>
+      <div class="card-body">
+        ${rule.gain.length ? `<h4 class="gain-h">What you gain</h4>
+          <ul>${rule.gain.map(g => `<li>${esc(g)}</li>`).join('')}</ul>` : ''}
+        ${rule.lose.length ? `<h4 class="lose-h">What you lose if you ignore this</h4>
+          <ul>${rule.lose.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
+        ${rule.reality ? `<h4>Reality Check</h4>
+          <p class="para">${esc(rule.reality)}</p>` : ''}
+        ${rule.choice ? `<h4>The Choice</h4>
+          <p class="para">${esc(rule.choice)}</p>` : ''}
+        ${rule.standard ? `<h4>The Standard</h4>
+          <div class="standard-text">${esc(rule.standard)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  $('count-note').textContent = rules.length === total
+    ? `${total} rules · ${data.books.length} book${data.books.length === 1 ? '' : 's'}`
+    : `Showing ${rules.length} of ${total} rules`;
+
+  for (const card of $('grid').querySelectorAll('.card')) {
+    card.onclick = (e) => {
+      if (e.target.closest('[data-tick]')) return;
+      const uid = card.dataset.uid;
+      expanded.has(uid) ? expanded.delete(uid) : expanded.add(uid);
+      card.classList.toggle('open');
+    };
+  }
+  for (const btn of $('grid').querySelectorAll('[data-tick]')) {
+    btn.onclick = (e) => { e.stopPropagation(); toggleTick(btn.dataset.tick); };
+  }
+}
+
+function cssId(uid) { return uid.replace(/[^a-zA-Z0-9_-]/g, '_'); }
+
+function renderLibrary() {
+  const list = $('book-list');
+  if (!data.books.length) {
+    list.innerHTML = `<p style="color:var(--text-dim);font-size:0.85rem">No books imported yet.</p>`;
+    return;
+  }
+  list.innerHTML = data.books.map(b => `
+    <div class="book-row">
+      <div class="book-row-left">
+        <span class="book-dot" style="background:${b.color}"></span>
+        <div>
+          <div class="book-row-name">${esc(b.name)}</div>
+          <div class="book-row-meta">${b.rules.length} rules · imported ${esc(b.importedAt)}</div>
+        </div>
+      </div>
+      <button class="danger" data-remove="${b.id}">Remove</button>
+    </div>`).join('');
+  for (const btn of list.querySelectorAll('[data-remove]')) {
+    btn.onclick = () => removeBook(btn.dataset.remove);
+  }
+}
+
+function renderCountdown() {
+  const now = new Date();
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const mins = Math.max(0, Math.floor((midnight - now) / 60000));
+  const h = Math.floor(mins / 60), m = mins % 60;
+  const el = $('countdown');
+  const undone = allRules().length - getTicks().length;
+  el.textContent = (h ? `${h}h ${m}m` : `${m}m`) + ' left today' +
+    (undone > 0 ? ` · ${undone} to go` : ' · all done 🎉');
+  el.classList.toggle('urgent', h < 2 && undone > 0);
+}
+
+function renderAll() {
+  checkDayRollover();
+  $('date-label').textContent = '· ' + currentDay;
+  renderCountdown();
+  renderProgress();
+  renderSpotlight();
+  renderChips();
+  renderGrid();
+  renderLibrary();
+}
+
+/* ================= Actions ================= */
+
+function toggleTick(uid) {
+  const ticks = getTicks();
+  const i = ticks.indexOf(uid);
+  if (i >= 0) ticks.splice(i, 1); else ticks.push(uid);
+  setTicks(ticks);
+  renderAll();
+}
+
+function jumpTo(uid) {
+  expanded.add(uid);
+  renderGrid();
+  const el = $('card-' + cssId(uid));
+  if (!el) { toast('Rule is hidden by the current filter'); return; }
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.remove('flash');
+  void el.offsetWidth;
+  el.classList.add('flash');
+}
+
+function randomRule() {
+  const undone = allRules().filter(r => !isDone(r.uid));
+  if (!undone.length) { toast(allRules().length ? 'Everything is done today 🎉' : 'Library is empty'); return; }
+  const pick = undone[Math.floor(Math.random() * undone.length)];
+  // make sure it's visible
+  if (filter === 'done' || (filter !== 'all' && filter !== 'todo' && filter !== pick.book.id)) {
+    filter = 'all';
+  }
+  searchTerm = '';
+  $('search').value = '';
+  renderAll();
+  jumpTo(pick.uid);
+}
+
+function removeBook(id) {
+  const book = data.books.find(b => b.id === id);
+  if (!book) return;
+  if (!confirm(`Remove "${book.name}" and its ${book.rules.length} rules?`)) return;
+  data.books = data.books.filter(b => b.id !== id);
+  setTicks(getTicks().filter(uid => !uid.startsWith(id + ':')));
+  if (filter === id) filter = 'all';
+  save();
+  renderAll();
+  toast(`Removed "${book.name}"`);
+}
+
+function resetToday() {
+  if (!getTicks().length) { toast('Nothing ticked today yet'); return; }
+  if (!confirm("Reset all of today's ticks?")) return;
+  setTicks([]);
+  renderAll();
+  toast("Today's ticks reset");
+}
+
+function checkDayRollover() {
+  const now = todayKey();
+  if (now !== currentDay) {
+    currentDay = now; // ticks key changes → fresh day, old keys pruned on next tick
+  }
+}
+
+/* ================= PDF parsing ================= */
+
+const GAIN_RE    = /^WHAT\s+YOU\s+GAIN/i;
+const LOSE_RE    = /^WHAT\s+YOU\s+LOSE/i;
+const REALITY_RE = /^REALITY\s+CHECK/i;
+const CHOICE_RE  = /^THE\s+CHOICE/i;
+const STD_RE     = /^THE\s+STANDARD/i;
+const RULE_RE    = /^RULE\s+(\d+)/i;
+// lines that are only a bullet marker (+, ✗, ×, •, dash …) or page furniture
+const MARKER_ONLY_RE = /^[+xX•▪●○◦‣·\-–—*✗✘×✕✖�\s]{1,3}$/;
+const FURNITURE_RE   = /^(\d+|\d+\s+of\s+\d+|MASTERY\s+RULES)$/i;
+
+async function extractPageLines(page) {
+  const content = await page.getTextContent();
+  // Group text items into lines by their y coordinate
+  const lines = [];
+  for (const item of content.items) {
+    if (!item.str || !item.str.trim()) continue;
+    const y = item.transform[5];
+    const x = item.transform[4];
+    let line = lines.find(l => Math.abs(l.y - y) < 3);
+    if (!line) { line = { y, parts: [] }; lines.push(line); }
+    line.parts.push({ x, str: item.str });
+  }
+  lines.sort((a, b) => b.y - a.y); // top of page first
+  return lines.map(l =>
+    l.parts.sort((a, b) => a.x - b.x).map(p => p.str).join(' ')
+      .replace(/\s+/g, ' ').trim()
+  ).filter(Boolean);
+}
+
+function stripBullet(line) {
+  return line.replace(/^[+•▪●○◦‣·\-–—*✗✘×✕✖�]+\s*/, '').trim();
+}
+
+function parseRuleFromLines(lines) {
+  let n = null, title = '';
+  const gain = [], lose = [], reality = [], choice = [], stdParts = [];
+  let section = 'pre'; // pre | title | gain | lose | reality | choice | std
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line || FURNITURE_RE.test(line)) continue;
+
+    if (section === 'pre') {
+      const m = line.match(RULE_RE);
+      if (m) {
+        n = parseInt(m[1], 10);
+        // title may share the line: "RULE 4 — Fit is king"
+        const rest = line.replace(RULE_RE, '').replace(/^[\s:—–\-.]+/, '').trim();
+        if (rest) title = rest;
+        section = 'title';
+      }
+      continue;
+    }
+    if (GAIN_RE.test(line))    { section = 'gain';    continue; }
+    if (LOSE_RE.test(line))    { section = 'lose';    continue; }
+    if (REALITY_RE.test(line)) { section = 'reality'; continue; }
+    if (CHOICE_RE.test(line))  { section = 'choice';  continue; }
+    if (STD_RE.test(line))     { section = 'std';     continue; }
+    if (MARKER_ONLY_RE.test(line)) continue; // bullet glyph on its own line
+
+    switch (section) {
+      case 'title':   title = title ? title + ' ' + stripBullet(line) : stripBullet(line); break;
+      case 'gain':    gain.push(stripBullet(line)); break;
+      case 'lose':    lose.push(stripBullet(line)); break;
+      case 'reality': reality.push(line); break;
+      case 'choice':  choice.push(line); break;
+      case 'std':     stdParts.push(line); break;
+    }
+  }
+
+  if (n === null || !title) return null;
+  return {
+    n, title, gain, lose,
+    reality: reality.join(' ').trim(),
+    choice: choice.join(' ').trim(),
+    standard: stdParts.join(' ').trim()
+  };
+}
+
+function titleCase(s) {
+  return s.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());
+}
+
+function bookNameFromFile(filename, coverLines) {
+  // Prefer the cover page title (first content line that isn't series boilerplate);
+  // coverLines is only passed when page 1 contained no rule.
+  if (coverLines) {
+    const cand = coverLines.find(l => {
+      const t = l.trim();
+      return t && !FURNITURE_RE.test(t) && !/^(MASTERY|RULES)$/i.test(t) && !RULE_RE.test(t);
+    });
+    if (cand && cand.length <= 40) {
+      return cand === cand.toUpperCase() ? titleCase(cand) : cand;
+    }
+  }
+  const name = filename.replace(/\.pdf$/i, '').replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return name || 'Untitled Book';
+}
+
+async function importPdf(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+
+  const rules = [];
+  let coverLines = null; // page-1 lines, kept only if page 1 is a cover (no rule on it)
+  for (let p = 1; p <= pdf.numPages; p++) {
+    try {
+      const page = await pdf.getPage(p);
+      const lines = await extractPageLines(page);
+      const rule = parseRuleFromLines(lines);
+      if (p === 1 && !rule) coverLines = lines;
+      if (rule) rules.push(rule);
+    } catch (e) {
+      // skip unparseable page gracefully
+      console.warn(`Skipped page ${p} of ${file.name}:`, e);
+    }
+  }
+
+  if (!rules.length) {
+    toast(`No rules found in "${file.name}" — check the PDF format`);
+    return false;
+  }
+
+  data.books.push({
+    id: uuid(),
+    name: bookNameFromFile(file.name, coverLines),
+    color: PALETTE[data.books.length % PALETTE.length],
+    importedAt: todayKey(),
+    rules
+  });
+  save();
+  return rules.length;
+}
+
+async function importFiles(fileList) {
+  const files = [...fileList].filter(f =>
+    f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+  if (!files.length) { toast('Drop a PDF file'); return; }
+
+  let added = 0, books = 0;
+  for (const f of files) {
+    try {
+      const count = await importPdf(f);
+      if (count) { added += count; books++; }
+    } catch (e) {
+      console.error(e);
+      toast(`Couldn't read "${f.name}"`);
+    }
+  }
+  if (books) {
+    renderAll();
+    toast(`Imported ${added} rule${added === 1 ? '' : 's'} from ${books} book${books === 1 ? '' : 's'}`);
+  }
+}
+
+/* ================= Toast ================= */
+
+let toastTimer = null;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+/* ================= Wiring ================= */
+
+$('search').addEventListener('input', (e) => {
+  searchTerm = e.target.value;
+  renderGrid();
+});
+$('btn-random').onclick = randomRule;
+$('btn-reset').onclick = resetToday;
+$('btn-import').onclick = () => $('file-input').click();
+$('btn-modal-import').onclick = () => $('file-input').click();
+$('file-input').addEventListener('change', (e) => {
+  importFiles(e.target.files);
+  e.target.value = '';
+});
+
+$('btn-library').onclick = () => $('library-modal').classList.add('show');
+$('btn-modal-close').onclick = () => $('library-modal').classList.remove('show');
+$('library-modal').addEventListener('click', (e) => {
+  if (e.target === $('library-modal')) $('library-modal').classList.remove('show');
+});
+
+// Drag & drop anywhere on the page
+let dragDepth = 0;
+document.addEventListener('dragenter', (e) => {
+  e.preventDefault();
+  dragDepth++;
+  document.body.classList.add('dragging');
+});
+document.addEventListener('dragleave', () => {
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) document.body.classList.remove('dragging');
+});
+document.addEventListener('dragover', (e) => e.preventDefault());
+document.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  document.body.classList.remove('dragging');
+  if (e.dataTransfer && e.dataTransfer.files.length) importFiles(e.dataTransfer.files);
+});
+
+// Tick the countdown every minute; full re-render at day rollover
+setInterval(() => {
+  if (todayKey() !== currentDay) renderAll();
+  else renderCountdown();
+}, 60 * 1000);
+
+renderAll();
+</script>
+</body>
+</html>
