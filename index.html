@@ -17,6 +17,8 @@
     --green: #2ecc71;
     --green-dim: #1d7a47;
     --red: #e05252;
+    --amber: #e0a53c;
+    --cyan: #54b8c7;
     --radius: 12px;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -207,6 +209,8 @@
   .card-body h4:first-child { margin-top: 0; }
   .card-body h4.gain-h { color: var(--green); }
   .card-body h4.lose-h { color: var(--red); }
+  .card-body h4.reality-h { color: var(--amber); }
+  .card-body h4.choice-h { color: var(--cyan); }
   .card-body ul { list-style: none; }
   .card-body li {
     color: var(--text-dim);
@@ -711,9 +715,9 @@ function renderGrid() {
           <ul>${rule.gain.map(g => `<li>${esc(g)}</li>`).join('')}</ul>` : ''}
         ${rule.lose.length ? `<h4 class="lose-h">What you lose if you ignore this</h4>
           <ul>${rule.lose.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
-        ${rule.reality ? `<h4>Reality Check</h4>
+        ${rule.reality ? `<h4 class="reality-h">Reality Check</h4>
           <p class="para">${esc(rule.reality)}</p>` : ''}
-        ${rule.choice ? `<h4>The Choice</h4>
+        ${rule.choice ? `<h4 class="choice-h">The Choice</h4>
           <p class="para">${esc(rule.choice)}</p>` : ''}
         ${rule.standard ? `<h4>The Standard</h4>
           <div class="standard-text">${esc(rule.standard)}</div>` : ''}
