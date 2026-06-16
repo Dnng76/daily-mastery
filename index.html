@@ -14,6 +14,9 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <style>
   :root {
     --bg: #0a0a0c;
@@ -311,6 +314,24 @@
   .sync-note a { color: var(--green); }
   .sync-err { color: var(--red); }
   .sync-row { display: flex; gap: 8px; }
+  .gbtn {
+    display: inline-flex;
+    align-items: center;
+    background: #fff;
+    color: #1f1f1f;
+    border: none;
+    font-weight: 600;
+    padding: 9px 16px;
+  }
+  .gbtn:hover { background: #f1f1f1; }
+  .gbtn .gmark {
+    font-weight: 700;
+    font-size: 1rem;
+    background: conic-gradient(from -45deg, #ea4335 0 25%, #fbbc05 0 50%, #34a853 0 75%, #4285f4 0);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
   .sync-row input {
     flex: 1;
     min-width: 0;
@@ -1018,85 +1039,93 @@ async function importFiles(fileList) {
   }
 }
 
-/* ================= Cloud sync (private GitHub Gist) ================= */
+/* ================= Cloud sync (Firebase / Google sign-in) ================= */
 
-const SYNC_KEY = 'mastery_sync';
-const GIST_FILE = 'daily-mastery.json';
-const GIST_DESC = 'Daily Mastery sync data';
+const firebaseConfig = {
+  apiKey: "AIzaSyByqmdqsCIE5OXVqLdp0hT6MP92Ne-AF3E",
+  authDomain: "daily-mastery-52267.firebaseapp.com",
+  projectId: "daily-mastery-52267",
+  storageBucket: "daily-mastery-52267.firebasestorage.app",
+  messagingSenderId: "89249995066",
+  appId: "1:89249995066:web:ab81fe2b700ac367f91803"
+};
 
-let syncCfg = null; // { token, gistId }
-try { syncCfg = JSON.parse(localStorage.getItem(SYNC_KEY)); } catch (e) { /* ignore */ }
+let fbAuth = null, fbDb = null, fbUser = null, fbUnsub = null;
 let syncStatus = { state: 'off', lastSync: null, error: null }; // off | syncing | ok | error
-let syncTimer = null;
+let pushTimer = null;
 
-function saveSyncCfg() { localStorage.setItem(SYNC_KEY, JSON.stringify(syncCfg)); }
+function fbReady() { return typeof firebase !== 'undefined' && firebase.apps; }
 
-function ghFetch(path, opts = {}) {
-  return fetch('https://api.github.com' + path, {
-    cache: 'no-store', // GitHub API responses are cacheable for 60s — stale lists break gist discovery
-    ...opts,
-    headers: {
-      'Authorization': 'Bearer ' + syncCfg.token,
-      'Accept': 'application/vnd.github+json',
-      ...(opts.headers || {})
-    }
-  });
-}
-
-async function findOrCreateGist() {
-  if (syncCfg.gistId) {
-    const r = await ghFetch('/gists/' + syncCfg.gistId);
-    if (r.ok) return;
-    syncCfg.gistId = null; // stale id — fall through to search/create
-  }
-  const candidates = [];
-  for (let page = 1; page <= 5; page++) {
-    const r = await ghFetch(`/gists?per_page=100&page=${page}`);
-    if (!r.ok) throw new Error(r.status === 401 ? 'Invalid token' : 'GitHub error ' + r.status);
-    const gists = await r.json();
-    candidates.push(...gists.filter(g => g.files && g.files[GIST_FILE]));
-    if (gists.length < 100) break;
-  }
-  if (candidates.length) {
-    // if duplicates exist, prefer the one holding real data over an empty shell
-    candidates.sort((a, b) => b.files[GIST_FILE].size - a.files[GIST_FILE].size);
-    syncCfg.gistId = candidates[0].id;
-    saveSyncCfg();
-    return;
-  }
-  const r = await ghFetch('/gists', {
-    method: 'POST',
-    body: JSON.stringify({
-      description: GIST_DESC,
-      public: false,
-      files: { [GIST_FILE]: { content: JSON.stringify(data) } }
-    })
-  });
-  if (!r.ok) throw new Error(r.status === 401 ? 'Invalid token' : 'Could not create sync storage (' + r.status + ')');
-  const g = await r.json();
-  syncCfg.gistId = g.id;
-  saveSyncCfg();
-}
-
-async function pullRemote() {
-  const r = await ghFetch('/gists/' + syncCfg.gistId);
-  if (!r.ok) throw new Error('GitHub error ' + r.status);
-  const g = await r.json();
-  const f = g.files && g.files[GIST_FILE];
-  if (!f) return null;
-  const content = f.truncated ? await (await fetch(f.raw_url)).text() : f.content;
+function initFirebase() {
+  if (!fbReady()) { renderSyncUI(); return; }
   try {
-    const d = JSON.parse(content);
-    return (d && Array.isArray(d.books)) ? d : null;
-  } catch (e) { return null; }
+    firebase.initializeApp(firebaseConfig);
+    fbAuth = firebase.auth();
+    fbDb = firebase.firestore();
+    fbAuth.onAuthStateChanged(onAuthChange);
+    fbAuth.getRedirectResult().catch(() => {}); // completes a mobile redirect sign-in
+  } catch (e) {
+    console.warn('Firebase init failed:', e);
+    renderSyncUI();
+  }
+}
+
+function onAuthChange(user) {
+  fbUser = user;
+  if (fbUnsub) { fbUnsub(); fbUnsub = null; }
+  if (user) {
+    syncStatus = { state: 'syncing', lastSync: null, error: null };
+    renderSyncUI();
+    // live listener: pushes from other devices arrive automatically
+    fbUnsub = fbDb.collection('users').doc(user.uid)
+      .onSnapshot(onRemoteSnapshot, onRemoteError);
+  } else {
+    syncStatus = { state: 'off', lastSync: null, error: null };
+    renderSyncUI();
+  }
 }
 
 async function pushRemote() {
-  const r = await ghFetch('/gists/' + syncCfg.gistId, {
-    method: 'PATCH',
-    body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(data) } } })
-  });
-  if (!r.ok) throw new Error('GitHub error ' + r.status);
+  if (!fbUser) return;
+  await fbDb.collection('users').doc(fbUser.uid)
+    .set({ json: JSON.stringify(data), updatedAt: data.updatedAt || Date.now() });
+}
+
+// does the cloud copy lack a tick we have locally? (order-independent — avoids sync ping-pong)
+function remoteMissingOurTicks(remote) {
+  for (const k of Object.keys(data)) {
+    if (!k.startsWith('ticks_')) continue;
+    const rem = new Set(remote[k] || []);
+    for (const u of data[k] || []) if (!rem.has(u)) return true;
+  }
+  return false;
+}
+
+function onRemoteSnapshot(snap) {
+  const d = snap.data();
+  if (!d || !d.json) {            // first sign-in on this account → seed cloud with local data
+    pushRemote()
+      .then(() => { syncStatus = { state: 'ok', lastSync: new Date(), error: null }; renderSyncUI(); })
+      .catch(onRemoteError);
+    return;
+  }
+  let remote;
+  try { remote = JSON.parse(d.json); } catch (e) { return; }
+  if (!remote || !Array.isArray(remote.books)) return;
+
+  const localNewer = (data.updatedAt || 0) > (remote.updatedAt || 0);
+  const before = JSON.stringify(data);
+  mergeRemote(remote);
+  if (JSON.stringify(data) !== before) renderAll();
+  if (localNewer || remoteMissingOurTicks(remote)) pushRemote().catch(onRemoteError);
+
+  syncStatus = { state: 'ok', lastSync: new Date(), error: null };
+  renderSyncUI();
+}
+
+function onRemoteError(err) {
+  syncStatus = { state: 'error', lastSync: syncStatus.lastSync, error: (err && err.message) || 'Sync error' };
+  renderSyncUI();
 }
 
 // Whole-state last-write-wins; ticks resolved per day by their own timestamp so
@@ -1120,80 +1149,61 @@ function mergeRemote(remote) {
   localStorage.setItem(STORE_KEY, JSON.stringify(data)); // direct write: no save() to avoid re-scheduling sync
 }
 
+// called by save() after every local change
 function scheduleSync() {
-  if (!syncCfg) return;
-  clearTimeout(syncTimer);
-  syncTimer = setTimeout(() => syncNow(true), 3000);
+  if (!fbUser) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => pushRemote().catch(onRemoteError), 1200);
 }
 
-async function syncNow(silent) {
-  if (!syncCfg || syncStatus.state === 'syncing') return;
-  syncStatus = { state: 'syncing', lastSync: syncStatus.lastSync, error: null };
-  renderSyncUI();
+async function signIn() {
+  if (!fbReady() || !fbAuth) { toast('Sync is still loading — try again in a moment'); return; }
+  const provider = new firebase.auth.GoogleAuthProvider();
   try {
-    await findOrCreateGist();
-    mergeRemote(await pullRemote());
-    await pushRemote();
-    syncStatus = { state: 'ok', lastSync: new Date(), error: null };
-    renderAll();
-    if (!silent) toast('Synced ✓');
+    await fbAuth.signInWithPopup(provider);
   } catch (e) {
-    syncStatus = { state: 'error', lastSync: syncStatus.lastSync, error: e.message };
-    renderSyncUI();
-    if (!silent) toast('Sync failed: ' + e.message);
+    const code = e && e.code;
+    if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment'
+        || code === 'auth/cancelled-popup-request') {
+      try { await fbAuth.signInWithRedirect(provider); } catch (e2) { toast('Sign-in failed: ' + e2.message); }
+    } else if (code !== 'auth/popup-closed-by-user') {
+      toast('Sign-in failed: ' + (e.message || code));
+    }
   }
 }
 
-async function connectSync(token) {
-  syncCfg = { token: token.trim(), gistId: null };
-  saveSyncCfg();
-  await syncNow(false);
-  if (syncStatus.state === 'error') {
-    syncCfg = null;
-    localStorage.removeItem(SYNC_KEY);
-    renderSyncUI();
-  }
+async function signOutSync() {
+  try { await fbAuth.signOut(); toast('Signed out on this device'); } catch (e) { /* ignore */ }
 }
 
 function renderSyncUI() {
   const box = $('sync-box');
   if (!box) return;
-  if (!syncCfg) {
+  if (!fbReady()) {
+    box.innerHTML = `<p class="sync-note">Sync needs an internet connection. If this persists, reload the page.</p>`;
+    return;
+  }
+  if (!fbUser) {
     box.innerHTML = `
-      <p class="sync-note">Keep your library and daily ticks identical on every device. Data is stored in a
-        private Gist on your own GitHub account — nothing else sees it.
-        <a href="https://github.com/settings/tokens/new?scopes=gist&description=Daily+Mastery+Sync"
-           target="_blank" rel="noopener">Create an access token</a> (keep the pre-selected "gist" scope,
-        press Generate, copy it), then paste the same token on every device:</p>
+      <p class="sync-note">Sign in with Google to keep your library and daily ticks the same on every device.
+        Your data stays private to your own account and syncs automatically.</p>
       <div class="sync-row">
-        <input type="password" id="sync-token" placeholder="ghp_…" autocomplete="off">
-        <button id="btn-sync-connect">Connect</button>
+        <button id="btn-google" class="gbtn"><span class="gmark">G</span>&nbsp;Sign in with Google</button>
       </div>`;
-    $('btn-sync-connect').onclick = () => {
-      const t = $('sync-token').value.trim();
-      if (!t) { toast('Paste your GitHub token first'); return; }
-      connectSync(t);
-    };
+    $('btn-google').onclick = signIn;
   } else {
     const when = syncStatus.lastSync
       ? syncStatus.lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
-    const line = syncStatus.state === 'syncing' ? '⏳ Syncing…'
-      : syncStatus.state === 'error' ? `<span class="sync-err">⚠ ${esc(syncStatus.error || 'Sync error')}</span>`
-      : `✓ Connected · last synced ${when}`;
+    const who = esc(fbUser.email || fbUser.displayName || 'your account');
+    const line = syncStatus.state === 'syncing' ? '⏳ Connecting…'
+      : syncStatus.state === 'error' ? `<span class="sync-err">⚠ ${esc(syncStatus.error)}</span>`
+      : `✓ Synced as ${who} · ${when}`;
     box.innerHTML = `
       <p class="sync-note">${line}</p>
       <div class="sync-row">
-        <button id="btn-sync-now">Sync now</button>
-        <button id="btn-sync-off" class="danger">Disconnect</button>
+        <button id="btn-signout" class="danger">Sign out</button>
       </div>`;
-    $('btn-sync-now').onclick = () => syncNow(false);
-    $('btn-sync-off').onclick = () => {
-      syncCfg = null;
-      localStorage.removeItem(SYNC_KEY);
-      syncStatus = { state: 'off', lastSync: null, error: null };
-      renderSyncUI();
-      toast('Sync disconnected on this device');
-    };
+    $('btn-signout').onclick = signOutSync;
   }
 }
 
@@ -1258,7 +1268,7 @@ setInterval(() => {
 }, 60 * 1000);
 
 renderAll();
-if (syncCfg) syncNow(true);
+initFirebase();
 </script>
 </body>
 </html>
