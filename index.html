@@ -1004,7 +1004,16 @@ async function importPdf(file) {
 
   if (!rules.length) {
     toast(`No rules found in "${file.name}" — check the PDF format`);
-    return false;
+    return { status: 'empty' };
+  }
+
+  // detect an already-imported book by its content (catches the same PDF even if renamed)
+  const dup = data.books.find(b => contentSignature(b.rules) === contentSignature(rules));
+  if (dup) {
+    const again = confirm(
+      `"${dup.name}" looks like it's already in your library (${dup.rules.length} rules).\n\n` +
+      `Import it again as a separate copy?`);
+    if (!again) return { status: 'duplicate', name: dup.name };
   }
 
   data.books.push({
@@ -1015,7 +1024,13 @@ async function importPdf(file) {
     rules
   });
   save();
-  return rules.length;
+  return { status: 'added', count: rules.length };
+}
+
+// fingerprint of a book's contents (rule count + each rule's number and title)
+function contentSignature(rules) {
+  return rules.length + '#' + rules.map(r =>
+    r.n + ':' + (r.title || '').toLowerCase().replace(/\s+/g, ' ').trim()).join('|');
 }
 
 async function importFiles(fileList) {
@@ -1023,11 +1038,12 @@ async function importFiles(fileList) {
     f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
   if (!files.length) { toast('Drop a PDF file'); return; }
 
-  let added = 0, books = 0;
+  let added = 0, books = 0, dups = 0;
   for (const f of files) {
     try {
-      const count = await importPdf(f);
-      if (count) { added += count; books++; }
+      const res = await importPdf(f);
+      if (res.status === 'added') { added += res.count; books++; }
+      else if (res.status === 'duplicate') dups++;
     } catch (e) {
       console.error(e);
       toast(`Couldn't read "${f.name}"`);
@@ -1035,7 +1051,11 @@ async function importFiles(fileList) {
   }
   if (books) {
     renderAll();
-    toast(`Imported ${added} rule${added === 1 ? '' : 's'} from ${books} book${books === 1 ? '' : 's'}`);
+    let msg = `Imported ${added} rule${added === 1 ? '' : 's'} from ${books} book${books === 1 ? '' : 's'}`;
+    if (dups) msg += ` · skipped ${dups} duplicate${dups === 1 ? '' : 's'}`;
+    toast(msg);
+  } else if (dups) {
+    toast(`Already in your library — nothing added`);
   }
 }
 
