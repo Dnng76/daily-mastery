@@ -504,6 +504,15 @@ const PALETTE = [
   '#E0708F', '#5FA8E0'
 ];
 
+// Distinct color for any book index — no cap on how many books you can add.
+// Past the hand-picked palette, spread hues by the golden angle so even
+// hundreds of books stay visually distinguishable.
+function bookColor(index) {
+  if (index < PALETTE.length) return PALETTE[index];
+  const hue = Math.round((index * 137.508) % 360);
+  return `hsl(${hue}, 55%, 56%)`;
+}
+
 function load() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
@@ -1192,7 +1201,7 @@ async function importPdf(file) {
   data.books.push({
     id: uuid(),
     name: bookNameFromFile(file.name, coverLines),
-    color: PALETTE[data.books.length % PALETTE.length],
+    color: bookColor(data.books.length),
     importedAt: todayKey(),
     rules
   });
