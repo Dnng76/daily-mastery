@@ -791,8 +791,8 @@ function renderGrid() {
 
   $('empty-box').innerHTML = '';
 
-  // show collapsible book sections when multiple books and not filtered to one / not mixed
-  const showSections = !mixOrder && data.books.length > 1 &&
+  // show collapsible book sections when not in mixed order and not filtered to one book
+  const showSections = !mixOrder && data.books.length >= 1 &&
     (filter === 'all' || filter === 'todo' || filter === 'done');
 
   let html = '';
@@ -1094,8 +1094,18 @@ function bookNameFromFile(filename, coverLines) {
 }
 
 async function importPdf(file) {
-  const buf = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let pdf;
+  try {
+    const buf = await file.arrayBuffer();
+    pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  } catch (e) {
+    console.error('PDF load error:', e);
+    const reason = (e && e.message && e.message.includes('password'))
+      ? 'the file is password-protected'
+      : 'the file may be corrupted or unsupported';
+    toast(`Can't open "${file.name}" — ${reason}`);
+    return { status: 'error' };
+  }
 
   const rules = [];
   let coverLines = null;
@@ -1112,7 +1122,7 @@ async function importPdf(file) {
   }
 
   if (!rules.length) {
-    toast(`No rules found in "${file.name}" — check the PDF format`);
+    toast(`No rules found in "${file.name}" — the PDF must contain "RULE N" headings`);
     return { status: 'empty' };
   }
 
@@ -1124,8 +1134,8 @@ async function importPdf(file) {
   const incomingNums = new Set(rules.map(r => r.n));
   let bestMatch = null, bestOverlap = 0;
   for (const b of data.books) {
-    const overlap = b.rules.filter(r => incomingNums.has(r.n)).length;
-    const ratio = overlap / Math.max(b.rules.length, rules.length);
+    const overlap = (b.rules || []).filter(r => incomingNums.has(r.n)).length;
+    const ratio = overlap / Math.max((b.rules || []).length, rules.length);
     if (ratio >= 0.5 && overlap > bestOverlap) { bestOverlap = overlap; bestMatch = b; }
   }
 
