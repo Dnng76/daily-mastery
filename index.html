@@ -373,6 +373,40 @@
     margin: 4px 0 10px;
   }
   .count-note { font-size: 0.78rem; color: var(--text-faint); margin: 14px 0 0; text-align: center; }
+
+  /* ---------- Book section headers in grid ---------- */
+  .section-header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid;
+    border-radius: var(--radius);
+    cursor: pointer;
+    user-select: none;
+    margin-top: 6px;
+  }
+  .section-header:first-child { margin-top: 0; }
+  .section-header:hover { background: var(--surface-2); }
+  .section-count { font-size: 0.75rem; color: var(--text-faint); flex: 1; }
+  .collapse-arrow { padding: 2px 8px; font-size: 0.85rem; border: none; background: transparent; color: var(--text-faint); flex-shrink: 0; }
+  .collapse-arrow:hover { background: transparent; color: var(--text); }
+
+  /* ---------- Rename in library ---------- */
+  .rename-btn { padding: 2px 6px; font-size: 0.8rem; border: none; background: transparent; color: var(--text-faint); vertical-align: middle; margin-left: 2px; }
+  .rename-btn:hover { background: transparent; color: var(--text); }
+  .book-name-text { cursor: default; }
+  .book-name-text[contenteditable="true"] {
+    outline: 1px solid var(--green);
+    border-radius: 4px;
+    padding: 0 4px;
+    min-width: 60px;
+    display: inline-block;
+    cursor: text;
+  }
 </style>
 </head>
 <body>
@@ -583,6 +617,7 @@ function spotlightRule() {
 let filter = 'all';        // 'all' | 'todo' | 'done' | book id
 let searchTerm = '';
 const expanded = new Set();
+const collapsed = new Set(); // book ids whose section is hidden in the grid
 
 /* ================= Rendering ================= */
 
@@ -709,6 +744,35 @@ function visibleRules() {
   });
 }
 
+function cardHtml(book, rule, uid) {
+  const done = isDone(uid);
+  const open = expanded.has(uid);
+  return `
+  <div class="card ${done ? 'done' : ''} ${open ? 'open' : ''}"
+       id="card-${cssId(uid)}" data-uid="${uid}" style="border-left-color:${book.color}">
+    <div class="card-top">
+      <div class="card-top-left">
+        ${bookTag(book)}
+        <span class="rule-n">RULE ${rule.n}</span>
+      </div>
+      <button class="tick ${done ? 'on' : ''}" data-tick="${uid}" title="Mark done">✓</button>
+    </div>
+    <div class="card-title">${esc(rule.title)}</div>
+    <div class="card-body">
+      ${rule.gain.length ? `<h4 class="gain-h">What you gain</h4>
+        <ul>${rule.gain.map(g => `<li>${esc(g)}</li>`).join('')}</ul>` : ''}
+      ${rule.lose.length ? `<h4 class="lose-h">What you lose if you ignore this</h4>
+        <ul>${rule.lose.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
+      ${rule.reality ? `<h4 class="reality-h">Reality Check</h4>
+        <p class="para">${esc(rule.reality)}</p>` : ''}
+      ${rule.choice ? `<h4 class="choice-h">The Choice</h4>
+        <p class="para">${esc(rule.choice)}</p>` : ''}
+      ${rule.standard ? `<h4>The Standard</h4>
+        <div class="standard-text">${esc(rule.standard)}</div>` : ''}
+    </div>
+  </div>`;
+}
+
 function renderGrid() {
   const rules = visibleRules();
   const total = allRules().length;
@@ -726,39 +790,46 @@ function renderGrid() {
   }
 
   $('empty-box').innerHTML = '';
-  $('grid').innerHTML = rules.map(({ book, rule, uid }) => {
-    const done = isDone(uid);
-    const open = expanded.has(uid);
-    return `
-    <div class="card ${done ? 'done' : ''} ${open ? 'open' : ''}"
-         id="card-${cssId(uid)}" data-uid="${uid}" style="border-left-color:${book.color}">
-      <div class="card-top">
-        <div class="card-top-left">
-          ${bookTag(book)}
-          <span class="rule-n">RULE ${rule.n}</span>
-        </div>
-        <button class="tick ${done ? 'on' : ''}" data-tick="${uid}" title="Mark done">✓</button>
-      </div>
-      <div class="card-title">${esc(rule.title)}</div>
-      <div class="card-body">
-        ${rule.gain.length ? `<h4 class="gain-h">What you gain</h4>
-          <ul>${rule.gain.map(g => `<li>${esc(g)}</li>`).join('')}</ul>` : ''}
-        ${rule.lose.length ? `<h4 class="lose-h">What you lose if you ignore this</h4>
-          <ul>${rule.lose.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
-        ${rule.reality ? `<h4 class="reality-h">Reality Check</h4>
-          <p class="para">${esc(rule.reality)}</p>` : ''}
-        ${rule.choice ? `<h4 class="choice-h">The Choice</h4>
-          <p class="para">${esc(rule.choice)}</p>` : ''}
-        ${rule.standard ? `<h4>The Standard</h4>
-          <div class="standard-text">${esc(rule.standard)}</div>` : ''}
-      </div>
-    </div>`;
-  }).join('');
+
+  // show collapsible book sections when multiple books and not filtered to one / not mixed
+  const showSections = !mixOrder && data.books.length > 1 &&
+    (filter === 'all' || filter === 'todo' || filter === 'done');
+
+  let html = '';
+  if (showSections) {
+    const byBook = new Map();
+    for (const r of rules) {
+      if (!byBook.has(r.book.id)) byBook.set(r.book.id, { book: r.book, items: [] });
+      byBook.get(r.book.id).items.push(r);
+    }
+    for (const { book, items } of byBook.values()) {
+      const isCollapsed = collapsed.has(book.id);
+      html += `<div class="section-header" data-collapse="${book.id}" style="border-left-color:${book.color}">
+        <span class="book-tag" style="background:${book.color}">${esc(book.name)}</span>
+        <span class="section-count">${items.length} rule${items.length === 1 ? '' : 's'}</span>
+        <button class="collapse-arrow">${isCollapsed ? '▼' : '▲'}</button>
+      </div>`;
+      if (!isCollapsed) {
+        for (const { book: b, rule, uid } of items) html += cardHtml(b, rule, uid);
+      }
+    }
+  } else {
+    html = rules.map(({ book, rule, uid }) => cardHtml(book, rule, uid)).join('');
+  }
+
+  $('grid').innerHTML = html;
 
   $('count-note').textContent = rules.length === total
     ? `${total} rules · ${data.books.length} book${data.books.length === 1 ? '' : 's'}`
     : `Showing ${rules.length} of ${total} rules`;
 
+  for (const hdr of $('grid').querySelectorAll('.section-header')) {
+    hdr.onclick = () => {
+      const id = hdr.dataset.collapse;
+      collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id);
+      renderGrid();
+    };
+  }
   for (const card of $('grid').querySelectorAll('.card')) {
     card.onclick = (e) => {
       if (e.target.closest('[data-tick]')) return;
@@ -785,7 +856,9 @@ function renderLibrary() {
       <div class="book-row-left">
         <span class="book-dot" style="background:${b.color}"></span>
         <div>
-          <div class="book-row-name">${esc(b.name)}</div>
+          <div class="book-row-name">
+            <span class="book-name-text" data-id="${b.id}">${esc(b.name)}</span><button class="rename-btn" data-rename="${b.id}" title="Rename">✏</button>
+          </div>
           <div class="book-row-meta">${b.rules.length} rules · imported ${esc(b.importedAt)}</div>
         </div>
       </div>
@@ -794,6 +867,41 @@ function renderLibrary() {
   for (const btn of list.querySelectorAll('[data-remove]')) {
     btn.onclick = () => removeBook(btn.dataset.remove);
   }
+  for (const btn of list.querySelectorAll('[data-rename]')) {
+    btn.onclick = () => startRename(btn.dataset.rename);
+  }
+}
+
+function startRename(id) {
+  const book = data.books.find(b => b.id === id);
+  if (!book) return;
+  const span = document.querySelector(`.book-name-text[data-id="${id}"]`);
+  if (!span) return;
+  const oldName = book.name;
+  span.contentEditable = 'true';
+  span.focus();
+  const range = document.createRange();
+  range.selectNodeContents(span);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  const finish = () => {
+    span.contentEditable = 'false';
+    const newName = span.textContent.trim();
+    if (!newName || newName === oldName) { span.textContent = oldName; return; }
+    book.name = newName;
+    save();
+    renderLibrary();
+    renderChips();
+    renderSpotlight();
+    toast(`Renamed to "${newName}"`);
+  };
+  span.onblur = finish;
+  span.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(); }
+    if (e.key === 'Escape') { span.textContent = oldName; span.contentEditable = 'false'; }
+  };
 }
 
 function renderCountdown() {
@@ -860,6 +968,8 @@ function removeBook(id) {
   if (!book) return;
   if (!confirm(`Remove "${book.name}" and its ${book.rules.length} rules?`)) return;
   data.books = data.books.filter(b => b.id !== id);
+  if (!data.deletedBooks) data.deletedBooks = {};
+  data.deletedBooks[id] = Date.now();
   setTicks(getTicks().filter(uid => !uid.startsWith(id + ':')));
   if (filter === id) filter = 'all';
   save();
@@ -988,7 +1098,7 @@ async function importPdf(file) {
   const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
 
   const rules = [];
-  let coverLines = null; // page-1 lines, kept only if page 1 is a cover (no rule on it)
+  let coverLines = null;
   for (let p = 1; p <= pdf.numPages; p++) {
     try {
       const page = await pdf.getPage(p);
@@ -997,7 +1107,6 @@ async function importPdf(file) {
       if (p === 1 && !rule) coverLines = lines;
       if (rule) rules.push(rule);
     } catch (e) {
-      // skip unparseable page gracefully
       console.warn(`Skipped page ${p} of ${file.name}:`, e);
     }
   }
@@ -1007,15 +1116,29 @@ async function importPdf(file) {
     return { status: 'empty' };
   }
 
-  // detect an already-imported book by its content (catches the same PDF even if renamed)
-  const dup = data.books.find(b => contentSignature(b.rules) === contentSignature(rules));
-  if (dup) {
-    const again = confirm(
-      `"${dup.name}" looks like it's already in your library (${dup.rules.length} rules).\n\n` +
-      `Import it again as a separate copy?`);
-    if (!again) return { status: 'duplicate', name: dup.name };
+  // exact match → already fully imported, skip silently
+  const exact = data.books.find(b => contentSignature(b.rules) === contentSignature(rules));
+  if (exact) return { status: 'uptodate', name: exact.name };
+
+  // partial match → same book with overlapping rule numbers (≥50% overlap by count)
+  const incomingNums = new Set(rules.map(r => r.n));
+  let bestMatch = null, bestOverlap = 0;
+  for (const b of data.books) {
+    const overlap = b.rules.filter(r => incomingNums.has(r.n)).length;
+    const ratio = overlap / Math.max(b.rules.length, rules.length);
+    if (ratio >= 0.5 && overlap > bestOverlap) { bestOverlap = overlap; bestMatch = b; }
   }
 
+  if (bestMatch) {
+    const existingNums = new Set(bestMatch.rules.map(r => r.n));
+    const newRules = rules.filter(r => !existingNums.has(r.n));
+    if (!newRules.length) return { status: 'uptodate', name: bestMatch.name };
+    bestMatch.rules = [...bestMatch.rules, ...newRules].sort((a, b) => a.n - b.n);
+    save();
+    return { status: 'merged', count: newRules.length, name: bestMatch.name };
+  }
+
+  // brand-new book
   data.books.push({
     id: uuid(),
     name: bookNameFromFile(file.name, coverLines),
@@ -1038,24 +1161,28 @@ async function importFiles(fileList) {
     f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
   if (!files.length) { toast('Drop a PDF file'); return; }
 
-  let added = 0, books = 0, dups = 0;
+  let added = 0, addedBooks = 0, merged = 0, mergedBooks = 0, uptodate = 0;
   for (const f of files) {
     try {
       const res = await importPdf(f);
-      if (res.status === 'added') { added += res.count; books++; }
-      else if (res.status === 'duplicate') dups++;
+      if (res.status === 'added')    { added += res.count; addedBooks++; }
+      else if (res.status === 'merged')   { merged += res.count; mergedBooks++; }
+      else if (res.status === 'uptodate') uptodate++;
     } catch (e) {
       console.error(e);
       toast(`Couldn't read "${f.name}"`);
     }
   }
-  if (books) {
+  const changed = addedBooks + mergedBooks;
+  if (changed) {
     renderAll();
-    let msg = `Imported ${added} rule${added === 1 ? '' : 's'} from ${books} book${books === 1 ? '' : 's'}`;
-    if (dups) msg += ` · skipped ${dups} duplicate${dups === 1 ? '' : 's'}`;
-    toast(msg);
-  } else if (dups) {
-    toast(`Already in your library — nothing added`);
+    const parts = [];
+    if (addedBooks) parts.push(`Imported ${added} rule${added === 1 ? '' : 's'} from ${addedBooks} new book${addedBooks === 1 ? '' : 's'}`);
+    if (mergedBooks) parts.push(`Added ${merged} new rule${merged === 1 ? '' : 's'} to ${mergedBooks} book${mergedBooks === 1 ? '' : 's'}`);
+    if (uptodate) parts.push(`${uptodate} already up to date`);
+    toast(parts.join(' · '));
+  } else if (uptodate) {
+    toast('Already up to date — nothing new to add');
   }
 }
 
@@ -1137,7 +1264,7 @@ function onRemoteSnapshot(snap) {
   const before = JSON.stringify(data);
   mergeRemote(remote);
   if (JSON.stringify(data) !== before) renderAll();
-  if (localNewer || remoteMissingOurTicks(remote)) pushRemote().catch(onRemoteError);
+  if (remoteIsBehind(remote)) pushRemote().catch(onRemoteError);
 
   syncStatus = { state: 'ok', lastSync: new Date(), error: null };
   renderSyncUI();
@@ -1148,25 +1275,50 @@ function onRemoteError(err) {
   renderSyncUI();
 }
 
-// Whole-state last-write-wins; ticks resolved per day by their own timestamp so
-// unticking/resetting propagates, while a day's ticks are unioned when neither side is newer.
+// Merge remote into local without ever losing a book:
+//  - books are unioned by id (a book added on either device survives)
+//  - deletions propagate via tombstones (deletedBooks: {id: ts}), so an
+//    intentional Remove still syncs and a deleted book never resurrects
+//  - ticks are resolved per day by their own timestamp (unioned on a tie)
 function mergeRemote(remote) {
   if (!remote) return;
-  const base = (data.updatedAt || 0) >= (remote.updatedAt || 0) ? data : remote;
-  const merged = { ...base };
+
+  // book deletions — union of tombstones, newest timestamp wins
+  const tomb = { ...(data.deletedBooks || {}) };
+  for (const [id, ts] of Object.entries(remote.deletedBooks || {})) {
+    tomb[id] = Math.max(tomb[id] || 0, ts);
+  }
+
+  // union books by id (local copy wins on conflict), dropping any tombstoned book
+  const byId = new Map();
+  for (const b of (remote.books || [])) byId.set(b.id, b);
+  for (const b of (data.books || [])) byId.set(b.id, b);
+  const books = [...byId.values()].filter(b => !tomb[b.id]);
+
+  // ticks per day
   const ls = data.tickStamp || {}, rs = remote.tickStamp || {};
-  const stamps = {};
+  const stamps = {}, ticks = {};
   const keys = [...new Set([...Object.keys(data), ...Object.keys(remote)])].filter(k => k.startsWith('ticks_'));
   for (const k of keys) {
     const day = k.slice('ticks_'.length);
     const lt = ls[day] || 0, rt = rs[day] || 0;
-    if (lt === rt) merged[k] = [...new Set([...(data[k] || []), ...(remote[k] || [])])];
-    else merged[k] = (lt > rt ? data[k] : remote[k]) || [];
+    if (lt === rt) ticks[k] = [...new Set([...(data[k] || []), ...(remote[k] || [])])];
+    else ticks[k] = (lt > rt ? data[k] : remote[k]) || [];
     stamps[day] = Math.max(lt, rt);
   }
-  merged.tickStamp = stamps;
-  data = merged;
+
+  data = { ...data, ...ticks, books, deletedBooks: tomb, tickStamp: stamps,
+           updatedAt: Math.max(data.updatedAt || 0, remote.updatedAt || 0) };
   localStorage.setItem(STORE_KEY, JSON.stringify(data)); // direct write: no save() to avoid re-scheduling sync
+}
+
+// is the cloud copy missing any book, deletion, or tick we hold locally?
+function remoteIsBehind(remote) {
+  const rb = new Set((remote.books || []).map(b => b.id));
+  for (const b of (data.books || [])) if (!rb.has(b.id)) return true;
+  const rt = remote.deletedBooks || {};
+  for (const id of Object.keys(data.deletedBooks || {})) if (!(id in rt)) return true;
+  return remoteMissingOurTicks(remote);
 }
 
 // called by save() after every local change
