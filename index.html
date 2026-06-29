@@ -399,14 +399,25 @@
   .rename-btn { padding: 2px 6px; font-size: 0.8rem; border: none; background: transparent; color: var(--text-faint); vertical-align: middle; margin-left: 2px; }
   .rename-btn:hover { background: transparent; color: var(--text); }
   .book-name-text { cursor: default; }
-  .book-name-text[contenteditable="true"] {
-    outline: 1px solid var(--green);
-    border-radius: 4px;
-    padding: 0 4px;
-    min-width: 60px;
-    display: inline-block;
-    cursor: text;
+
+  /* ---------- Rename modal ---------- */
+  .rename-modal { max-width: 400px; border-radius: 16px; }
+  @media (max-width: 559px) { .rename-modal { border-radius: 16px 16px 0 0; } }
+  .rename-field {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 11px 13px;
+    font: inherit;
+    font-size: 0.95rem;
+    outline: none;
+    margin-top: 4px;
   }
+  .rename-field:focus { border-color: var(--green); }
+  .primary-btn { background: var(--green); border-color: var(--green); color: var(--bg); font-weight: 600; }
+  .primary-btn:hover { background: var(--green-dim); border-color: var(--green-dim); }
 </style>
 </head>
 <body>
@@ -459,6 +470,17 @@
     <div class="modal-footer">
       <button id="btn-modal-import">＋ Add PDF</button>
       <button id="btn-modal-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="rename-modal">
+  <div class="modal rename-modal">
+    <h3>Rename book</h3>
+    <input type="text" id="rename-input" class="rename-field" autocomplete="off" placeholder="Book name">
+    <div class="modal-footer">
+      <button id="rename-cancel">Cancel</button>
+      <button id="rename-save" class="primary-btn">Save</button>
     </div>
   </div>
 </div>
@@ -871,16 +893,30 @@ function renderLibrary() {
   }
 }
 
+let renameId = null;
+
 function startRename(id) {
   const book = data.books.find(b => b.id === id);
   if (!book) return;
-  const newName = prompt('Rename book:', book.name);
-  if (!newName || !newName.trim() || newName.trim() === book.name) return;
-  book.name = newName.trim();
+  renameId = id;
+  $('rename-input').value = book.name;
+  $('rename-modal').classList.add('show');
+  setTimeout(() => { const i = $('rename-input'); i.focus(); i.select(); }, 60);
+}
+
+function commitRename() {
+  const book = data.books.find(b => b.id === renameId);
+  $('rename-modal').classList.remove('show');
+  if (!book) return;
+  const v = $('rename-input').value.trim();
+  if (!v || v === book.name) return;
+  book.name = v;
   save();
   renderAll();
-  toast(`Renamed to "${book.name}"`);
+  toast(`Renamed to "${v}"`);
 }
+
+function cancelRename() { $('rename-modal').classList.remove('show'); }
 
 function renderCountdown() {
   const now = new Date();
@@ -1426,6 +1462,16 @@ $('btn-library').onclick = () => $('library-modal').classList.add('show');
 $('btn-modal-close').onclick = () => $('library-modal').classList.remove('show');
 $('library-modal').addEventListener('click', (e) => {
   if (e.target === $('library-modal')) $('library-modal').classList.remove('show');
+});
+
+$('rename-save').onclick = commitRename;
+$('rename-cancel').onclick = cancelRename;
+$('rename-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+  if (e.key === 'Escape') cancelRename();
+});
+$('rename-modal').addEventListener('click', (e) => {
+  if (e.target === $('rename-modal')) cancelRename();
 });
 
 // Drag & drop anywhere on the page
