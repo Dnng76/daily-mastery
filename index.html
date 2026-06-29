@@ -1179,13 +1179,20 @@ async function importPdf(file) {
   const exact = data.books.find(b => contentSignature(b.rules) === contentSignature(rules));
   if (exact) return { status: 'uptodate', name: exact.name };
 
-  // partial match → same book with overlapping rule numbers (≥50% overlap by count)
-  const incomingNums = new Set(rules.map(r => r.n));
-  let bestMatch = null, bestOverlap = 0;
+  // Same-book detection by CONTENT, not just numbers. Two PDFs are the same
+  // book only if the rules they share by NUMBER also have matching TITLES.
+  // (Every "50 rules" PDF is numbered 1–50, so number overlap alone would
+  //  wrongly merge two completely different books.)
+  const norm = t => (t || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  let bestMatch = null, bestRate = 0;
   for (const b of data.books) {
-    const overlap = (b.rules || []).filter(r => incomingNums.has(r.n)).length;
-    const ratio = overlap / Math.max((b.rules || []).length, rules.length);
-    if (ratio >= 0.5 && overlap > bestOverlap) { bestOverlap = overlap; bestMatch = b; }
+    const titleByNum = new Map((b.rules || []).map(r => [r.n, norm(r.title)]));
+    let shared = 0, sameTitle = 0;
+    for (const r of rules) {
+      if (titleByNum.has(r.n)) { shared++; if (titleByNum.get(r.n) === norm(r.title)) sameTitle++; }
+    }
+    const rate = shared ? sameTitle / shared : 0;       // title agreement among shared numbers
+    if (shared && rate >= 0.6 && rate > bestRate) { bestRate = rate; bestMatch = b; }
   }
 
   if (bestMatch) {
