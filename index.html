@@ -874,33 +874,12 @@ function renderLibrary() {
 function startRename(id) {
   const book = data.books.find(b => b.id === id);
   if (!book) return;
-  const span = document.querySelector(`.book-name-text[data-id="${id}"]`);
-  if (!span) return;
-  const oldName = book.name;
-  span.contentEditable = 'true';
-  span.focus();
-  const range = document.createRange();
-  range.selectNodeContents(span);
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-
-  const finish = () => {
-    span.contentEditable = 'false';
-    const newName = span.textContent.trim();
-    if (!newName || newName === oldName) { span.textContent = oldName; return; }
-    book.name = newName;
-    save();
-    renderLibrary();
-    renderChips();
-    renderSpotlight();
-    toast(`Renamed to "${newName}"`);
-  };
-  span.onblur = finish;
-  span.onkeydown = (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); finish(); }
-    if (e.key === 'Escape') { span.textContent = oldName; span.contentEditable = 'false'; }
-  };
+  const newName = prompt('Rename book:', book.name);
+  if (!newName || !newName.trim() || newName.trim() === book.name) return;
+  book.name = newName.trim();
+  save();
+  renderAll();
+  toast(`Renamed to "${book.name}"`);
 }
 
 function renderCountdown() {
