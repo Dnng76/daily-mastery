@@ -791,9 +791,8 @@ function renderGrid() {
 
   $('empty-box').innerHTML = '';
 
-  // show collapsible book sections when not in mixed order and not filtered to one book
-  const showSections = !mixOrder && data.books.length >= 1 &&
-    (filter === 'all' || filter === 'todo' || filter === 'done');
+  // show collapsible book sections whenever not in mixed order
+  const showSections = !mixOrder;
 
   let html = '';
   if (showSections) {
@@ -1029,8 +1028,9 @@ function stripBullet(line) {
 
 function parseRuleFromLines(lines) {
   let n = null, title = '';
-  const gain = [], lose = [], reality = [], choice = [], stdParts = [];
-  let section = 'pre'; // pre | title | gain | lose | reality | choice | std
+  const gain = [], lose = [], reality = [], choice = [], stdParts = [], preParts = [];
+  // pre → title (first content line) → posttitle (extra lines before sections) → gain/lose/…/std
+  let section = 'pre';
 
   for (const raw of lines) {
     const line = raw.trim();
@@ -1040,10 +1040,8 @@ function parseRuleFromLines(lines) {
       const m = line.match(RULE_RE);
       if (m) {
         n = parseInt(m[1], 10);
-        // title may share the line: "RULE 4 — Fit is king"
         const rest = line.replace(RULE_RE, '').replace(/^[\s:—–\-.]+/, '').trim();
-        if (rest) title = rest;
-        section = 'title';
+        if (rest) { title = rest; section = 'posttitle'; } else { section = 'title'; }
       }
       continue;
     }
@@ -1052,10 +1050,15 @@ function parseRuleFromLines(lines) {
     if (REALITY_RE.test(line)) { section = 'reality'; continue; }
     if (CHOICE_RE.test(line))  { section = 'choice';  continue; }
     if (STD_RE.test(line))     { section = 'std';     continue; }
-    if (MARKER_ONLY_RE.test(line)) continue; // bullet glyph on its own line
+    if (MARKER_ONLY_RE.test(line)) continue;
 
     switch (section) {
-      case 'title':   title = title ? title + ' ' + stripBullet(line) : stripBullet(line); break;
+      case 'title':
+        // first content line becomes the title, then switch to posttitle
+        title = stripBullet(line); section = 'posttitle'; break;
+      case 'posttitle':
+        // extra lines before any section header → subtitle / key insight
+        preParts.push(stripBullet(line)); break;
       case 'gain':    gain.push(stripBullet(line)); break;
       case 'lose':    lose.push(stripBullet(line)); break;
       case 'reality': reality.push(line); break;
@@ -1065,11 +1068,13 @@ function parseRuleFromLines(lines) {
   }
 
   if (n === null || !title) return null;
+  // prefer an explicit THE STANDARD section; fall back to the subtitle lines
+  const standard = stdParts.length ? stdParts.join(' ').trim() : preParts.join(' ').trim();
   return {
     n, title, gain, lose,
     reality: reality.join(' ').trim(),
     choice: choice.join(' ').trim(),
-    standard: stdParts.join(' ').trim()
+    standard
   };
 }
 
