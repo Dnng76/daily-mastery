@@ -1077,6 +1077,22 @@ function bookNameFromFile(filename, coverLines) {
   return name || 'Untitled Book';
 }
 
+// Split all PDF lines into per-rule chunks by RULE N markers, parse each chunk
+function parseAllRules(allLines) {
+  const chunks = [];
+  for (const raw of allLines) {
+    const line = raw.trim();
+    if (!line || FURNITURE_RE.test(line)) continue;
+    if (RULE_RE.test(line)) {
+      chunks.push([raw]);          // start a new chunk
+    } else if (chunks.length) {
+      chunks[chunks.length - 1].push(raw); // append to current chunk
+    }
+    // lines before the first RULE are skipped (cover / intro)
+  }
+  return chunks.map(c => parseRuleFromLines(c)).filter(Boolean);
+}
+
 async function importPdf(file) {
   let pdf;
   try {
@@ -1091,19 +1107,23 @@ async function importPdf(file) {
     return { status: 'error' };
   }
 
-  const rules = [];
-  let coverLines = null;
+  // Collect all text lines from every page, then split by RULE markers.
+  // This handles PDFs with multiple rules per page AND rules that span pages.
+  const allLines = [];
   for (let p = 1; p <= pdf.numPages; p++) {
     try {
       const page = await pdf.getPage(p);
-      const lines = await extractPageLines(page);
-      const rule = parseRuleFromLines(lines);
-      if (p === 1 && !rule) coverLines = lines;
-      if (rule) rules.push(rule);
+      allLines.push(...(await extractPageLines(page)));
     } catch (e) {
       console.warn(`Skipped page ${p} of ${file.name}:`, e);
     }
   }
+
+  // Lines before the first RULE marker = potential cover / intro
+  let firstRuleIdx = allLines.findIndex(l => RULE_RE.test(l.trim()));
+  const coverLines = firstRuleIdx > 0 ? allLines.slice(0, firstRuleIdx) : null;
+
+  const rules = parseAllRules(allLines);
 
   if (!rules.length) {
     toast(`No rules found in "${file.name}" — the PDF must contain "RULE N" headings`);
