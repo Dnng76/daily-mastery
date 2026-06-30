@@ -471,6 +471,9 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   <div class="modal">
     <h3 id="library-title">📚 Library</h3>
     <div id="book-list"></div>
+    <div id="remove-all-row" style="text-align:right;margin-top:10px" hidden>
+      <button id="btn-remove-all" class="danger">🗑 Remove all books</button>
+    </div>
     <h3 class="sync-title">☁ Sync across devices</h3>
     <div id="sync-box"></div>
     <div class="modal-footer">
@@ -502,7 +505,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v8 · 2026-06-30 (compressed storage)';
+const APP_VERSION = 'v9 · 2026-06-30 (remove-all)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -938,6 +941,8 @@ function renderLibrary() {
       ? `📚 Library · ${nBooks} book${nBooks === 1 ? '' : 's'} · ${nRules} rule${nRules === 1 ? '' : 's'}`
       : '📚 Library';
   }
+  const removeRow = $('remove-all-row');
+  if (removeRow) removeRow.hidden = !nBooks;
   if (!nBooks) {
     list.innerHTML = `<p style="color:var(--text-dim);font-size:0.85rem">No books imported yet.</p>`;
     return;
@@ -1059,6 +1064,20 @@ function removeBook(id) {
   save();
   renderAll();
   toast(`Removed "${book.name}"`);
+}
+
+function removeAllBooks() {
+  const n = data.books.length;
+  if (!n) return;
+  if (!confirm(`Remove ALL ${n} book${n === 1 ? '' : 's'} and every rule? This cannot be undone.`)) return;
+  if (!data.deletedBooks) data.deletedBooks = {};
+  for (const b of data.books) data.deletedBooks[b.id] = Date.now(); // tombstones so the wipe syncs
+  data.books = [];
+  setTicks([]); // no rules left, so clear today's ticks too
+  filter = 'all';
+  save();
+  renderAll();
+  toast(`Removed all ${n} book${n === 1 ? '' : 's'}`);
 }
 
 function resetToday() {
@@ -1551,6 +1570,7 @@ updateMixButtons();
 $('btn-reset').onclick = resetToday;
 $('btn-import').onclick = () => $('file-input').click();
 $('btn-modal-import').onclick = () => $('file-input').click();
+$('btn-remove-all').onclick = removeAllBooks;
 $('file-input').addEventListener('change', (e) => {
   importFiles(e.target.files);
   e.target.value = '';
