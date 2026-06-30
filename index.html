@@ -125,6 +125,8 @@
   }
   .chip.active { color: var(--bg); font-weight: 600; }
   .chip.active.neutral { background: var(--text); border-color: var(--text); }
+  .chip-toggle { color: var(--green); border-color: var(--green-dim); font-weight: 600; }
+  .chip-toggle:hover { background: var(--surface-2); }
 
   /* ---------- Spotlight ---------- */
   .spotlight {
@@ -703,23 +705,48 @@ function renderSpotlight() {
   $('spot-tick').onclick = () => toggleTick(spot.uid);
 }
 
+let chipsCollapsed = false;
+try { chipsCollapsed = localStorage.getItem('mastery_chips_collapsed') === '1'; } catch (e) { /* ignore */ }
+
+function chipHtml(c) {
+  const active = filter === c.id;
+  const style = (active && c.color)
+    ? `style="background:${c.color};border-color:${c.color}"` : '';
+  return `<button class="chip ${active ? 'active' : ''} ${c.color ? '' : 'neutral'}"
+    data-filter="${c.id}" ${style}>${esc(c.label)}</button>`;
+}
+
 function renderChips() {
-  const chips = [
+  const base = [
     { id: 'all', label: 'All' },
     { id: 'todo', label: 'To Do' },
-    { id: 'done', label: 'Done' },
-    ...data.books.map(b => ({ id: b.id, label: b.name, color: b.color }))
+    { id: 'done', label: 'Done' }
   ];
-  $('chips').innerHTML = chips.map(c => {
-    const active = filter === c.id;
-    const style = (active && c.color)
-      ? `style="background:${c.color};border-color:${c.color}"` : '';
-    return `<button class="chip ${active ? 'active' : ''} ${c.color ? '' : 'neutral'}"
-      data-filter="${c.id}" ${style}>${esc(c.label)}</button>`;
-  }).join('');
-  for (const el of $('chips').querySelectorAll('.chip')) {
+  const books = data.books.map(b => ({ id: b.id, label: b.name, color: b.color }));
+
+  let parts = base.map(chipHtml);
+  if (books.length) {
+    if (chipsCollapsed) {
+      // keep the active book visible so you can see what's filtered, plus an expander
+      const activeBook = books.find(b => b.id === filter);
+      if (activeBook) parts.push(chipHtml(activeBook));
+      parts.push(`<button class="chip chip-toggle" data-toggle-chips="1">▾ ${books.length} books</button>`);
+    } else {
+      parts = parts.concat(books.map(chipHtml));
+      parts.push(`<button class="chip chip-toggle" data-toggle-chips="1">▴ Hide books</button>`);
+    }
+  }
+  $('chips').innerHTML = parts.join('');
+
+  for (const el of $('chips').querySelectorAll('.chip[data-filter]')) {
     el.onclick = () => { filter = el.dataset.filter; renderAll(); };
   }
+  const tog = $('chips').querySelector('[data-toggle-chips]');
+  if (tog) tog.onclick = () => {
+    chipsCollapsed = !chipsCollapsed;
+    try { localStorage.setItem('mastery_chips_collapsed', chipsCollapsed ? '1' : '0'); } catch (e) { /* ignore */ }
+    renderChips();
+  };
 }
 
 // Optional shuffled card order — per device, persists until "Order" is pressed
