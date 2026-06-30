@@ -17,6 +17,10 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<!-- LZString (inlined so storage compression works offline) — github.com/pieroxy/lz-string MIT -->
+<script>
+var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",n="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$",e={};function t(r,o){if(!e[r]){e[r]={};for(var n=0;n<r.length;n++)e[r][r.charAt(n)]=n}return e[r][o]}var i={compressToBase64:function(r){if(null==r)return"";var n=i._compress(r,6,function(r){return o.charAt(r)});switch(n.length%4){default:case 0:return n;case 1:return n+"===";case 2:return n+"==";case 3:return n+"="}},decompressFromBase64:function(r){return null==r?"":""==r?null:i._decompress(r.length,32,function(n){return t(o,r.charAt(n))})},compressToUTF16:function(o){return null==o?"":i._compress(o,15,function(o){return r(o+32)})+" "},decompressFromUTF16:function(r){return null==r?"":""==r?null:i._decompress(r.length,16384,function(o){return r.charCodeAt(o)-32})},compress:function(o){return i._compress(o,16,function(o){return r(o)})},_compress:function(r,o,n){if(null==r)return"";var e,t,i,s={},u={},a="",p="",c="",l=2,f=3,h=2,d=[],m=0,v=0;for(i=0;i<r.length;i+=1)if(a=r.charAt(i),Object.prototype.hasOwnProperty.call(s,a)||(s[a]=f++,u[a]=!0),p=c+a,Object.prototype.hasOwnProperty.call(s,p))c=p;else{if(Object.prototype.hasOwnProperty.call(u,c)){if(c.charCodeAt(0)<256){for(e=0;e<h;e++)m<<=1,v==o-1?(v=0,d.push(n(m)),m=0):v++;for(t=c.charCodeAt(0),e=0;e<8;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}else{for(t=1,e=0;e<h;e++)m=m<<1|t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t=0;for(t=c.charCodeAt(0),e=0;e<16;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}0==--l&&(l=Math.pow(2,h),h++),delete u[c]}else for(t=s[c],e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;0==--l&&(l=Math.pow(2,h),h++),s[p]=f++,c=String(a)}if(""!==c){if(Object.prototype.hasOwnProperty.call(u,c)){if(c.charCodeAt(0)<256){for(e=0;e<h;e++)m<<=1,v==o-1?(v=0,d.push(n(m)),m=0):v++;for(t=c.charCodeAt(0),e=0;e<8;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}else{for(t=1,e=0;e<h;e++)m=m<<1|t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t=0;for(t=c.charCodeAt(0),e=0;e<16;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}0==--l&&(l=Math.pow(2,h),h++),delete u[c]}else for(t=s[c],e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;0==--l&&(l=Math.pow(2,h),h++)}for(t=2,e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;for(;;){if(m<<=1,v==o-1){d.push(n(m));break}v++}return d.join("")},decompress:function(r){return null==r?"":""==r?null:i._decompress(r.length,32768,function(o){return r.charCodeAt(o)})},_decompress:function(o,n,e){var t,i,s,u,a,p,c,l=[],f=4,h=4,d=3,m="",v=[],g={val:e(0),position:n,index:1};for(t=0;t<3;t+=1)l[t]=t;for(s=0,a=Math.pow(2,2),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;switch(s){case 0:for(s=0,a=Math.pow(2,8),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;c=r(s);break;case 1:for(s=0,a=Math.pow(2,16),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;c=r(s);break;case 2:return""}for(l[3]=c,i=c,v.push(c);;){if(g.index>o)return"";for(s=0,a=Math.pow(2,d),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;switch(c=s){case 0:for(s=0,a=Math.pow(2,8),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;l[h++]=r(s),c=h-1,f--;break;case 1:for(s=0,a=Math.pow(2,16),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;l[h++]=r(s),c=h-1,f--;break;case 2:return v.join("")}if(0==f&&(f=Math.pow(2,d),d++),l[c])m=l[c];else{if(c!==h)return null;m=i+i.charAt(0)}v.push(m),l[h++]=i+m.charAt(0),i=m,0==--f&&(f=Math.pow(2,d),d++)}}};return i}();
+</script>
 <style>
   :root {
     --bg: #0a0a0c;
@@ -515,11 +519,18 @@ function bookColor(index) {
   return `hsl(${hue}, 55%, 56%)`;
 }
 
+// Stored compressed (LZString UTF-16) with a 1-char marker, so ~70+ books fit
+// inside the browser's ~5 MB localStorage. Legacy uncompressed JSON still loads.
+const STORE_MARK = ''; // prefix byte marking a compressed payload (never appears in JSON)
+
 function load() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
     if (raw) {
-      const d = JSON.parse(raw);
+      const json = (raw[0] === STORE_MARK)
+        ? LZString.decompressFromUTF16(raw.slice(1))   // new compressed format
+        : raw;                                          // legacy plain JSON
+      const d = JSON.parse(json);
       if (d && Array.isArray(d.books)) return d;
     }
   } catch (e) { /* corrupted store — start fresh */ }
@@ -528,9 +539,22 @@ function load() {
 
 let data = load();
 
+// Write to localStorage compressed; returns false if it still won't fit
+// (so callers can warn instead of silently dropping data).
+function writeLocal(obj) {
+  try {
+    localStorage.setItem(STORE_KEY, STORE_MARK + LZString.compressToUTF16(JSON.stringify(obj)));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 function save() {
   data.updatedAt = Date.now();
-  localStorage.setItem(STORE_KEY, JSON.stringify(data));
+  if (!writeLocal(data)) {
+    toast('⚠ Phone storage is full — couldn\'t save. Remove some books to free space.');
+  }
   scheduleSync();
 }
 
@@ -1351,8 +1375,10 @@ function onAuthChange(user) {
 
 async function pushRemote() {
   if (!fbUser) return;
+  // store compressed (field 'cz') to stay under Firestore's 1 MB per-doc limit
+  const cz = LZString.compressToBase64(JSON.stringify(data));
   await fbDb.collection('users').doc(fbUser.uid)
-    .set({ json: JSON.stringify(data), updatedAt: data.updatedAt || Date.now() });
+    .set({ cz, updatedAt: data.updatedAt || Date.now() });
 }
 
 // does the cloud copy lack a tick we have locally? (order-independent — avoids sync ping-pong)
@@ -1367,14 +1393,17 @@ function remoteMissingOurTicks(remote) {
 
 function onRemoteSnapshot(snap) {
   const d = snap.data();
-  if (!d || !d.json) {            // first sign-in on this account → seed cloud with local data
+  if (!d || (!d.cz && !d.json)) {  // first sign-in on this account → seed cloud with local data
     pushRemote()
       .then(() => { syncStatus = { state: 'ok', lastSync: new Date(), error: null }; renderSyncUI(); })
       .catch(onRemoteError);
     return;
   }
   let remote;
-  try { remote = JSON.parse(d.json); } catch (e) { return; }
+  try {
+    const json = d.cz ? LZString.decompressFromBase64(d.cz) : d.json; // 'cz' new, 'json' legacy
+    remote = JSON.parse(json);
+  } catch (e) { return; }
   if (!remote || !Array.isArray(remote.books)) return;
 
   const localNewer = (data.updatedAt || 0) > (remote.updatedAt || 0);
@@ -1426,7 +1455,7 @@ function mergeRemote(remote) {
 
   data = { ...data, ...ticks, books, deletedBooks: tomb, tickStamp: stamps,
            updatedAt: Math.max(data.updatedAt || 0, remote.updatedAt || 0) };
-  localStorage.setItem(STORE_KEY, JSON.stringify(data)); // direct write: no save() to avoid re-scheduling sync
+  writeLocal(data); // compressed direct write: no save() to avoid re-scheduling sync
 }
 
 // is the cloud copy missing any book, deletion, or tick we hold locally?
