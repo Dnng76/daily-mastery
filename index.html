@@ -463,7 +463,7 @@
 
 <div class="modal-backdrop" id="library-modal">
   <div class="modal">
-    <h3>📚 Library</h3>
+    <h3 id="library-title">📚 Library</h3>
     <div id="book-list"></div>
     <h3 class="sync-title">☁ Sync across devices</h3>
     <div id="sync-box"></div>
@@ -877,7 +877,15 @@ function cssId(uid) { return uid.replace(/[^a-zA-Z0-9_-]/g, '_'); }
 
 function renderLibrary() {
   const list = $('book-list');
-  if (!data.books.length) {
+  const title = $('library-title');
+  const nBooks = data.books.length;
+  const nRules = allRules().length;
+  if (title) {
+    title.textContent = nBooks
+      ? `📚 Library · ${nBooks} book${nBooks === 1 ? '' : 's'} · ${nRules} rule${nRules === 1 ? '' : 's'}`
+      : '📚 Library';
+  }
+  if (!nBooks) {
     list.innerHTML = `<p style="color:var(--text-dim);font-size:0.85rem">No books imported yet.</p>`;
     return;
   }
