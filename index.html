@@ -1107,19 +1107,35 @@ function titleCase(s) {
 }
 
 function bookNameFromFile(filename, coverLines) {
-  // Prefer the cover page title (first content line that isn't series boilerplate);
-  // coverLines is only passed when page 1 contained no rule.
-  if (coverLines) {
-    const cand = coverLines.find(l => {
+  // The filename is the most reliable, most distinct source — prefer it.
+  // (Cover titles are often split across lines, e.g. "BRUTAL" / "DISCIPLINE"
+  //  / "RULES", which previously collapsed many books to just "Brutal".)
+  const fromFile = filename.replace(/\.pdf$/i, '')
+    .replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const generic = !fromFile || fromFile.length < 3 ||
+    /^(document|untitled|file|download|scan|image|new|temp|pdf)\b/i.test(fromFile) ||
+    /^\d+$/.test(fromFile);
+  if (!generic) {
+    return fromFile === fromFile.toUpperCase() ? titleCase(fromFile) : fromFile;
+  }
+
+  // Generic filename → fall back to the cover, joining its consecutive title
+  // lines (so a multi-line cover title becomes one name).
+  if (coverLines && coverLines.length) {
+    const titleLines = [];
+    for (const l of coverLines) {
       const t = l.trim();
-      return t && !FURNITURE_RE.test(t) && !/^(MASTERY|RULES)$/i.test(t) && !RULE_RE.test(t);
-    });
-    if (cand && cand.length <= 40) {
-      return cand === cand.toUpperCase() ? titleCase(cand) : cand;
+      if (!t || /^(MASTERY|RULES)$/i.test(t)) continue;
+      if (FURNITURE_RE.test(t) || RULE_RE.test(t)) { if (titleLines.length) break; else continue; }
+      titleLines.push(t);
+      if (titleLines.length >= 4) break;
+    }
+    const joined = titleLines.join(' ').replace(/\s+/g, ' ').trim();
+    if (joined && joined.length <= 60) {
+      return joined === joined.toUpperCase() ? titleCase(joined) : joined;
     }
   }
-  const name = filename.replace(/\.pdf$/i, '').replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ').trim();
-  return name || 'Untitled Book';
+  return fromFile || 'Untitled Book';
 }
 
 // Split all PDF lines into per-rule chunks by RULE N markers, parse each chunk
