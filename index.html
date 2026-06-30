@@ -502,6 +502,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 /* ================= Storage ================= */
 
+const APP_VERSION = 'v8 · 2026-06-30 (compressed storage)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -900,9 +901,10 @@ function renderGrid() {
 
   $('grid').innerHTML = html;
 
-  $('count-note').textContent = rules.length === total
+  const base = rules.length === total
     ? `${total} rules · ${data.books.length} book${data.books.length === 1 ? '' : 's'}`
     : `Showing ${rules.length} of ${total} rules`;
+  $('count-note').textContent = base + ' · ' + APP_VERSION;
 
   for (const hdr of $('grid').querySelectorAll('.section-header')) {
     hdr.onclick = () => {
@@ -1597,6 +1599,24 @@ setInterval(() => {
 
 renderAll();
 initFirebase();
+
+// Service worker: keeps the installed (home-screen) app updating to the latest
+// build when online, instead of being stuck on a cached old version.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            toast('Updated — close and reopen the app to finish');
+          }
+        });
+      });
+    }).catch(() => { /* ignore */ });
+  });
+}
 </script>
 </body>
 </html>
