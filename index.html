@@ -505,7 +505,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v9 · 2026-06-30 (remove-all)';
+const APP_VERSION = 'v10 · 2026-06-30 (faster)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -527,13 +527,28 @@ function bookColor(index) {
 // inside the browser's ~5 MB localStorage. Legacy uncompressed JSON still loads.
 const STORE_MARK = ''; // prefix byte marking a compressed payload (never appears in JSON)
 
+// Storage is SPLIT into two localStorage keys so day-to-day ticking is instant:
+//   BOOKS_KEY  — the heavy book library, compressed (LZString). Only rewritten
+//                when books actually change (import / remove), which is rare.
+//   TICKS_KEY  — the tiny daily-tick data, plain JSON. Rewritten on every tap,
+//                but it's a few KB so it's effectively free.
+const BOOKS_KEY = 'mastery_books';
+const TICKS_KEY = 'mastery_ticks';
+
 function load() {
   try {
+    // New split format
+    const rawBooks = localStorage.getItem(BOOKS_KEY);
+    if (rawBooks != null) {
+      const bp = JSON.parse(LZString.decompressFromUTF16(rawBooks)) || {};
+      const tp = JSON.parse(localStorage.getItem(TICKS_KEY) || '{}') || {};
+      const d = Object.assign({}, tp, { books: bp.books || [], deletedBooks: bp.deletedBooks || {} });
+      if (Array.isArray(d.books)) return d;
+    }
+    // Legacy single-blob format (compressed or plain) — migrated on next save
     const raw = localStorage.getItem(STORE_KEY);
     if (raw) {
-      const json = (raw[0] === STORE_MARK)
-        ? LZString.decompressFromUTF16(raw.slice(1))   // new compressed format
-        : raw;                                          // legacy plain JSON
+      const json = (raw[0] === STORE_MARK) ? LZString.decompressFromUTF16(raw.slice(1)) : raw;
       const d = JSON.parse(json);
       if (d && Array.isArray(d.books)) return d;
     }
@@ -543,23 +558,62 @@ function load() {
 
 let data = load();
 
-// Write to localStorage compressed; returns false if it still won't fit
-// (so callers can warn instead of silently dropping data).
-function writeLocal(obj) {
-  try {
-    localStorage.setItem(STORE_KEY, STORE_MARK + LZString.compressToUTF16(JSON.stringify(obj)));
-    return true;
-  } catch (e) {
-    return false;
+// Everything in `data` except the books is tick/meta data — small & cheap to write.
+function ticksSlice() {
+  const o = {};
+  for (const k of Object.keys(data)) {
+    if (k === 'books' || k === 'deletedBooks') continue;
+    o[k] = data[k];
   }
+  return o;
 }
+
+function writeTicks() {
+  try { localStorage.setItem(TICKS_KEY, JSON.stringify(ticksSlice())); return true; }
+  catch (e) { return false; }
+}
+
+function writeBooks() {
+  try {
+    localStorage.setItem(BOOKS_KEY, LZString.compressToUTF16(
+      JSON.stringify({ books: data.books, deletedBooks: data.deletedBooks || {} })));
+    localStorage.removeItem(STORE_KEY); // drop the old single blob once migrated
+    return true;
+  } catch (e) { return false; }
+}
+
+// Write both halves at once (used by the sync merge).
+function writeLocal() {
+  const a = writeBooks(), b = writeTicks();
+  if (a) booksDirty = false; // books just persisted → don't recompress on next tick
+  return a && b;
+}
+
+// Ticks persist immediately (cheap). The heavy book compression is debounced and
+// only runs when books changed (booksDirty, set by invalidateRules()).
+let persistTimer = null, booksDirty = true; // start dirty so first save migrates to split format
 
 function save() {
   data.updatedAt = Date.now();
-  if (!writeLocal(data)) {
+  if (!writeTicks()) {
     toast('⚠ Phone storage is full — couldn\'t save. Remove some books to free space.');
   }
+  if (booksDirty) {
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(flushSave, 700);
+  }
   scheduleSync();
+}
+
+function flushSave() {
+  clearTimeout(persistTimer);
+  writeTicks();
+  if (booksDirty) {
+    booksDirty = false;
+    if (!writeBooks()) {
+      toast('⚠ Phone storage is full — couldn\'t save. Remove some books to free space.');
+    }
+  }
 }
 
 function uuid() {
@@ -594,14 +648,19 @@ function setTicks(arr) {
 
 /* ================= Derived state ================= */
 
-// Flat ordered list of every rule across every book
+// Flat ordered list of every rule across every book.
+// Cached because it's read many times per render; invalidated on book changes.
+let _allRulesCache = null;
+function invalidateRules() { _allRulesCache = null; booksDirty = true; } // books changed → rewrite compressed blob
 function allRules() {
+  if (_allRulesCache) return _allRulesCache;
   const out = [];
   for (const book of data.books) {
     for (const rule of book.rules) {
       out.push({ book, rule, uid: book.id + ':' + rule.n });
     }
   }
+  _allRulesCache = out;
   return out;
 }
 
@@ -705,9 +764,11 @@ function renderProgress() {
   $('ring-label').innerHTML = `${done} / ${total}<br>done today`;
 }
 
+let spotUid = null;
 function renderSpotlight() {
   const spot = spotlightRule();
   const box = $('spotlight-box');
+  spotUid = spot ? spot.uid : null;
   if (!spot) { box.innerHTML = ''; return; }
   const done = isDone(spot.uid);
   const why = spot.random ? 'random pick'
@@ -1024,7 +1085,22 @@ function toggleTick(uid) {
   const i = ticks.indexOf(uid);
   if (i >= 0) ticks.splice(i, 1); else ticks.push(uid);
   setTicks(ticks);
-  renderAll();
+
+  // Surgical update instead of re-rendering all cards (huge win with many books).
+  const done = isDone(uid);
+  const card = $('card-' + cssId(uid));
+  if (card) {
+    card.classList.toggle('done', done);
+    const tb = card.querySelector('[data-tick]');
+    if (tb) tb.classList.toggle('on', done);
+  }
+  const st = $('spot-tick');
+  if (st && spotUid === uid) st.classList.toggle('on', done);
+
+  renderProgress();
+  renderCountdown();
+  // Only the To Do / Done filters change membership on a tick → need a grid rebuild there.
+  if (filter === 'todo' || filter === 'done') renderGrid();
 }
 
 function jumpTo(uid) {
@@ -1057,6 +1133,7 @@ function removeBook(id) {
   if (!book) return;
   if (!confirm(`Remove "${book.name}" and its ${book.rules.length} rules?`)) return;
   data.books = data.books.filter(b => b.id !== id);
+  invalidateRules();
   if (!data.deletedBooks) data.deletedBooks = {};
   data.deletedBooks[id] = Date.now();
   setTicks(getTicks().filter(uid => !uid.startsWith(id + ':')));
@@ -1073,6 +1150,7 @@ function removeAllBooks() {
   if (!data.deletedBooks) data.deletedBooks = {};
   for (const b of data.books) data.deletedBooks[b.id] = Date.now(); // tombstones so the wipe syncs
   data.books = [];
+  invalidateRules();
   setTicks([]); // no rules left, so clear today's ticks too
   filter = 'all';
   save();
@@ -1296,6 +1374,7 @@ async function importPdf(file) {
     const newRules = rules.filter(r => !existingNums.has(r.n));
     if (!newRules.length) return { status: 'uptodate', name: bestMatch.name };
     bestMatch.rules = [...bestMatch.rules, ...newRules].sort((a, b) => a.n - b.n);
+    invalidateRules();
     save();
     return { status: 'merged', count: newRules.length, name: bestMatch.name };
   }
@@ -1308,6 +1387,7 @@ async function importPdf(file) {
     importedAt: todayKey(),
     rules
   });
+  invalidateRules();
   save();
   return { status: 'added', count: rules.length };
 }
@@ -1476,6 +1556,7 @@ function mergeRemote(remote) {
 
   data = { ...data, ...ticks, books, deletedBooks: tomb, tickStamp: stamps,
            updatedAt: Math.max(data.updatedAt || 0, remote.updatedAt || 0) };
+  invalidateRules();
   writeLocal(data); // compressed direct write: no save() to avoid re-scheduling sync
 }
 
@@ -1609,6 +1690,12 @@ document.addEventListener('drop', (e) => {
   dragDepth = 0;
   document.body.classList.remove('dragging');
   if (e.dataTransfer && e.dataTransfer.files.length) importFiles(e.dataTransfer.files);
+});
+
+// Make sure any pending (debounced) save is written before the app closes/backgrounds.
+window.addEventListener('pagehide', flushSave);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushSave();
 });
 
 // Tick the countdown every minute; full re-render at day rollover
