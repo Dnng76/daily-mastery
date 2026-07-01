@@ -59,6 +59,17 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   }
   header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
   header h1 span { color: var(--text-faint); font-weight: 400; }
+  .ver-mark {
+    display: inline-block;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--green) !important;
+    border: 1px solid var(--green-dim);
+    border-radius: 999px;
+    padding: 1px 7px;
+    vertical-align: 2px;
+  }
   .day-left { font-size: 0.72rem; color: var(--text-faint); margin-top: 2px; }
   .day-left.urgent { color: var(--red); }
   .header-right { display: flex; align-items: center; gap: 10px; }
@@ -433,7 +444,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 <div class="wrap">
   <header>
     <div>
-      <h1>Daily Mastery <span id="date-label"></span></h1>
+      <h1>Daily Mastery <span id="date-label"></span> <span class="ver-mark" id="ver-mark"></span></h1>
       <div class="day-left" id="countdown"></div>
     </div>
     <div class="header-right">
@@ -505,7 +516,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v10 · 2026-06-30 (faster)';
+const APP_VERSION = 'v11 · 2026-06-30 (version mark)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1703,6 +1714,9 @@ setInterval(() => {
   if (todayKey() !== currentDay) renderAll();
   else renderCountdown();
 }, 60 * 1000);
+
+$('ver-mark').textContent = APP_VERSION.split(' ')[0]; // small always-visible build mark, e.g. "v11"
+$('ver-mark').title = APP_VERSION;
 
 renderAll();
 initFirebase();
