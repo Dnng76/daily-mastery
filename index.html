@@ -528,7 +528,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v13 · 2026-07-02 (light sync)';
+const APP_VERSION = 'v15 · 2026-07-03 (scale + parser)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -550,30 +550,47 @@ function bookColor(index) {
 // inside the browser's ~5 MB localStorage. Legacy uncompressed JSON still loads.
 const STORE_MARK = ''; // prefix byte marking a compressed payload (never appears in JSON)
 
-// Storage is SPLIT into two localStorage keys so day-to-day ticking is instant:
-//   BOOKS_KEY  — the heavy book library, compressed (LZString). Only rewritten
-//                when books actually change (import / remove), which is rare.
-//   TICKS_KEY  — the tiny daily-tick data, plain JSON. Rewritten on every tap,
-//                but it's a few KB so it's effectively free.
-const BOOKS_KEY = 'mastery_books';
+// Storage layout (scales to hundreds of books):
+//   mastery_book_<id> — ONE compressed record per book. A change to a single
+//                       book rewrites ~10 KB instead of the whole library.
+//   INDEX_KEY         — plain-JSON array of book ids in display order.
+//   TICKS_KEY         — small daily-tick data + deletion tombstones, plain JSON.
+const BOOKS_KEY = 'mastery_books';          // legacy whole-library blob (migrated away)
 const TICKS_KEY = 'mastery_ticks';
+const INDEX_KEY = 'mastery_index';
+const BOOK_PREFIX = 'mastery_book_';
+
+let needsLocalMigration = false; // true when load() read a legacy format
 
 function load() {
   try {
-    // New split format
+    // Current per-book format
+    const idxRaw = localStorage.getItem(INDEX_KEY);
+    if (idxRaw != null) {
+      const ids = JSON.parse(idxRaw) || [];
+      const books = [];
+      for (const id of ids) {
+        const raw = localStorage.getItem(BOOK_PREFIX + id);
+        if (!raw) continue; // index/key drift — skip rather than fail the whole load
+        try { books.push(JSON.parse(LZString.decompressFromUTF16(raw))); } catch (e) { /* skip bad record */ }
+      }
+      const tp = JSON.parse(localStorage.getItem(TICKS_KEY) || '{}') || {};
+      return Object.assign({ deletedBooks: {} }, tp, { books });
+    }
+    // Legacy split format: one compressed blob for all books
     const rawBooks = localStorage.getItem(BOOKS_KEY);
     if (rawBooks != null) {
       const bp = JSON.parse(LZString.decompressFromUTF16(rawBooks)) || {};
       const tp = JSON.parse(localStorage.getItem(TICKS_KEY) || '{}') || {};
-      const d = Object.assign({}, tp, { books: bp.books || [], deletedBooks: bp.deletedBooks || {} });
-      if (Array.isArray(d.books)) return d;
+      needsLocalMigration = true;
+      return Object.assign({}, tp, { books: bp.books || [], deletedBooks: bp.deletedBooks || {} });
     }
-    // Legacy single-blob format (compressed or plain) — migrated on next save
+    // Oldest single-blob format
     const raw = localStorage.getItem(STORE_KEY);
     if (raw) {
       const json = (raw[0] === STORE_MARK) ? LZString.decompressFromUTF16(raw.slice(1)) : raw;
       const d = JSON.parse(json);
-      if (d && Array.isArray(d.books)) return d;
+      if (d && Array.isArray(d.books)) { needsLocalMigration = true; return d; }
     }
   } catch (e) { /* corrupted store — start fresh */ }
   return { books: [] };
@@ -585,7 +602,7 @@ let data = load();
 function ticksSlice() {
   const o = {};
   for (const k of Object.keys(data)) {
-    if (k === 'books' || k === 'deletedBooks') continue;
+    if (k === 'books') continue; // deletedBooks tombstones ride along here — they're tiny
     o[k] = data[k];
   }
   return o;
@@ -596,11 +613,25 @@ function writeTicks() {
   catch (e) { return false; }
 }
 
+// Which books need their local record rewritten / removed. Migrating from a
+// legacy blob marks everything dirty once, then writes stay per-book forever.
+const dirtyBookIds = new Set();
+const removedBookIds = new Set();
+if (needsLocalMigration) for (const b of data.books) dirtyBookIds.add(b.id);
+
 function writeBooks() {
   try {
-    localStorage.setItem(BOOKS_KEY, LZString.compressToUTF16(
-      JSON.stringify({ books: data.books, deletedBooks: data.deletedBooks || {} })));
-    localStorage.removeItem(STORE_KEY); // drop the old single blob once migrated
+    for (const id of removedBookIds) localStorage.removeItem(BOOK_PREFIX + id);
+    removedBookIds.clear();
+    for (const id of dirtyBookIds) {
+      const book = data.books.find(b => b.id === id);
+      if (!book) { localStorage.removeItem(BOOK_PREFIX + id); continue; }
+      localStorage.setItem(BOOK_PREFIX + id, LZString.compressToUTF16(JSON.stringify(book)));
+    }
+    dirtyBookIds.clear();
+    localStorage.setItem(INDEX_KEY, JSON.stringify(data.books.map(b => b.id)));
+    localStorage.removeItem(STORE_KEY);  // drop legacy blobs once migrated
+    localStorage.removeItem(BOOKS_KEY);
     return true;
   } catch (e) { return false; }
 }
@@ -677,10 +708,19 @@ function setTicks(arr) {
 let _allRulesCache = null, _ruleByUid = null;
 function invalidateRules() { _allRulesCache = null; _ruleByUid = null; booksDirty = true; } // books changed → rewrite compressed blob
 
-// Local book edits (import/remove/rename) also need a full cloud push; ticks
-// alone go up as a tiny merge write instead of recompressing the whole library.
-let cloudBooksDirty = false;
-function booksChanged() { invalidateRules(); cloudBooksDirty = true; }
+// Local book edits (import/remove/rename) sync per-book: only the touched
+// records are recompressed and pushed, never the whole library.
+const cloudDirtyBooks = new Set();
+const cloudRemovedBooks = new Set();
+function booksChanged(...ids) {
+  invalidateRules();
+  for (const id of ids) { dirtyBookIds.add(id); cloudDirtyBooks.add(id); }
+}
+function bookRemoved(id) {
+  invalidateRules();
+  dirtyBookIds.delete(id); cloudDirtyBooks.delete(id);
+  removedBookIds.add(id); cloudRemovedBooks.add(id);
+}
 function allRules() {
   if (_allRulesCache) return _allRulesCache;
   const out = [];
@@ -1117,7 +1157,7 @@ function commitRename() {
   const v = $('rename-input').value.trim();
   if (!v || v === book.name) return;
   book.name = v;
-  booksChanged(); // without this the new name never reached the persisted books blob
+  booksChanged(book.id);
   save();
   renderAll();
   toast(`Renamed to "${v}"`);
@@ -1222,7 +1262,7 @@ function removeBook(id) {
   if (!book) return;
   if (!confirm(`Remove "${book.name}" and its ${book.rules.length} rules?`)) return;
   data.books = data.books.filter(b => b.id !== id);
-  booksChanged();
+  bookRemoved(id);
   if (!data.deletedBooks) data.deletedBooks = {};
   data.deletedBooks[id] = Date.now();
   setTicks(getTicks().filter(uid => !uid.startsWith(id + ':')));
@@ -1237,9 +1277,11 @@ function removeAllBooks() {
   if (!n) return;
   if (!confirm(`Remove ALL ${n} book${n === 1 ? '' : 's'} and every rule? This cannot be undone.`)) return;
   if (!data.deletedBooks) data.deletedBooks = {};
-  for (const b of data.books) data.deletedBooks[b.id] = Date.now(); // tombstones so the wipe syncs
+  for (const b of data.books) {
+    data.deletedBooks[b.id] = Date.now(); // tombstones so the wipe syncs
+    bookRemoved(b.id);
+  }
   data.books = [];
-  booksChanged();
   setTicks([]); // no rules left, so clear today's ticks too
   filter = 'all';
   save();
@@ -1290,6 +1332,7 @@ async function extractPageLines(page) {
   lines.sort((a, b) => b.y - a.y); // top of page first
   return lines.map(l =>
     l.parts.sort((a, b) => a.x - b.x).map(p => p.str).join(' ')
+      .replace(/�/g, '—') // undecodable glyph in these PDFs is an em-dash
       .replace(/\s+/g, ' ').trim()
   ).filter(Boolean);
 }
@@ -1403,29 +1446,56 @@ function parseAllRules(allLines) {
 }
 
 async function importPdf(file) {
+  if (typeof pdfjsLib === 'undefined') {  // CDN script didn't load (offline / bad network)
+    toast('PDF reader failed to load — check your internet connection and reload the app');
+    return { status: 'error' };
+  }
   let pdf;
   try {
     const buf = await file.arrayBuffer();
     pdf = await pdfjsLib.getDocument({ data: buf }).promise;
   } catch (e) {
     console.error('PDF load error:', e);
-    const reason = (e && e.message && e.message.includes('password'))
-      ? 'the file is password-protected'
+    const msg = (e && e.message) || '';
+    const reason = /password/i.test(msg) ? 'the file is password-protected'
+      : /worker|network|fetch|load/i.test(msg) ? 'network problem loading the PDF reader — try again online'
       : 'the file may be corrupted or unsupported';
     toast(`Can't open "${file.name}" — ${reason}`);
     return { status: 'error' };
   }
 
-  // Collect all text lines from every page, then split by RULE markers.
+  // Collect text lines page by page, then split by RULE markers.
   // This handles PDFs with multiple rules per page AND rules that span pages.
-  const allLines = [];
+  const pages = [];
   for (let p = 1; p <= pdf.numPages; p++) {
     try {
       const page = await pdf.getPage(p);
-      allLines.push(...(await extractPageLines(page)));
+      pages.push(await extractPageLines(page));
     } catch (e) {
       console.warn(`Skipped page ${p} of ${file.name}:`, e);
     }
+  }
+
+  // Drop running headers/footers: any exact line that repeats on 40%+ of pages
+  // (e.g. "BRUTAL <BOOK TITLE> RULES" on every page) is page furniture, not
+  // content — leaking it corrupted "The Standard" of every rule.
+  const lineFreq = new Map();
+  for (const lines of pages) {
+    for (const l of new Set(lines.map(x => x.trim()))) {
+      lineFreq.set(l, (lineFreq.get(l) || 0) + 1);
+    }
+  }
+  const isStructural = l => RULE_RE.test(l) || GAIN_RE.test(l) || LOSE_RE.test(l) ||
+    REALITY_RE.test(l) || CHOICE_RE.test(l) || STD_RE.test(l) || MARKER_ONLY_RE.test(l);
+  const repeated = new Set();
+  if (pages.length > 3) {
+    for (const [l, n] of lineFreq) {
+      if (n >= pages.length * 0.4 && !isStructural(l)) repeated.add(l);
+    }
+  }
+  const allLines = [];
+  for (const lines of pages) {
+    for (const l of lines) if (!repeated.has(l.trim())) allLines.push(l);
   }
 
   // Lines before the first RULE marker = potential cover / intro
@@ -1464,20 +1534,21 @@ async function importPdf(file) {
     const newRules = rules.filter(r => !existingNums.has(r.n));
     if (!newRules.length) return { status: 'uptodate', name: bestMatch.name };
     bestMatch.rules = [...bestMatch.rules, ...newRules].sort((a, b) => a.n - b.n);
-    booksChanged();
+    booksChanged(bestMatch.id);
     save();
     return { status: 'merged', count: newRules.length, name: bestMatch.name };
   }
 
   // brand-new book
+  const newId = uuid();
   data.books.push({
-    id: uuid(),
+    id: newId,
     name: bookNameFromFile(file.name, coverLines),
     color: bookColor(data.books.length),
     importedAt: todayKey(),
     rules
   });
-  booksChanged();
+  booksChanged(newId);
   save();
   return { status: 'added', count: rules.length };
 }
@@ -1502,7 +1573,7 @@ async function importFiles(fileList) {
       else if (res.status === 'uptodate') uptodate++;
     } catch (e) {
       console.error(e);
-      toast(`Couldn't read "${f.name}"`);
+      toast(`Couldn't read "${f.name}" — ${(e && e.message) || 'unknown error'}`);
     }
   }
   const changed = addedBooks + mergedBooks;
@@ -1555,21 +1626,23 @@ function onAuthChange(user) {
   if (user) {
     syncStatus = { state: 'syncing', lastSync: null, error: null };
     renderSyncUI();
-    // live listener: pushes from other devices arrive automatically
-    fbUnsub = fbDb.collection('users').doc(user.uid)
-      .onSnapshot(onRemoteSnapshot, onRemoteError);
+    // live listeners: meta doc (ticks + tombstones) and per-book records
+    const metaUnsub = fbDb.collection('users').doc(user.uid)
+      .onSnapshot(onMetaSnapshot, onRemoteError);
+    const booksUnsub = fbDb.collection('users').doc(user.uid).collection('books')
+      .onSnapshot(onBooksSnapshot, onRemoteError);
+    fbUnsub = () => { metaUnsub(); booksUnsub(); };
   } else {
     syncStatus = { state: 'off', lastSync: null, error: null };
     renderSyncUI();
   }
 }
 
-// Cloud doc layout:
-//   bx — compressed {books, deletedBooks}; only re-uploaded when books change
-//   tk — small plain JSON of tick days + stamps; uploaded on every change
-// Recompressing the whole ~MB library on every tick froze the phone for
-// seconds; a tick now costs a few KB.
-let _lastBx = null, _lastTk = null; // last payloads we sent/saw → confirmed echoes become no-ops
+// Cloud layout (scales to hundreds of books — no single-doc 1 MB ceiling):
+//   users/{uid}            meta doc: tk (tick days), tomb (deletions), updatedAt
+//   users/{uid}/books/{id} one small compressed record per book (~10 KB each)
+// A tick uploads a few KB; adding/renaming a book uploads just that book.
+let _lastTk = null, _lastTomb = null; // last payloads sent/seen → confirmed echoes are no-ops
 
 function tickPayload() {
   const t = { tickStamp: data.tickStamp || {} };
@@ -1577,22 +1650,43 @@ function tickPayload() {
   return JSON.stringify(t);
 }
 
-async function pushRemote() {         // full push: books + ticks
+function tombPayload() { return JSON.stringify(data.deletedBooks || {}); }
+
+async function pushMeta() {           // ticks + tombstones merge write (a few KB)
   if (!fbUser) return;
-  const bx = LZString.compressToBase64(JSON.stringify({ books: data.books, deletedBooks: data.deletedBooks || {} }));
-  const tk = tickPayload();
+  const tk = tickPayload(), tomb = tombPayload();
   await fbDb.collection('users').doc(fbUser.uid)
-    .set({ bx, tk, updatedAt: data.updatedAt || Date.now() });
-  _lastBx = bx; _lastTk = tk;
-  cloudBooksDirty = false;
+    .set({ tk, tomb, updatedAt: data.updatedAt || Date.now() }, { merge: true });
+  _lastTk = tk; _lastTomb = tomb;
 }
 
-async function pushTicks() {          // ticks-only merge write (a few KB)
+async function pushBooks() {          // upload only changed books / delete removed ones
   if (!fbUser) return;
-  const tk = tickPayload();
+  const col = fbDb.collection('users').doc(fbUser.uid).collection('books');
+  const ops = [];
+  for (const id of cloudRemovedBooks) ops.push({ del: true, id });
+  for (const id of cloudDirtyBooks) {
+    const book = data.books.find(b => b.id === id);
+    if (book) ops.push({ id, z: LZString.compressToBase64(JSON.stringify(book)) });
+  }
+  for (let i = 0; i < ops.length; i += 400) {   // Firestore batches cap at 500 ops
+    const batch = fbDb.batch();
+    for (const op of ops.slice(i, i + 400)) {
+      op.del ? batch.delete(col.doc(op.id)) : batch.set(col.doc(op.id), { z: op.z, ts: Date.now() });
+    }
+    await batch.commit();
+  }
+  cloudDirtyBooks.clear();
+  cloudRemovedBooks.clear();
+}
+
+// legacy migration helper: rewrite the meta doc without the old whole-library blob
+async function dropLegacyMeta() {
+  if (!fbUser) return;
+  const tk = tickPayload(), tomb = tombPayload();
   await fbDb.collection('users').doc(fbUser.uid)
-    .set({ tk, updatedAt: data.updatedAt || Date.now() }, { merge: true });
-  _lastTk = tk;
+    .set({ tk, tomb, updatedAt: data.updatedAt || Date.now() }); // full set — drops bx/cz/json
+  _lastTk = tk; _lastTomb = tomb;
 }
 
 // does the cloud copy lack a tick we have locally? (order-independent — avoids sync ping-pong)
@@ -1605,48 +1699,148 @@ function remoteMissingOurTicks(remote) {
   return false;
 }
 
-function onRemoteSnapshot(snap) {
+function syncOk() {
+  syncStatus = { state: 'ok', lastSync: new Date(), error: null };
+  renderSyncUI();
+}
+
+function onMetaSnapshot(snap) {
   // local echo of our own write (not yet committed) — nothing new to process
   if (snap.metadata && snap.metadata.hasPendingWrites) return;
 
   const d = snap.data();
-  if (!d || (!d.bx && !d.cz && !d.json)) {  // first sign-in on this account → seed cloud with local data
-    pushRemote()
-      .then(() => { syncStatus = { state: 'ok', lastSync: new Date(), error: null }; renderSyncUI(); })
-      .catch(onRemoteError);
+  if (!d) {  // first sign-in on this account → seed cloud with local data
+    for (const b of data.books) cloudDirtyBooks.add(b.id);
+    pushMeta().then(() => pushBooks()).then(syncOk).catch(onRemoteError);
     return;
   }
 
-  // server-confirmed echo of exactly what we sent → skip the heavy merge entirely
-  if (d.bx && d.bx === _lastBx && d.tk === _lastTk) {
-    syncStatus = { state: 'ok', lastSync: new Date(), error: null };
-    renderSyncUI();
+  // Legacy whole-library doc (bx / cz / json) → merge it once, then migrate the
+  // cloud to per-book records so the 1 MB doc ceiling stops mattering.
+  if (d.bx || d.cz || d.json) {
+    let remote;
+    try {
+      if (d.bx) {
+        remote = JSON.parse(LZString.decompressFromBase64(d.bx));
+        if (d.tk) Object.assign(remote, JSON.parse(d.tk));
+        remote.updatedAt = d.updatedAt || 0;
+      } else {
+        remote = JSON.parse(d.cz ? LZString.decompressFromBase64(d.cz) : d.json);
+      }
+    } catch (e) { return; }
+    if (!remote || !Array.isArray(remote.books)) return;
+    mergeRemote(remote);
+    renderAll();
+    for (const b of data.books) cloudDirtyBooks.add(b.id);
+    dropLegacyMeta().then(() => pushBooks()).then(syncOk).catch(onRemoteError);
     return;
   }
 
-  let remote;
+  // confirmed echo of exactly what we sent → nothing to merge
+  if (d.tk === _lastTk && d.tomb === _lastTomb) { syncOk(); return; }
+  _lastTk = d.tk || null; _lastTomb = d.tomb || null;
+
+  let changed = false;
   try {
-    if (d.bx) {
-      remote = JSON.parse(LZString.decompressFromBase64(d.bx));       // {books, deletedBooks}
-      if (d.tk) Object.assign(remote, JSON.parse(d.tk));              // ticks_* + tickStamp
-      remote.updatedAt = d.updatedAt || 0;
-    } else {
-      const json = d.cz ? LZString.decompressFromBase64(d.cz) : d.json; // legacy whole-state formats
-      remote = JSON.parse(json);
-    }
+    if (d.tomb) changed = applyRemoteTombs(JSON.parse(d.tomb)) || changed;
+    if (d.tk) changed = mergeTicks(JSON.parse(d.tk)) || changed;
   } catch (e) { return; }
-  if (!remote || !Array.isArray(remote.books)) return;
-  _lastBx = d.bx || null; _lastTk = d.tk || null;
+  if (changed) { flushSave(); renderAll(); }
 
-  const before = JSON.stringify(data);
-  mergeRemote(remote);
-  if (JSON.stringify(data) !== before) renderAll();
-  // push back only what the cloud is actually missing
-  if (remoteBooksBehind(remote)) pushRemote().catch(onRemoteError);
-  else if (remoteMissingOurTicks(remote)) pushTicks().catch(onRemoteError);
+  // cloud missing ticks we hold (e.g. ticked while offline) → push them back
+  let remoteTicks = {};
+  try { remoteTicks = d.tk ? JSON.parse(d.tk) : {}; } catch (e) { /* ignore */ }
+  if (remoteMissingOurTicks(remoteTicks)) pushMeta().catch(onRemoteError);
+  syncOk();
+}
 
-  syncStatus = { state: 'ok', lastSync: new Date(), error: null };
-  renderSyncUI();
+function onBooksSnapshot(snap) {
+  let changed = false;
+  for (const change of snap.docChanges()) {
+    if (change.doc.metadata && change.doc.metadata.hasPendingWrites) continue; // our own write
+    const id = change.doc.id;
+    if (change.type === 'removed') {
+      // deletions are driven by tombstones in the meta doc; a bare doc removal
+      // without a tombstone is ignored so a glitch can never wipe a book
+      if ((data.deletedBooks || {})[id]) changed = dropLocalBook(id) || changed;
+      continue;
+    }
+    const rec = change.doc.data();
+    if (!rec || !rec.z) continue;
+    let book;
+    try { book = JSON.parse(LZString.decompressFromBase64(rec.z)); } catch (e) { continue; }
+    if (!book || book.id !== id || !Array.isArray(book.rules)) continue;
+    changed = applyRemoteBook(book) || changed;
+  }
+  if (changed) { flushSave(); renderAll(); }
+
+  // reconcile: local books the cloud doesn't have yet (imported offline, or the
+  // one-time migration) get queued for upload. Only from a fresh server read.
+  if (!snap.metadata.fromCache && !snap.metadata.hasPendingWrites && fbUser) {
+    const remoteIds = new Set(snap.docs.map(doc => doc.id));
+    let queued = false;
+    for (const b of data.books) {
+      if (!remoteIds.has(b.id) && !cloudDirtyBooks.has(b.id)) { cloudDirtyBooks.add(b.id); queued = true; }
+    }
+    if (queued) pushBooks().then(syncOk).catch(onRemoteError);
+  }
+  syncOk();
+}
+
+// ---- merge helpers (all return true when local data changed) ----
+
+function applyRemoteBook(book) {
+  if ((data.deletedBooks || {})[book.id]) return false;   // tombstoned — stays gone
+  if (cloudDirtyBooks.has(book.id)) return false;         // our newer copy is about to upload
+  const i = data.books.findIndex(b => b.id === book.id);
+  if (i >= 0 && JSON.stringify(data.books[i]) === JSON.stringify(book)) return false;
+  if (i >= 0) data.books[i] = book; else data.books.push(book);
+  invalidateRules();
+  dirtyBookIds.add(book.id); // persist locally, but don't re-upload what we just downloaded
+  return true;
+}
+
+function dropLocalBook(id) {
+  const before = data.books.length;
+  data.books = data.books.filter(b => b.id !== id);
+  if (data.books.length === before) return false;
+  invalidateRules();
+  removedBookIds.add(id);
+  _doneSet = null;
+  return true;
+}
+
+function applyRemoteTombs(tomb) {
+  let changed = false;
+  if (!data.deletedBooks) data.deletedBooks = {};
+  for (const [id, ts] of Object.entries(tomb || {})) {
+    if (!(id in data.deletedBooks) || ts > data.deletedBooks[id]) {
+      data.deletedBooks[id] = Math.max(data.deletedBooks[id] || 0, ts);
+      changed = true;
+    }
+    if (dropLocalBook(id)) changed = true;
+  }
+  return changed;
+}
+
+// per-day tick resolution: newer stamp wins, tie unions (same rules as before)
+function mergeTicks(remote) {
+  const ls = data.tickStamp || {}, rs = remote.tickStamp || {};
+  let changed = false;
+  const keys = [...new Set([...Object.keys(data), ...Object.keys(remote)])].filter(k => k.startsWith('ticks_'));
+  const stamps = {};
+  for (const k of keys) {
+    const day = k.slice('ticks_'.length);
+    const lt = ls[day] || 0, rt = rs[day] || 0;
+    let next;
+    if (lt === rt) next = [...new Set([...(data[k] || []), ...(remote[k] || [])])];
+    else next = (lt > rt ? data[k] : remote[k]) || [];
+    if (JSON.stringify(next) !== JSON.stringify(data[k] || [])) { data[k] = next; changed = true; }
+    stamps[day] = Math.max(lt, rt);
+  }
+  data.tickStamp = stamps;
+  if (changed) _doneSet = null;
+  return changed;
 }
 
 function onRemoteError(err) {
@@ -1690,24 +1884,18 @@ function mergeRemote(remote) {
            updatedAt: Math.max(data.updatedAt || 0, remote.updatedAt || 0) };
   invalidateRules();
   _doneSet = null;
-  writeLocal(data); // compressed direct write: no save() to avoid re-scheduling sync
+  for (const b of books) dirtyBookIds.add(b.id); // legacy merge touches everything once
+  writeLocal(); // direct write: no save() to avoid re-scheduling sync
 }
 
-// is the cloud copy missing any book or deletion we hold locally?
-function remoteBooksBehind(remote) {
-  const rb = new Set((remote.books || []).map(b => b.id));
-  for (const b of (data.books || [])) if (!rb.has(b.id)) return true;
-  const rt = remote.deletedBooks || {};
-  for (const id of Object.keys(data.deletedBooks || {})) if (!(id in rt)) return true;
-  return false;
-}
-
-// called by save() after every local change; ticks-only unless books changed
+// called by save() after every local change; books upload only when books changed
 function scheduleSync() {
   if (!fbUser) return;
   clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
-    (cloudBooksDirty ? pushRemote() : pushTicks()).catch(onRemoteError);
+    const jobs = [pushMeta()];
+    if (cloudDirtyBooks.size || cloudRemovedBooks.size) jobs.push(pushBooks());
+    Promise.all(jobs).then(syncOk).catch(onRemoteError);
   }, 1200);
 }
 
@@ -1750,8 +1938,10 @@ function renderSyncUI() {
     const when = syncStatus.lastSync
       ? syncStatus.lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
     const who = esc(fbUser.email || fbUser.displayName || 'your account');
+    const permHint = /permission|insufficient/i.test(syncStatus.error || '')
+      ? '<br>Sync rules need a one-time update in the Firebase console — ask for the new rule text.' : '';
     const line = syncStatus.state === 'syncing' ? '⏳ Connecting…'
-      : syncStatus.state === 'error' ? `<span class="sync-err">⚠ ${esc(syncStatus.error)}</span>`
+      : syncStatus.state === 'error' ? `<span class="sync-err">⚠ ${esc(syncStatus.error)}</span>${permHint}`
       : `✓ Synced as ${who} · ${when}`;
     box.innerHTML = `
       <p class="sync-note">${line}</p>
