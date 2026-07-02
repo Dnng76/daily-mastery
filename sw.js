@@ -1,6 +1,6 @@
 /* Daily Mastery service worker — network-first for HTML so the app always
    updates to the latest version when online, with an offline cache fallback. */
-const VERSION = 'v12-2026-07-02';
+const VERSION = 'v13-2026-07-02';
 const CACHE = 'daily-mastery-' + VERSION;
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',

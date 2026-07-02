@@ -204,6 +204,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   }
   .card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
   .card-top-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .card .book-tag { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rule-n { font-size: 0.72rem; color: var(--text-faint); font-weight: 600; white-space: nowrap; }
   .card-title { font-size: 0.95rem; font-weight: 600; letter-spacing: -0.01em; }
 
@@ -397,19 +398,30 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 14px;
+    padding: 11px 14px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-left: 4px solid;
     border-radius: var(--radius);
     cursor: pointer;
     user-select: none;
-    margin-top: 6px;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
   }
-  .section-header:first-child { margin-top: 0; }
   .section-header:hover { background: var(--surface-2); }
-  .section-count { font-size: 0.75rem; color: var(--text-faint); flex: 1; }
-  .collapse-arrow { padding: 2px 8px; font-size: 0.85rem; border: none; background: transparent; color: var(--text-faint); flex-shrink: 0; }
+  .section-header.sec-open { background: var(--surface-2); }
+  .section-header .book-tag { max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .section-count { font-size: 0.74rem; color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .sec-bar {
+    flex: 1;
+    min-width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+  .sec-bar-fill { display: block; height: 100%; border-radius: 999px; transition: width 0.3s ease; }
+  .collapse-arrow { padding: 2px 8px; font-size: 0.8rem; border: none; background: transparent; color: var(--text-faint); flex-shrink: 0; }
   .collapse-arrow:hover { background: transparent; color: var(--text); }
 
   /* ---------- Rename in library ---------- */
@@ -516,7 +528,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v12 · 2026-07-02 (fast grid)';
+const APP_VERSION = 'v13 · 2026-07-02 (light sync)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -664,6 +676,11 @@ function setTicks(arr) {
 // Cached because it's read many times per render; invalidated on book changes.
 let _allRulesCache = null, _ruleByUid = null;
 function invalidateRules() { _allRulesCache = null; _ruleByUid = null; booksDirty = true; } // books changed → rewrite compressed blob
+
+// Local book edits (import/remove/rename) also need a full cloud push; ticks
+// alone go up as a tiny merge write instead of recompressing the whole library.
+let cloudBooksDirty = false;
+function booksChanged() { invalidateRules(); cloudBooksDirty = true; }
 function allRules() {
   if (_allRulesCache) return _allRulesCache;
   const out = [];
@@ -982,12 +999,16 @@ function renderGrid() {
       if (!byBook.has(r.book.id)) byBook.set(r.book.id, { book: r.book, items: [] });
       byBook.get(r.book.id).items.push(r);
     }
+    const ds = doneSet();
     for (const { book, items } of byBook.values()) {
       // filtering to one book auto-opens it — tapping its chip means "show it"
       const isOpen = openBooks.has(book.id) || filter === book.id;
-      html += `<div class="section-header" data-collapse="${book.id}" style="border-left-color:${book.color}">
+      const done = items.reduce((n, r) => n + (ds.has(r.uid) ? 1 : 0), 0);
+      const pct = items.length ? Math.round(done / items.length * 100) : 0;
+      html += `<div class="section-header ${isOpen ? 'sec-open' : ''}" data-collapse="${book.id}" style="border-left-color:${book.color}">
         <span class="book-tag" style="background:${book.color}">${esc(book.name)}</span>
-        <span class="section-count">${items.length} rule${items.length === 1 ? '' : 's'}</span>
+        <span class="section-count">${done ? `${done}/${items.length}` : items.length}${done === items.length && done ? ' ✓' : ''}</span>
+        <span class="sec-bar"><span class="sec-bar-fill" style="width:${pct}%;background:${book.color}"></span></span>
         <button class="collapse-arrow">${isOpen ? '▲' : '▼'}</button>
       </div>`;
       if (isOpen) {
@@ -1096,6 +1117,7 @@ function commitRename() {
   const v = $('rename-input').value.trim();
   if (!v || v === book.name) return;
   book.name = v;
+  booksChanged(); // without this the new name never reached the persisted books blob
   save();
   renderAll();
   toast(`Renamed to "${v}"`);
@@ -1150,6 +1172,22 @@ function toggleTick(uid) {
   renderCountdown();
   // Only the To Do / Done filters change membership on a tick → need a grid rebuild there.
   if (filter === 'todo' || filter === 'done') renderGrid();
+  else updateSectionHeader(uid.slice(0, uid.lastIndexOf(':')));
+}
+
+// Keep the book header's count + progress bar in step with ticks without a grid rebuild.
+function updateSectionHeader(bookId) {
+  const hdr = document.querySelector(`.section-header[data-collapse="${bookId}"]`);
+  if (!hdr) return;
+  const book = data.books.find(b => b.id === bookId);
+  if (!book) return;
+  const ds = doneSet();
+  const total = book.rules.length;
+  const done = book.rules.reduce((n, r) => n + (ds.has(bookId + ':' + r.n) ? 1 : 0), 0);
+  const cnt = hdr.querySelector('.section-count');
+  if (cnt) cnt.textContent = (done ? `${done}/${total}` : String(total)) + (done === total && done ? ' ✓' : '');
+  const fill = hdr.querySelector('.sec-bar-fill');
+  if (fill) fill.style.width = (total ? Math.round(done / total * 100) : 0) + '%';
 }
 
 function jumpTo(uid) {
@@ -1184,7 +1222,7 @@ function removeBook(id) {
   if (!book) return;
   if (!confirm(`Remove "${book.name}" and its ${book.rules.length} rules?`)) return;
   data.books = data.books.filter(b => b.id !== id);
-  invalidateRules();
+  booksChanged();
   if (!data.deletedBooks) data.deletedBooks = {};
   data.deletedBooks[id] = Date.now();
   setTicks(getTicks().filter(uid => !uid.startsWith(id + ':')));
@@ -1201,7 +1239,7 @@ function removeAllBooks() {
   if (!data.deletedBooks) data.deletedBooks = {};
   for (const b of data.books) data.deletedBooks[b.id] = Date.now(); // tombstones so the wipe syncs
   data.books = [];
-  invalidateRules();
+  booksChanged();
   setTicks([]); // no rules left, so clear today's ticks too
   filter = 'all';
   save();
@@ -1426,7 +1464,7 @@ async function importPdf(file) {
     const newRules = rules.filter(r => !existingNums.has(r.n));
     if (!newRules.length) return { status: 'uptodate', name: bestMatch.name };
     bestMatch.rules = [...bestMatch.rules, ...newRules].sort((a, b) => a.n - b.n);
-    invalidateRules();
+    booksChanged();
     save();
     return { status: 'merged', count: newRules.length, name: bestMatch.name };
   }
@@ -1439,7 +1477,7 @@ async function importPdf(file) {
     importedAt: todayKey(),
     rules
   });
-  invalidateRules();
+  booksChanged();
   save();
   return { status: 'added', count: rules.length };
 }
@@ -1526,12 +1564,35 @@ function onAuthChange(user) {
   }
 }
 
-async function pushRemote() {
+// Cloud doc layout:
+//   bx — compressed {books, deletedBooks}; only re-uploaded when books change
+//   tk — small plain JSON of tick days + stamps; uploaded on every change
+// Recompressing the whole ~MB library on every tick froze the phone for
+// seconds; a tick now costs a few KB.
+let _lastBx = null, _lastTk = null; // last payloads we sent/saw → confirmed echoes become no-ops
+
+function tickPayload() {
+  const t = { tickStamp: data.tickStamp || {} };
+  for (const k of Object.keys(data)) if (k.startsWith('ticks_')) t[k] = data[k];
+  return JSON.stringify(t);
+}
+
+async function pushRemote() {         // full push: books + ticks
   if (!fbUser) return;
-  // store compressed (field 'cz') to stay under Firestore's 1 MB per-doc limit
-  const cz = LZString.compressToBase64(JSON.stringify(data));
+  const bx = LZString.compressToBase64(JSON.stringify({ books: data.books, deletedBooks: data.deletedBooks || {} }));
+  const tk = tickPayload();
   await fbDb.collection('users').doc(fbUser.uid)
-    .set({ cz, updatedAt: data.updatedAt || Date.now() });
+    .set({ bx, tk, updatedAt: data.updatedAt || Date.now() });
+  _lastBx = bx; _lastTk = tk;
+  cloudBooksDirty = false;
+}
+
+async function pushTicks() {          // ticks-only merge write (a few KB)
+  if (!fbUser) return;
+  const tk = tickPayload();
+  await fbDb.collection('users').doc(fbUser.uid)
+    .set({ tk, updatedAt: data.updatedAt || Date.now() }, { merge: true });
+  _lastTk = tk;
 }
 
 // does the cloud copy lack a tick we have locally? (order-independent — avoids sync ping-pong)
@@ -1545,25 +1606,44 @@ function remoteMissingOurTicks(remote) {
 }
 
 function onRemoteSnapshot(snap) {
+  // local echo of our own write (not yet committed) — nothing new to process
+  if (snap.metadata && snap.metadata.hasPendingWrites) return;
+
   const d = snap.data();
-  if (!d || (!d.cz && !d.json)) {  // first sign-in on this account → seed cloud with local data
+  if (!d || (!d.bx && !d.cz && !d.json)) {  // first sign-in on this account → seed cloud with local data
     pushRemote()
       .then(() => { syncStatus = { state: 'ok', lastSync: new Date(), error: null }; renderSyncUI(); })
       .catch(onRemoteError);
     return;
   }
+
+  // server-confirmed echo of exactly what we sent → skip the heavy merge entirely
+  if (d.bx && d.bx === _lastBx && d.tk === _lastTk) {
+    syncStatus = { state: 'ok', lastSync: new Date(), error: null };
+    renderSyncUI();
+    return;
+  }
+
   let remote;
   try {
-    const json = d.cz ? LZString.decompressFromBase64(d.cz) : d.json; // 'cz' new, 'json' legacy
-    remote = JSON.parse(json);
+    if (d.bx) {
+      remote = JSON.parse(LZString.decompressFromBase64(d.bx));       // {books, deletedBooks}
+      if (d.tk) Object.assign(remote, JSON.parse(d.tk));              // ticks_* + tickStamp
+      remote.updatedAt = d.updatedAt || 0;
+    } else {
+      const json = d.cz ? LZString.decompressFromBase64(d.cz) : d.json; // legacy whole-state formats
+      remote = JSON.parse(json);
+    }
   } catch (e) { return; }
   if (!remote || !Array.isArray(remote.books)) return;
+  _lastBx = d.bx || null; _lastTk = d.tk || null;
 
-  const localNewer = (data.updatedAt || 0) > (remote.updatedAt || 0);
   const before = JSON.stringify(data);
   mergeRemote(remote);
   if (JSON.stringify(data) !== before) renderAll();
-  if (remoteIsBehind(remote)) pushRemote().catch(onRemoteError);
+  // push back only what the cloud is actually missing
+  if (remoteBooksBehind(remote)) pushRemote().catch(onRemoteError);
+  else if (remoteMissingOurTicks(remote)) pushTicks().catch(onRemoteError);
 
   syncStatus = { state: 'ok', lastSync: new Date(), error: null };
   renderSyncUI();
@@ -1613,20 +1693,22 @@ function mergeRemote(remote) {
   writeLocal(data); // compressed direct write: no save() to avoid re-scheduling sync
 }
 
-// is the cloud copy missing any book, deletion, or tick we hold locally?
-function remoteIsBehind(remote) {
+// is the cloud copy missing any book or deletion we hold locally?
+function remoteBooksBehind(remote) {
   const rb = new Set((remote.books || []).map(b => b.id));
   for (const b of (data.books || [])) if (!rb.has(b.id)) return true;
   const rt = remote.deletedBooks || {};
   for (const id of Object.keys(data.deletedBooks || {})) if (!(id in rt)) return true;
-  return remoteMissingOurTicks(remote);
+  return false;
 }
 
-// called by save() after every local change
+// called by save() after every local change; ticks-only unless books changed
 function scheduleSync() {
   if (!fbUser) return;
   clearTimeout(pushTimer);
-  pushTimer = setTimeout(() => pushRemote().catch(onRemoteError), 1200);
+  pushTimer = setTimeout(() => {
+    (cloudBooksDirty ? pushRemote() : pushTicks()).catch(onRemoteError);
+  }, 1200);
 }
 
 async function signIn() {
