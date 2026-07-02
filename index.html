@@ -516,7 +516,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v11 · 2026-06-30 (version mark)';
+const APP_VERSION = 'v12 · 2026-07-02 (fast grid)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -648,6 +648,7 @@ function ticksKey() { return 'ticks_' + currentDay; }
 function getTicks() { return data[ticksKey()] || []; }
 function setTicks(arr) {
   data[ticksKey()] = arr;
+  _doneSet = null; // tick set changed → rebuild lookup on next use
   data.tickStamp = { [currentDay]: Date.now() }; // per-day timestamp drives sync conflict resolution
   // keep history (for the smart spotlight), but prune anything older than HISTORY_DAYS
   const cutoff = dateKey(new Date(Date.now() - HISTORY_DAYS * 86400000));
@@ -661,8 +662,8 @@ function setTicks(arr) {
 
 // Flat ordered list of every rule across every book.
 // Cached because it's read many times per render; invalidated on book changes.
-let _allRulesCache = null;
-function invalidateRules() { _allRulesCache = null; booksDirty = true; } // books changed → rewrite compressed blob
+let _allRulesCache = null, _ruleByUid = null;
+function invalidateRules() { _allRulesCache = null; _ruleByUid = null; booksDirty = true; } // books changed → rewrite compressed blob
 function allRules() {
   if (_allRulesCache) return _allRulesCache;
   const out = [];
@@ -674,8 +675,16 @@ function allRules() {
   _allRulesCache = out;
   return out;
 }
+function ruleByUid(uid) {
+  if (!_ruleByUid) _ruleByUid = new Map(allRules().map(r => [r.uid, r]));
+  return _ruleByUid.get(uid);
+}
 
-function isDone(uid) { return getTicks().includes(uid); }
+// Today's ticks as a Set for O(1) lookups (the array scan was O(n) per card,
+// O(n²) across a big grid). Invalidated whenever ticks change.
+let _doneSet = null;
+function doneSet() { return _doneSet || (_doneSet = new Set(getTicks())); }
+function isDone(uid) { return doneSet().has(uid); }
 
 // ticks that still point at an existing rule (stale ids can appear after a book is re-imported on another device)
 function validTicks() {
@@ -748,7 +757,13 @@ function spotlightRule() {
 let filter = 'all';        // 'all' | 'todo' | 'done' | book id
 let searchTerm = '';
 const expanded = new Set();
-const collapsed = new Set(); // book ids whose section is hidden in the grid
+// Book sections start MINIMIZED: only books you open render their cards, which
+// keeps the grid fast with 70+ books. Open set persists per device.
+let openBooks = new Set();
+try { openBooks = new Set(JSON.parse(localStorage.getItem('mastery_open_books') || '[]')); } catch (e) { /* ignore */ }
+function saveOpenBooks() {
+  try { localStorage.setItem('mastery_open_books', JSON.stringify([...openBooks])); } catch (e) { /* ignore */ }
+}
 
 /* ================= Rendering ================= */
 
@@ -902,6 +917,23 @@ function visibleRules() {
   });
 }
 
+function bodyHtml(rule) {
+  return `
+      ${rule.gain.length ? `<h4 class="gain-h">What you gain</h4>
+        <ul>${rule.gain.map(g => `<li>${esc(g)}</li>`).join('')}</ul>` : ''}
+      ${rule.lose.length ? `<h4 class="lose-h">What you lose if you ignore this</h4>
+        <ul>${rule.lose.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
+      ${rule.reality ? `<h4 class="reality-h">Reality Check</h4>
+        <p class="para">${esc(rule.reality)}</p>` : ''}
+      ${rule.choice ? `<h4 class="choice-h">The Choice</h4>
+        <p class="para">${esc(rule.choice)}</p>` : ''}
+      ${rule.standard ? `<h4>The Standard</h4>
+        <div class="standard-text">${esc(rule.standard)}</div>` : ''}`;
+}
+
+// The heavy detail body is built lazily — only for cards that are open.
+// Collapsed cards are ~6 DOM nodes instead of ~25, which is what keeps a
+// 3,500-rule grid scrollable on a phone.
 function cardHtml(book, rule, uid) {
   const done = isDone(uid);
   const open = expanded.has(uid);
@@ -916,18 +948,7 @@ function cardHtml(book, rule, uid) {
       <button class="tick ${done ? 'on' : ''}" data-tick="${uid}" title="Mark done">✓</button>
     </div>
     <div class="card-title">${esc(rule.title)}</div>
-    <div class="card-body">
-      ${rule.gain.length ? `<h4 class="gain-h">What you gain</h4>
-        <ul>${rule.gain.map(g => `<li>${esc(g)}</li>`).join('')}</ul>` : ''}
-      ${rule.lose.length ? `<h4 class="lose-h">What you lose if you ignore this</h4>
-        <ul>${rule.lose.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
-      ${rule.reality ? `<h4 class="reality-h">Reality Check</h4>
-        <p class="para">${esc(rule.reality)}</p>` : ''}
-      ${rule.choice ? `<h4 class="choice-h">The Choice</h4>
-        <p class="para">${esc(rule.choice)}</p>` : ''}
-      ${rule.standard ? `<h4>The Standard</h4>
-        <div class="standard-text">${esc(rule.standard)}</div>` : ''}
-    </div>
+    <div class="card-body">${open ? bodyHtml(rule) : ''}</div>
   </div>`;
 }
 
@@ -949,8 +970,10 @@ function renderGrid() {
 
   $('empty-box').innerHTML = '';
 
-  // show collapsible book sections whenever not in mixed order
-  const showSections = !mixOrder;
+  // Sections show unless mixing or searching (search shows flat matches so
+  // results are never hidden inside a minimized book).
+  const searching = !!searchTerm.trim();
+  const showSections = !mixOrder && !searching;
 
   let html = '';
   if (showSections) {
@@ -960,13 +983,14 @@ function renderGrid() {
       byBook.get(r.book.id).items.push(r);
     }
     for (const { book, items } of byBook.values()) {
-      const isCollapsed = collapsed.has(book.id);
+      // filtering to one book auto-opens it — tapping its chip means "show it"
+      const isOpen = openBooks.has(book.id) || filter === book.id;
       html += `<div class="section-header" data-collapse="${book.id}" style="border-left-color:${book.color}">
         <span class="book-tag" style="background:${book.color}">${esc(book.name)}</span>
         <span class="section-count">${items.length} rule${items.length === 1 ? '' : 's'}</span>
-        <button class="collapse-arrow">${isCollapsed ? '▼' : '▲'}</button>
+        <button class="collapse-arrow">${isOpen ? '▲' : '▼'}</button>
       </div>`;
-      if (!isCollapsed) {
+      if (isOpen) {
         for (const { book: b, rule, uid } of items) html += cardHtml(b, rule, uid);
       }
     }
@@ -980,26 +1004,40 @@ function renderGrid() {
     ? `${total} rules · ${data.books.length} book${data.books.length === 1 ? '' : 's'}`
     : `Showing ${rules.length} of ${total} rules`;
   $('count-note').textContent = base + ' · ' + APP_VERSION;
-
-  for (const hdr of $('grid').querySelectorAll('.section-header')) {
-    hdr.onclick = () => {
-      const id = hdr.dataset.collapse;
-      collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id);
-      renderGrid();
-    };
-  }
-  for (const card of $('grid').querySelectorAll('.card')) {
-    card.onclick = (e) => {
-      if (e.target.closest('[data-tick]')) return;
-      const uid = card.dataset.uid;
-      expanded.has(uid) ? expanded.delete(uid) : expanded.add(uid);
-      card.classList.toggle('open');
-    };
-  }
-  for (const btn of $('grid').querySelectorAll('[data-tick]')) {
-    btn.onclick = (e) => { e.stopPropagation(); toggleTick(btn.dataset.tick); };
-  }
 }
+
+// One delegated listener for the whole grid — attaching thousands of
+// per-card handlers on every render was a big part of the lag.
+$('grid').addEventListener('click', (e) => {
+  const tickBtn = e.target.closest('[data-tick]');
+  if (tickBtn) { toggleTick(tickBtn.dataset.tick); return; }
+
+  const hdr = e.target.closest('.section-header');
+  if (hdr) {
+    const id = hdr.dataset.collapse;
+    openBooks.has(id) ? openBooks.delete(id) : openBooks.add(id);
+    saveOpenBooks();
+    renderGrid();
+    return;
+  }
+
+  const card = e.target.closest('.card');
+  if (card) {
+    const uid = card.dataset.uid;
+    const body = card.querySelector('.card-body');
+    if (expanded.has(uid)) {
+      expanded.delete(uid);
+      card.classList.remove('open');
+    } else {
+      expanded.add(uid);
+      if (body && !body.firstChild) {        // build the detail body on first open
+        const hit = ruleByUid(uid);
+        if (hit) body.innerHTML = bodyHtml(hit.rule);
+      }
+      card.classList.add('open');
+    }
+  }
+});
 
 function cssId(uid) { return uid.replace(/[^a-zA-Z0-9_-]/g, '_'); }
 
@@ -1115,6 +1153,8 @@ function toggleTick(uid) {
 }
 
 function jumpTo(uid) {
+  const bookId = uid.slice(0, uid.lastIndexOf(':'));
+  if (!openBooks.has(bookId)) { openBooks.add(bookId); saveOpenBooks(); }
   expanded.add(uid);
   renderGrid();
   const el = $('card-' + cssId(uid));
@@ -1181,6 +1221,7 @@ function checkDayRollover() {
   const now = todayKey();
   if (now !== currentDay) {
     currentDay = now; // ticks key changes → fresh day, old keys pruned on next tick
+    _doneSet = null;
   }
 }
 
@@ -1568,6 +1609,7 @@ function mergeRemote(remote) {
   data = { ...data, ...ticks, books, deletedBooks: tomb, tickStamp: stamps,
            updatedAt: Math.max(data.updatedAt || 0, remote.updatedAt || 0) };
   invalidateRules();
+  _doneSet = null;
   writeLocal(data); // compressed direct write: no save() to avoid re-scheduling sync
 }
 
@@ -1651,9 +1693,10 @@ function toast(msg) {
 
 /* ================= Wiring ================= */
 
+let searchTimer = null;
 $('search').addEventListener('input', (e) => {
-  searchTerm = e.target.value;
-  renderGrid();
+  clearTimeout(searchTimer);   // debounce: render once you pause typing, not per keystroke
+  searchTimer = setTimeout(() => { searchTerm = e.target.value; renderGrid(); }, 180);
 });
 $('btn-random').onclick = randomRule;
 $('btn-mix').onclick = mixCards;
