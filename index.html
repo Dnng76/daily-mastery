@@ -392,6 +392,21 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   }
   .count-note { font-size: 0.78rem; color: var(--text-faint); margin: 14px 0 0; text-align: center; }
 
+  /* ---------- Import diagnostic banner ---------- */
+  #import-diag {
+    border: 1px solid var(--amber);
+    background: #241d12;
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+  #import-diag h4 { color: var(--amber); font-size: 0.8rem; margin-bottom: 6px; }
+  #import-diag code { font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--cyan); word-break: break-all; }
+  #import-diag .diag-close { margin-top: 8px; font-size: 0.78rem; padding: 5px 12px; }
+
   /* ---------- Book section headers in grid ---------- */
   .section-header {
     grid-column: 1 / -1;
@@ -485,6 +500,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 
   <div class="chips" id="chips"></div>
 
+  <div id="import-diag" hidden></div>
+
   <div class="grid" id="grid"></div>
   <div id="empty-box"></div>
   <p class="count-note" id="count-note"></p>
@@ -523,12 +540,13 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 <script>
 'use strict';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+// Self-hosted worker (cached by the service worker) so PDF parsing is reliable
+// inside an installed PWA / offline, instead of depending on the CDN worker.
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v17 · 2026-07-03 (auto-update)';
+const APP_VERSION = 'v18 · 2026-07-03 (import diagnostics)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1474,35 +1492,62 @@ function parseAllRules(allLines) {
 }
 
 async function importPdf(file) {
+  const diag = { name: file.name, size: file.size, type: file.type || '(none)', pdfjs: typeof pdfjsLib !== 'undefined' };
   if (typeof pdfjsLib === 'undefined') {  // CDN script didn't load (offline / bad network)
-    toast('PDF reader failed to load — check your internet connection and reload the app');
+    showImportDiag('PDF reader not loaded', 'The pdf.js library did not load (offline or blocked). Reload the app while online.', diag);
     return { status: 'error' };
   }
-  let pdf;
+  let pdf, buf;
   try {
-    const buf = await file.arrayBuffer();
-    pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    buf = await file.arrayBuffer();
+    diag.bytes = buf.byteLength;
   } catch (e) {
-    console.error('PDF load error:', e);
-    const msg = (e && e.message) || '';
-    const reason = /password/i.test(msg) ? 'the file is password-protected'
-      : /worker|network|fetch|load/i.test(msg) ? 'network problem loading the PDF reader — try again online'
-      : 'the file may be corrupted or unsupported';
-    toast(`Can't open "${file.name}" — ${reason}`);
+    diag.error = 'arrayBuffer: ' + ((e && e.message) || e);
+    showImportDiag(`Couldn't read "${file.name}"`, 'The file could not be read from your device.', diag);
     return { status: 'error' };
+  }
+  try {
+    pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    diag.numPages = pdf.numPages;
+  } catch (e) {
+    console.error('PDF load error (worker):', e);
+    diag.error1 = (e && (e.name + ': ' + e.message)) || String(e);
+    // One retry for a transient failure. Re-read the file because the first
+    // attempt detaches the original ArrayBuffer.
+    try {
+      const buf2 = await file.arrayBuffer();
+      pdf = await pdfjsLib.getDocument({ data: buf2 }).promise;
+      diag.numPages = pdf.numPages;
+      diag.retried = true;
+    } catch (e2) {
+      console.error('PDF load error (no worker):', e2);
+      diag.error = (e2 && (e2.name + ': ' + e2.message)) || String(e2);
+      const msg = diag.error1 + ' ' + diag.error;
+      const reason = /password/i.test(msg) ? 'the file is password-protected'
+        : 'the file may be corrupted, or the PDF reader could not start on this device';
+      showImportDiag(`Couldn't open "${file.name}"`, reason, diag);
+      return { status: 'error' };
+    }
   }
 
   // Collect text lines page by page, then split by RULE markers.
   // This handles PDFs with multiple rules per page AND rules that span pages.
   const pages = [];
+  let pageErrors = 0;
   for (let p = 1; p <= pdf.numPages; p++) {
     try {
       const page = await pdf.getPage(p);
       pages.push(await extractPageLines(page));
     } catch (e) {
+      pageErrors++;
       console.warn(`Skipped page ${p} of ${file.name}:`, e);
     }
   }
+  diag.pagesRead = pages.length;
+  diag.pageErrors = pageErrors;
+  diag.totalLines = pages.reduce((n, ls) => n + ls.length, 0);
+  diag.ruleMarkers = pages.reduce((n, ls) => n + ls.filter(l => RULE_RE.test(l.trim()) || /^RULE$/i.test(l.trim())).length, 0);
+  diag.sampleLines = (pages.find(ls => ls.length) || []).slice(0, 6);
 
   // Drop running headers/footers: any exact line that repeats on 40%+ of pages
   // (e.g. "BRUTAL <BOOK TITLE> RULES" on every page) is page furniture, not
@@ -1532,11 +1577,18 @@ async function importPdf(file) {
   const coverLines = firstRuleIdx > 0 ? allLines.slice(0, firstRuleIdx) : null;
 
   const rules = parseAllRules(allLines);
+  diag.rulesParsed = rules.length;
 
   if (!rules.length) {
-    toast(`No rules found in "${file.name}" — the PDF must contain "RULE N" headings`);
+    const why = diag.totalLines === 0
+      ? 'No text could be read from this PDF (it may be scanned images, or the reader failed).'
+      : diag.ruleMarkers === 0
+      ? 'Text was read, but no "RULE" headings were found in it.'
+      : 'RULE headings were found but no rule could be built from them.';
+    showImportDiag(`No rules found in "${file.name}"`, why, diag);
     return { status: 'empty' };
   }
+  clearImportDiag();
 
   // exact match → already fully imported, skip silently
   const exact = data.books.find(b => contentSignature(b.rules) === contentSignature(rules));
@@ -1589,9 +1641,19 @@ function contentSignature(rules) {
 }
 
 async function importFiles(fileList) {
-  const files = [...fileList].filter(f =>
-    f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
-  if (!files.length) { toast('Drop a PDF file'); return; }
+  const all = [...fileList];
+  // Accept a file if it looks like a PDF OR has no type info (iOS share/picker
+  // often supplies an empty type and a name without ".pdf"). importPdf then
+  // reports precisely if a non-PDF slips through.
+  const files = all.filter(f =>
+    f.type === 'application/pdf' || /\.pdf$/i.test(f.name) || !f.type);
+  if (!files.length) {
+    if (all.length) showImportDiag('That file isn\'t a PDF',
+      'The selected file does not look like a PDF.',
+      { name: all[0].name, size: all[0].size, type: all[0].type || '(none)', pdfjs: typeof pdfjsLib !== 'undefined' });
+    else toast('Drop a PDF file');
+    return;
+  }
 
   let added = 0, addedBooks = 0, merged = 0, mergedBooks = 0, uptodate = 0;
   for (const f of files) {
@@ -1602,7 +1664,8 @@ async function importFiles(fileList) {
       else if (res.status === 'uptodate') uptodate++;
     } catch (e) {
       console.error(e);
-      toast(`Couldn't read "${f.name}" — ${(e && e.message) || 'unknown error'}`);
+      showImportDiag(`Couldn't read "${f.name}"`, 'An unexpected error occurred while importing.',
+        { name: f.name, size: f.size, type: f.type || '(none)', pdfjs: typeof pdfjsLib !== 'undefined', error: (e && (e.name + ': ' + e.message)) || String(e) });
     }
   }
   const changed = addedBooks + mergedBooks;
@@ -1990,6 +2053,37 @@ function toast(msg) {
   t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// Persistent, screenshottable diagnostic shown when a PDF import fails, so a
+// device-specific failure can be reported without a live console.
+function clearImportDiag() { const el = $('import-diag'); if (el) { el.hidden = true; el.innerHTML = ''; } }
+function showImportDiag(title, why, d) {
+  const el = $('import-diag');
+  if (!el) { toast(title + ' — ' + why); return; }
+  const kb = d.size != null ? Math.round(d.size / 1024) + ' KB' : '?';
+  const rows = [
+    ['file type', d.type],
+    ['size', kb + (d.bytes != null && d.bytes !== d.size ? ' (read ' + Math.round(d.bytes/1024) + ' KB)' : '')],
+    ['pdf.js loaded', String(d.pdfjs)],
+    d.error ? ['open error', d.error] : null,
+    d.numPages != null ? ['pages in file', String(d.numPages)] : null,
+    d.pagesRead != null ? ['pages read', d.pagesRead + (d.pageErrors ? ' (' + d.pageErrors + ' failed)' : '')] : null,
+    d.totalLines != null ? ['text lines', String(d.totalLines)] : null,
+    d.ruleMarkers != null ? ['RULE headings', String(d.ruleMarkers)] : null,
+    d.rulesParsed != null ? ['rules built', String(d.rulesParsed)] : null
+  ].filter(Boolean);
+  const sample = (d.sampleLines && d.sampleLines.length)
+    ? `<div style="margin-top:8px">first lines read:<br><code>${d.sampleLines.map(esc).join('<br>')}</code></div>` : '';
+  el.innerHTML = `<h4>⚠ ${esc(title)}</h4>
+    <div>${esc(why)}</div>
+    <div style="margin-top:8px">${rows.map(r => `${r[0]}: <code>${esc(String(r[1]))}</code>`).join(' · ')}</div>
+    ${sample}
+    <div>Screenshot this and send it to get it fixed.</div>
+    <button class="diag-close">Dismiss</button>`;
+  el.hidden = false;
+  el.querySelector('.diag-close').onclick = clearImportDiag;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 /* ================= Wiring ================= */

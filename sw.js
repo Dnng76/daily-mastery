@@ -1,10 +1,11 @@
 /* Daily Mastery service worker — network-first for HTML so the app always
    updates to the latest version when online, with an offline cache fallback. */
-const VERSION = 'v17-2026-07-03';
+const VERSION = 'v18-2026-07-03';
 const CACHE = 'daily-mastery-' + VERSION;
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
-  './icon-192.png', './icon-512.png', './apple-touch-icon.png'
+  './icon-192.png', './icon-512.png', './apple-touch-icon.png',
+  './pdf.worker.min.js'   // self-hosted PDF worker → import works offline / in PWA
 ];
 
 self.addEventListener('install', (e) => {
