@@ -528,7 +528,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v15 · 2026-07-03 (scale + parser)';
+const APP_VERSION = 'v16 · 2026-07-03 (split headers)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1429,16 +1429,44 @@ function bookNameFromFile(filename, coverLines) {
   return fromFile || 'Untitled Book';
 }
 
-// Split all PDF lines into per-rule chunks by RULE N markers, parse each chunk
+// Split all PDF lines into per-rule chunks by RULE markers, parse each chunk.
+// Handles every layout the generators produce:
+//   "RULE 7"  (inline)  ·  "7" then "RULE"  ·  "RULE" then "7"  ·  "7 RULE"
+const BARE_RULE_RE = /^RULE$/i;
+const BARE_NUM_RE  = /^0*(\d{1,3})$/;
+const NUM_RULE_RE  = /^0*(\d{1,3})\s+RULE\b\s*(.*)$/i;
+
 function parseAllRules(allLines) {
   const chunks = [];
-  for (const raw of allLines) {
-    const line = raw.trim();
-    if (!line || FURNITURE_RE.test(line)) continue;
+  let prevBareNum = null; // number-only line seen immediately before this one
+  for (let i = 0; i < allLines.length; i++) {
+    const line = allLines[i].trim();
+    if (!line) continue;
+
+    // split-header layouts: number and the word RULE on separate/joined lines
+    let m;
+    if (BARE_RULE_RE.test(line)) {
+      let n = prevBareNum;
+      if (n === null && i + 1 < allLines.length && (m = allLines[i + 1].trim().match(BARE_NUM_RE))) {
+        n = m[1]; i++;              // "RULE" then the number on the next line
+      }
+      prevBareNum = null;
+      if (n !== null) { chunks.push(['RULE ' + n]); continue; }
+      continue;                     // stray "RULE" with no number nearby — ignore
+    }
+    if ((m = line.match(NUM_RULE_RE))) {
+      prevBareNum = null;
+      chunks.push(['RULE ' + m[1] + (m[2] ? ' ' + m[2] : '')]);
+      continue;
+    }
+    m = line.match(BARE_NUM_RE);
+    prevBareNum = m ? m[1] : null;  // remember before furniture skip below
+
+    if (FURNITURE_RE.test(line)) continue;
     if (RULE_RE.test(line)) {
-      chunks.push([raw]);          // start a new chunk
+      chunks.push([allLines[i]]);          // start a new chunk
     } else if (chunks.length) {
-      chunks[chunks.length - 1].push(raw); // append to current chunk
+      chunks[chunks.length - 1].push(allLines[i]); // append to current chunk
     }
     // lines before the first RULE are skipped (cover / intro)
   }
@@ -1485,8 +1513,9 @@ async function importPdf(file) {
       lineFreq.set(l, (lineFreq.get(l) || 0) + 1);
     }
   }
-  const isStructural = l => RULE_RE.test(l) || GAIN_RE.test(l) || LOSE_RE.test(l) ||
-    REALITY_RE.test(l) || CHOICE_RE.test(l) || STD_RE.test(l) || MARKER_ONLY_RE.test(l);
+  const isStructural = l => RULE_RE.test(l) || /^RULE$/i.test(l) || GAIN_RE.test(l) ||
+    LOSE_RE.test(l) || REALITY_RE.test(l) || CHOICE_RE.test(l) || STD_RE.test(l) ||
+    MARKER_ONLY_RE.test(l);
   const repeated = new Set();
   if (pages.length > 3) {
     for (const [l, n] of lineFreq) {
