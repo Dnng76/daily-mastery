@@ -546,7 +546,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v18 · 2026-07-03 (import diagnostics)';
+const APP_VERSION = 'v19 · 2026-07-03 (per-page parse)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1491,6 +1491,53 @@ function parseAllRules(allLines) {
   return chunks.map(c => parseRuleFromLines(c)).filter(Boolean);
 }
 
+// Heading-agnostic fallback: some generators produce "50 principles, one per
+// page" PDFs with NO "RULE N" heading at all (e.g. Working_Smart_Brutal_Rules).
+// Every variant still has the WHAT YOU GAIN / … / THE STANDARD sections, so we
+// split one rule per page and take the title as the text above the first
+// section header. Only used when parseAllRules finds nothing, so it can't
+// regress any PDF that already imports.
+const SECTION_ANY_RE = l => GAIN_RE.test(l) || LOSE_RE.test(l) || REALITY_RE.test(l) || CHOICE_RE.test(l) || STD_RE.test(l);
+const PAGE_FOOTER_RE = /^(MASTERY\s+RULES|BRUTAL)\b/i; // header/footer band on each page
+const TICK_LINE_RE   = /^tick\b/i;
+const N_OF_RE        = /(\d{1,3})\s+of\s+\d+/i;         // "01 of 50" anywhere on a page
+const HEAD_WORD_RE   = /^(RULE|PRINCIPLE|LAW|LESSON|SECRET|STEP|HABIT|TRUTH|NO\.?|#)\s*0*\d*\s*[:.\-—–]*\s*/i;
+
+function parseByPage(pages) {
+  const rules = [];
+  const seen = new Set();
+  let seq = 0;
+  for (const raw of pages) {
+    // number comes from the "NN of NN" band before we strip it
+    let n = null;
+    for (const l of raw) { const m = l.match(N_OF_RE); if (m) { n = parseInt(m[1], 10); break; } }
+
+    // drop the repeating header/footer + "tick" line so they can't pollute a section
+    const clean = raw.filter(l => { const t = l.trim(); return t && !PAGE_FOOTER_RE.test(t) && !TICK_LINE_RE.test(t); });
+    const secIdx = clean.findIndex(l => SECTION_ANY_RE(l.trim()));
+    if (secIdx < 1) continue;                                   // no sections → not a rule page
+    if (!clean.slice(secIdx).some(l => GAIN_RE.test(l.trim()) || STD_RE.test(l.trim()))) continue;
+
+    seq++;
+    if (n === null) n = seq;
+
+    const titleParts = [];
+    for (let i = 0; i < secIdx; i++) {
+      let t = clean[i].trim();
+      if (!t || FURNITURE_RE.test(t) || N_OF_RE.test(t)) continue;
+      t = t.replace(HEAD_WORD_RE, '').trim();
+      if (t) titleParts.push(t);
+    }
+    const title = titleParts.join(' ').replace(/\s+/g, ' ').trim();
+    if (!title || title.length < 3) continue;
+
+    // reuse the section parser by feeding it a synthetic "RULE n title" header
+    const rule = parseRuleFromLines(['RULE ' + n + ' ' + title, ...clean.slice(secIdx)]);
+    if (rule && !seen.has(rule.n)) { seen.add(rule.n); rules.push(rule); }
+  }
+  return rules;
+}
+
 async function importPdf(file) {
   const diag = { name: file.name, size: file.size, type: file.type || '(none)', pdfjs: typeof pdfjsLib !== 'undefined' };
   if (typeof pdfjsLib === 'undefined') {  // CDN script didn't load (offline / bad network)
@@ -1576,15 +1623,14 @@ async function importPdf(file) {
   let firstRuleIdx = allLines.findIndex(l => RULE_RE.test(l.trim()));
   const coverLines = firstRuleIdx > 0 ? allLines.slice(0, firstRuleIdx) : null;
 
-  const rules = parseAllRules(allLines);
+  let rules = parseAllRules(allLines);
+  if (!rules.length) { rules = parseByPage(pages); diag.pageFallback = rules.length; } // heading-agnostic fallback
   diag.rulesParsed = rules.length;
 
   if (!rules.length) {
     const why = diag.totalLines === 0
       ? 'No text could be read from this PDF (it may be scanned images, or the reader failed).'
-      : diag.ruleMarkers === 0
-      ? 'Text was read, but no "RULE" headings were found in it.'
-      : 'RULE headings were found but no rule could be built from them.';
+      : 'Text was read, but it does not match the expected rule layout (no RULE headings and no per-page sections).';
     showImportDiag(`No rules found in "${file.name}"`, why, diag);
     return { status: 'empty' };
   }
