@@ -528,7 +528,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v16 · 2026-07-03 (split headers)';
+const APP_VERSION = 'v17 · 2026-07-03 (auto-update)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -2068,14 +2068,28 @@ initFirebase();
 // Service worker: keeps the installed (home-screen) app updating to the latest
 // build when online, instead of being stuck on a cached old version.
 if ('serviceWorker' in navigator) {
+  let reloadedForUpdate = false;
+  // when a freshly-installed SW takes control, reload ONCE so the new code runs
+  // immediately — no more being stuck on a cached old version.
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloadedForUpdate) return;
+    reloadedForUpdate = true;
+    window.location.reload();
+  });
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').then(reg => {
+      reg.update(); // check for a newer sw.js right now
+      // and again whenever the app is brought back to the foreground
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update();
+      });
       reg.addEventListener('updatefound', () => {
         const nw = reg.installing;
         if (!nw) return;
         nw.addEventListener('statechange', () => {
           if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-            toast('Updated — close and reopen the app to finish');
+            toast('Updating to the latest version…');
+            nw.postMessage && nw.postMessage('skipWaiting');
           }
         });
       });
