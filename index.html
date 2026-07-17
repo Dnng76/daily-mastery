@@ -191,10 +191,11 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     border-radius: var(--radius);
     padding: 14px;
     cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
+    transition: border-color 0.15s, background 0.15s, transform 0.08s ease;
     border-left-width: 4px;
   }
   .card:hover { background: var(--surface-2); }
+  .card:active { transform: scale(0.985); }
   .card.done { opacity: 0.55; }
   .card.done .card-title { text-decoration: line-through; text-decoration-color: var(--text-faint); }
   .card.flash { animation: flash 1.6s ease; }
@@ -224,7 +225,14 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     justify-content: center;
   }
   .tick:hover { border-color: var(--green); background: transparent; }
+  .tick:active { transform: scale(0.9); }
   .tick.on { background: var(--green); border-color: var(--green); color: var(--bg); }
+  .tick.pop { animation: tick-pop 0.28s ease; }
+  @keyframes tick-pop {
+    0% { transform: scale(1); }
+    45% { transform: scale(1.25); }
+    100% { transform: scale(1); }
+  }
 
   .card-body { display: none; margin-top: 12px; font-size: 0.84rem; }
   .card.open .card-body { display: block; }
@@ -546,7 +554,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v19 · 2026-07-03 (per-page parse)';
+const APP_VERSION = 'v20 · 2026-07-03 (UI polish)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1009,7 +1017,9 @@ function bodyHtml(rule) {
 // The heavy detail body is built lazily — only for cards that are open.
 // Collapsed cards are ~6 DOM nodes instead of ~25, which is what keeps a
 // 3,500-rule grid scrollable on a phone.
-function cardHtml(book, rule, uid) {
+// showTag: only when the card isn't already under its book's section header
+// (repeating the book name on every card was pure noise).
+function cardHtml(book, rule, uid, showTag) {
   const done = isDone(uid);
   const open = expanded.has(uid);
   return `
@@ -1017,7 +1027,7 @@ function cardHtml(book, rule, uid) {
        id="card-${cssId(uid)}" data-uid="${uid}" style="border-left-color:${book.color}">
     <div class="card-top">
       <div class="card-top-left">
-        ${bookTag(book)}
+        ${showTag ? bookTag(book) : ''}
         <span class="rule-n">RULE ${rule.n}</span>
       </div>
       <button class="tick ${done ? 'on' : ''}" data-tick="${uid}" title="Mark done">✓</button>
@@ -1070,18 +1080,33 @@ function renderGrid() {
         <button class="collapse-arrow">${isOpen ? '▲' : '▼'}</button>
       </div>`;
       if (isOpen) {
-        for (const { book: b, rule, uid } of items) html += cardHtml(b, rule, uid);
+        for (const { book: b, rule, uid } of items) html += cardHtml(b, rule, uid, false);
       }
     }
   } else {
-    html = rules.map(({ book, rule, uid }) => cardHtml(book, rule, uid)).join('');
+    // flat list (search / mixed): show the book tag since there's no header above
+    html = rules.map(({ book, rule, uid }) => cardHtml(book, rule, uid, true)).join('');
+  }
+
+  // No matches for the current search/filter — explain instead of a blank page
+  if (!rules.length) {
+    const term = searchTerm.trim();
+    html = `<div class="empty" style="grid-column:1/-1">
+      <strong>No matching rules</strong>
+      <p>${term ? `Nothing matches “${esc(term)}”` : 'Nothing here with the current filter'}.</p>
+      <button id="clear-filters">Clear ${term ? 'search' : 'filter'}</button>
+    </div>`;
   }
 
   $('grid').innerHTML = html;
+  const clr = $('clear-filters');
+  if (clr) clr.onclick = () => {
+    searchTerm = ''; $('search').value = ''; filter = 'all'; renderAll();
+  };
 
   const base = rules.length === total
     ? `${total} rules · ${data.books.length} book${data.books.length === 1 ? '' : 's'}`
-    : `Showing ${rules.length} of ${total} rules`;
+    : `${rules.length} shown · ${total} total`;
   $('count-note').textContent = base + ' · ' + APP_VERSION;
 }
 
@@ -1209,6 +1234,8 @@ function renderAll() {
 
 /* ================= Actions ================= */
 
+function popTick(el) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+
 function toggleTick(uid) {
   const ticks = getTicks();
   const i = ticks.indexOf(uid);
@@ -1221,10 +1248,10 @@ function toggleTick(uid) {
   if (card) {
     card.classList.toggle('done', done);
     const tb = card.querySelector('[data-tick]');
-    if (tb) tb.classList.toggle('on', done);
+    if (tb) { tb.classList.toggle('on', done); if (done) popTick(tb); }
   }
   const st = $('spot-tick');
-  if (st && spotUid === uid) st.classList.toggle('on', done);
+  if (st && spotUid === uid) { st.classList.toggle('on', done); if (done) popTick(st); }
 
   renderProgress();
   renderCountdown();
