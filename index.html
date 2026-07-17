@@ -73,6 +73,16 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .day-left { font-size: 0.72rem; color: var(--text-faint); margin-top: 2px; }
   .day-left.urgent { color: var(--red); }
   .header-right { display: flex; align-items: center; gap: 10px; }
+  .streak-badge {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--amber);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 10px;
+    white-space: nowrap;
+  }
 
   /* Progress ring */
   .ring-box { display: flex; align-items: center; gap: 10px; }
@@ -330,6 +340,25 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     border-bottom: 1px solid var(--border);
   }
   .book-row:last-of-type { border-bottom: none; }
+  .reorder { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+  .reorder-btn {
+    padding: 0; width: 26px; height: 18px; line-height: 1; font-size: 0.6rem;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim);
+  }
+  .reorder-btn:disabled { opacity: 0.3; cursor: default; }
+  .reorder-btn:not(:disabled):hover { color: var(--text); border-color: var(--text-faint); }
+
+  /* Daily Focus size stepper */
+  .focus-setting {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px; margin-bottom: 8px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .focus-setting-label { font-size: 0.9rem; font-weight: 600; }
+  .focus-setting-note { font-size: 0.74rem; color: var(--text-dim); margin-top: 2px; }
+  .focus-stepper { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .focus-stepper button { width: 34px; height: 34px; padding: 0; font-size: 1.1rem; font-weight: 700; }
+  .focus-stepper span { min-width: 34px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
   .book-row-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .book-dot { width: 12px; height: 12px; border-radius: 999px; flex-shrink: 0; }
   .book-row-name { font-size: 0.9rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -483,13 +512,14 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
       <div class="day-left" id="countdown"></div>
     </div>
     <div class="header-right">
+      <span class="streak-badge" id="streak" hidden></span>
       <div class="ring-box">
         <svg class="ring" viewBox="0 0 48 48">
           <circle class="track" cx="24" cy="24" r="20"></circle>
           <circle class="bar" id="ring-bar" cx="24" cy="24" r="20"></circle>
           <text id="ring-text" x="24" y="24">0</text>
         </svg>
-        <div class="ring-label" id="ring-label">0 / 0<br>done today</div>
+        <div class="ring-label" id="ring-label">0 / 0<br>focus done</div>
       </div>
     </div>
   </header>
@@ -518,6 +548,19 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 <div class="modal-backdrop" id="library-modal">
   <div class="modal">
     <h3 id="library-title">📚 Library</h3>
+
+    <div class="focus-setting">
+      <div>
+        <div class="focus-setting-label">🎯 Daily Focus size</div>
+        <div class="focus-setting-note">Rules the app picks for you each day</div>
+      </div>
+      <div class="focus-stepper">
+        <button id="focus-minus" title="Fewer">−</button>
+        <span id="focus-size-val">15</span>
+        <button id="focus-plus" title="More">＋</button>
+      </div>
+    </div>
+
     <div id="book-list"></div>
     <div id="remove-all-row" style="text-align:right;margin-top:10px" hidden>
       <button id="btn-remove-all" class="danger">🗑 Remove all books</button>
@@ -554,7 +597,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v20 · 2026-07-03 (UI polish)';
+const APP_VERSION = 'v21 · 2026-07-03 (Daily Focus)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -645,6 +688,17 @@ const dirtyBookIds = new Set();
 const removedBookIds = new Set();
 if (needsLocalMigration) for (const b of data.books) dirtyBookIds.add(b.id);
 
+// Migration: give every rule a stable unique id. assignRuleIds keeps id = number
+// for the first occurrence, so ticks keyed by book:number are preserved; only
+// compendium duplicates get bumped. Persist immediately so it's one-time.
+{
+  let migrated = false;
+  for (const book of data.books) {
+    if (book.rules.some(r => r.id == null)) { assignRuleIds(book); dirtyBookIds.add(book.id); migrated = true; }
+  }
+  if (migrated) writeBooks();
+}
+
 function writeBooks() {
   try {
     for (const id of removedBookIds) localStorage.removeItem(BOOK_PREFIX + id);
@@ -732,7 +786,7 @@ function setTicks(arr) {
 // Flat ordered list of every rule across every book.
 // Cached because it's read many times per render; invalidated on book changes.
 let _allRulesCache = null, _ruleByUid = null;
-function invalidateRules() { _allRulesCache = null; _ruleByUid = null; booksDirty = true; } // books changed → rewrite compressed blob
+function invalidateRules() { _allRulesCache = null; _ruleByUid = null; _focusCache = null; booksDirty = true; } // books changed → rewrite compressed blob
 
 // Local book edits (import/remove/rename) sync per-book: only the touched
 // records are recompressed and pushed, never the whole library.
@@ -747,12 +801,29 @@ function bookRemoved(id) {
   dirtyBookIds.delete(id); cloudDirtyBooks.delete(id);
   removedBookIds.add(id); cloudRemovedBooks.add(id);
 }
+// A rule's stable identity. Uses rule.id when present (assigned at import so
+// compendium PDFs with repeating rule NUMBERS still tick independently);
+// falls back to rule.n for books imported before ids existed.
+function ruleUid(book, rule) { return book.id + ':' + (rule.id != null ? rule.id : rule.n); }
+
+// Give every rule in a book a unique id. First occurrence keeps id = its number
+// (so existing ticks keyed by book:number are preserved); duplicates bump up.
+function assignRuleIds(book) {
+  const used = new Set(book.rules.filter(r => r.id != null).map(r => r.id));
+  for (const r of book.rules) {
+    if (r.id != null) continue;
+    let id = r.n;
+    while (used.has(id)) id++;
+    r.id = id; used.add(id);
+  }
+}
+
 function allRules() {
   if (_allRulesCache) return _allRulesCache;
   const out = [];
   for (const book of data.books) {
     for (const rule of book.rules) {
-      out.push({ book, rule, uid: book.id + ':' + rule.n });
+      out.push({ book, rule, uid: ruleUid(book, rule) });
     }
   }
   _allRulesCache = out;
@@ -835,9 +906,64 @@ function spotlightRule() {
   return { ...pick, score: bestScore };
 }
 
+/* ================= Daily Focus =================
+   The library can hold thousands of rules — "0 / 3500 done" is meaningless.
+   Daily Focus picks a manageable set for today (the most-neglected rules),
+   and the progress ring measures THOSE. Selection uses only history before
+   today, so it's stable all day and identical on every synced device. */
+
+const FOCUS_SIZE_KEY = 'mastery_focus_size';
+let focusSize = 15;
+try { const v = parseInt(localStorage.getItem(FOCUS_SIZE_KEY), 10); if (v > 0) focusSize = v; } catch (e) { /* ignore */ }
+
+function setFocusSize(n) {
+  focusSize = Math.max(1, Math.min(200, n | 0));
+  try { localStorage.setItem(FOCUS_SIZE_KEY, String(focusSize)); } catch (e) { /* ignore */ }
+  _focusCache = null;
+  renderAll();
+}
+
+// uid -> day number of most recent tick strictly before today
+function lastTickedMap() {
+  const map = {};
+  for (const k of Object.keys(data)) {
+    if (!k.startsWith('ticks_')) continue;
+    const day = k.slice(6);
+    if (day >= currentDay) continue;
+    const dn = Math.floor(Date.parse(day + 'T00:00:00') / 86400000);
+    for (const uid of data[k] || []) if (!(uid in map) || dn > map[uid]) map[uid] = dn;
+  }
+  return map;
+}
+
+let _focusCache = null, _focusDay = null;
+function getDailyFocus() {
+  if (_focusCache && _focusDay === currentDay) return _focusCache;
+  const all = allRules();
+  const dayN = Math.floor(Date.parse(currentDay + 'T00:00:00') / 86400000);
+  const last = lastTickedMap();
+  const scored = all.map(r => ({
+    uid: r.uid,
+    score: (r.uid in last) ? Math.min(dayN - last[r.uid], NEVER_TICKED) : NEVER_TICKED
+  }));
+  // most-neglected first; stable tie-break by uid so every device agrees
+  scored.sort((a, b) => b.score - a.score || (a.uid < b.uid ? -1 : 1));
+  _focusCache = new Set(scored.slice(0, focusSize).map(s => s.uid));
+  _focusDay = currentDay;
+  return _focusCache;
+}
+
+function focusProgress() {
+  const focus = getDailyFocus();
+  const ds = doneSet();
+  let done = 0;
+  for (const uid of focus) if (ds.has(uid)) done++;
+  return { done, total: focus.size };
+}
+
 /* ================= UI state ================= */
 
-let filter = 'all';        // 'all' | 'todo' | 'done' | book id
+let filter = 'focus';      // 'focus' | 'all' | 'todo' | 'done' | book id
 let searchTerm = '';
 const expanded = new Set();
 // Book sections start MINIMIZED: only books you open render their cards, which
@@ -862,15 +988,15 @@ function bookTag(book) {
 }
 
 function renderProgress() {
-  const total = allRules().length;
-  const done = validTicks().length;
+  // The ring measures TODAY'S FOCUS, not the whole library (which would sit near 0%).
+  const { done, total } = focusProgress();
   const pct = total ? Math.round(done / total * 100) : 0;
   const r = 20, circ = 2 * Math.PI * r;
   const bar = $('ring-bar');
   bar.style.strokeDasharray = circ;
   bar.style.strokeDashoffset = total ? circ * (1 - done / total) : circ;
   $('ring-text').textContent = pct + '%';
-  $('ring-label').innerHTML = `${done} / ${total}<br>done today`;
+  $('ring-label').innerHTML = `${done} / ${total}<br>focus done`;
 }
 
 let spotUid = null;
@@ -915,7 +1041,9 @@ function chipHtml(c) {
 }
 
 function renderChips() {
+  const fp = focusProgress();
   const base = [
+    { id: 'focus', label: `🎯 Focus ${fp.done}/${fp.total}` },
     { id: 'all', label: 'All' },
     { id: 'todo', label: 'To Do' },
     { id: 'done', label: 'Done' }
@@ -988,10 +1116,12 @@ function orderCards() {
 
 function visibleRules() {
   const term = searchTerm.trim().toLowerCase();
+  const focus = filter === 'focus' ? getDailyFocus() : null;
   return applyMix(allRules()).filter(({ book, rule, uid }) => {
-    if (filter === 'todo' && isDone(uid)) return false;
-    if (filter === 'done' && !isDone(uid)) return false;
-    if (filter !== 'all' && filter !== 'todo' && filter !== 'done' && book.id !== filter) return false;
+    if (focus) { if (!focus.has(uid)) return false; }
+    else if (filter === 'todo' && isDone(uid)) return false;
+    else if (filter === 'done' && !isDone(uid)) return false;
+    else if (filter !== 'all' && filter !== 'todo' && filter !== 'done' && book.id !== filter) return false;
     if (term) {
       const hay = (rule.title + ' ' + rule.standard).toLowerCase();
       if (!hay.includes(term)) return false;
@@ -1055,10 +1185,10 @@ function renderGrid() {
 
   $('empty-box').innerHTML = '';
 
-  // Sections show unless mixing or searching (search shows flat matches so
-  // results are never hidden inside a minimized book).
+  // Sections show unless mixing, searching, or in Focus (whose rules span books
+  // and should read as one flat to-do list).
   const searching = !!searchTerm.trim();
-  const showSections = !mixOrder && !searching;
+  const showSections = !mixOrder && !searching && filter !== 'focus';
 
   let html = '';
   if (showSections) {
@@ -1157,12 +1287,18 @@ function renderLibrary() {
   }
   const removeRow = $('remove-all-row');
   if (removeRow) removeRow.hidden = !nBooks;
+  const fv = $('focus-size-val');
+  if (fv) fv.textContent = focusSize;
   if (!nBooks) {
     list.innerHTML = `<p style="color:var(--text-dim);font-size:0.85rem">No books imported yet.</p>`;
     return;
   }
-  list.innerHTML = data.books.map(b => `
+  list.innerHTML = data.books.map((b, i) => `
     <div class="book-row">
+      <div class="reorder">
+        <button class="reorder-btn" data-up="${b.id}" ${i === 0 ? 'disabled' : ''} title="Move up">▲</button>
+        <button class="reorder-btn" data-down="${b.id}" ${i === nBooks - 1 ? 'disabled' : ''} title="Move down">▼</button>
+      </div>
       <div class="book-row-left">
         <span class="book-dot" style="background:${b.color}"></span>
         <div>
@@ -1174,12 +1310,23 @@ function renderLibrary() {
       </div>
       <button class="danger" data-remove="${b.id}">Remove</button>
     </div>`).join('');
-  for (const btn of list.querySelectorAll('[data-remove]')) {
-    btn.onclick = () => removeBook(btn.dataset.remove);
-  }
-  for (const btn of list.querySelectorAll('[data-rename]')) {
-    btn.onclick = () => startRename(btn.dataset.rename);
-  }
+  for (const btn of list.querySelectorAll('[data-remove]')) btn.onclick = () => removeBook(btn.dataset.remove);
+  for (const btn of list.querySelectorAll('[data-rename]')) btn.onclick = () => startRename(btn.dataset.rename);
+  for (const btn of list.querySelectorAll('[data-up]'))   btn.onclick = () => moveBook(btn.dataset.up, -1);
+  for (const btn of list.querySelectorAll('[data-down]')) btn.onclick = () => moveBook(btn.dataset.down, 1);
+}
+
+function moveBook(id, dir) {
+  const i = data.books.findIndex(b => b.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= data.books.length) return;
+  [data.books[i], data.books[j]] = [data.books[j], data.books[i]];
+  invalidateRules();
+  dirtyBookIds.add(id); // order lives in the index; persist it
+  writeBooks();
+  renderChips();
+  renderGrid();
+  renderLibrary();
 }
 
 let renameId = null;
@@ -1214,10 +1361,37 @@ function renderCountdown() {
   const mins = Math.max(0, Math.floor((midnight - now) / 60000));
   const h = Math.floor(mins / 60), m = mins % 60;
   const el = $('countdown');
-  const undone = allRules().length - validTicks().length;
+  const { done, total } = focusProgress();
+  const left = total - done;
   el.textContent = (h ? `${h}h ${m}m` : `${m}m`) + ' left today' +
-    (undone > 0 ? ` · ${undone} to go` : ' · all done 🎉');
-  el.classList.toggle('urgent', h < 2 && undone > 0);
+    (left > 0 ? ` · ${left} focus rule${left === 1 ? '' : 's'} to go` : ' · focus done 🎉');
+  el.classList.toggle('urgent', h < 2 && left > 0);
+}
+
+/* ================= Streak ================= */
+// A day "counts" when you complete that day's focus goal (>= focusSize ticks).
+// Computed from tick history alone — no extra stored state to sync.
+function computeStreak() {
+  const need = focusSize;
+  let streak = 0;
+  const d = new Date();
+  // today only extends the streak once the goal is hit; it never breaks it yet
+  if ((data['ticks_' + dateKey(d)] || []).length >= need) streak++;
+  d.setDate(d.getDate() - 1);
+  for (let i = 0; i < HISTORY_DAYS; i++) {
+    if ((data['ticks_' + dateKey(d)] || []).length >= need) streak++;
+    else break;
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
+}
+
+function renderStreak() {
+  const el = $('streak');
+  if (!el) return;
+  const s = computeStreak();
+  if (s > 0) { el.hidden = false; el.textContent = `🔥 ${s}`; el.title = `${s}-day streak — days you hit your focus goal`; }
+  else el.hidden = true;
 }
 
 function renderAll() {
@@ -1225,6 +1399,7 @@ function renderAll() {
   $('date-label').textContent = '· ' + currentDay;
   renderCountdown();
   renderProgress();
+  renderStreak();
   renderSpotlight();
   renderChips();
   renderGrid();
@@ -1255,7 +1430,9 @@ function toggleTick(uid) {
 
   renderProgress();
   renderCountdown();
-  // Only the To Do / Done filters change membership on a tick → need a grid rebuild there.
+  renderStreak();
+  renderChips();   // keep the 🎯 Focus done/total count in step
+  // These filters change membership on a tick → need a grid rebuild.
   if (filter === 'todo' || filter === 'done') renderGrid();
   else updateSectionHeader(uid.slice(0, uid.lastIndexOf(':')));
 }
@@ -1268,7 +1445,7 @@ function updateSectionHeader(bookId) {
   if (!book) return;
   const ds = doneSet();
   const total = book.rules.length;
-  const done = book.rules.reduce((n, r) => n + (ds.has(bookId + ':' + r.n) ? 1 : 0), 0);
+  const done = book.rules.reduce((n, r) => n + (ds.has(ruleUid(book, r)) ? 1 : 0), 0);
   const cnt = hdr.querySelector('.section-count');
   if (cnt) cnt.textContent = (done ? `${done}/${total}` : String(total)) + (done === total && done ? ' ✓' : '');
   const fill = hdr.querySelector('.sec-bar-fill');
@@ -1688,6 +1865,7 @@ async function importPdf(file) {
     const newRules = rules.filter(r => !existingNums.has(r.n));
     if (!newRules.length) return { status: 'uptodate', name: bestMatch.name };
     bestMatch.rules = [...bestMatch.rules, ...newRules].sort((a, b) => a.n - b.n);
+    assignRuleIds(bestMatch); // give the newly-merged rules stable unique ids
     booksChanged(bestMatch.id);
     save();
     return { status: 'merged', count: newRules.length, name: bestMatch.name };
@@ -1695,13 +1873,15 @@ async function importPdf(file) {
 
   // brand-new book
   const newId = uuid();
-  data.books.push({
+  const newBook = {
     id: newId,
     name: bookNameFromFile(file.name, coverLines),
     color: bookColor(data.books.length),
     importedAt: todayKey(),
     rules
-  });
+  };
+  assignRuleIds(newBook); // unique id per rule (handles compendiums with repeating numbers)
+  data.books.push(newBook);
   booksChanged(newId);
   save();
   return { status: 'added', count: rules.length };
@@ -2174,6 +2354,8 @@ $('btn-reset').onclick = resetToday;
 $('btn-import').onclick = () => $('file-input').click();
 $('btn-modal-import').onclick = () => $('file-input').click();
 $('btn-remove-all').onclick = removeAllBooks;
+$('focus-minus').onclick = () => setFocusSize(focusSize - 5);
+$('focus-plus').onclick  = () => setFocusSize(focusSize + 5);
 $('file-input').addEventListener('change', (e) => {
   importFiles(e.target.files);
   e.target.value = '';
