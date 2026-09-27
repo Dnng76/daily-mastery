@@ -174,7 +174,81 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   }
   .spotlight h2 { font-size: 1.15rem; margin: 4px 0 8px; letter-spacing: -0.01em; overflow-wrap: anywhere; }
   .spotlight .std { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 12px; overflow-wrap: anywhere; }
-  .spotlight .spot-actions { display: flex; gap: 8px; align-items: center; }
+  .spotlight .spot-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  /* ---------- Today's Mission ---------- */
+  .spotlight.mission .kicker { color: var(--amber); }
+  .spotlight.mission.accomplished { background: linear-gradient(0deg, rgba(46,204,113,0.06), rgba(46,204,113,0.06)), var(--surface); }
+  .spotlight.mission.accomplished .kicker { color: var(--green); }
+  .mission-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .mission-hint { font-size: 0.76rem; color: var(--text-faint); margin-top: 10px; }
+  .mission-stat { font-size: 0.78rem; color: var(--text-dim); margin-top: 10px; }
+  .mission-body { margin: 4px 0 12px; font-size: 0.84rem; }
+  .mission-body h4 { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); margin: 12px 0 5px; }
+  .mission-body h4.gain-h { color: var(--green); }
+  .mission-body h4.lose-h { color: var(--red); }
+  .mission-body h4.reality-h { color: var(--amber); }
+  .mission-body h4.choice-h { color: var(--cyan); }
+  .mission-body ul { list-style: none; }
+  .mission-body li { color: var(--text-dim); padding-left: 14px; position: relative; margin-bottom: 3px; overflow-wrap: anywhere; }
+  .mission-body li::before { content: "–"; position: absolute; left: 0; color: var(--text-faint); }
+  .mission-body .para { color: var(--text-dim); overflow-wrap: anywhere; }
+  .mission-body .standard-text { color: var(--text); font-weight: 500; background: var(--surface-2); border-radius: 8px; padding: 9px 11px; overflow-wrap: anywhere; }
+  .lived-btn { font-weight: 700; border-color: var(--green-dim); color: var(--green); padding: 9px 16px; }
+  .lived-btn.on { background: var(--green); border-color: var(--green); color: var(--bg); }
+  .lived-btn.on:hover { background: var(--green-dim); border-color: var(--green-dim); }
+  .lived-btn.pop { animation: tick-pop 0.35s ease; }
+  .link-btn { border: none; background: transparent; color: var(--text-faint); padding: 8px 6px; font-size: 0.8rem; text-decoration: underline; text-underline-offset: 3px; }
+  .link-btn:hover { background: transparent; color: var(--text); }
+
+  /* ---------- 7-day challenge ---------- */
+  .challenge {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--amber);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin: -10px 0 22px;
+  }
+  .challenge .ch-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .challenge .kicker { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--amber); }
+  .challenge .ch-rule { margin: 8px 0 10px; font-size: 0.92rem; font-weight: 600; overflow-wrap: anywhere; }
+  .challenge .ch-rule .book-tag { margin-right: 6px; vertical-align: 1px; }
+  .ch-dots { display: flex; gap: 6px; margin-bottom: 12px; }
+  .ch-dot { flex: 1; max-width: 44px; text-align: center; font-size: 0.62rem; color: var(--text-faint); }
+  .ch-dot i {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; aspect-ratio: 1; max-width: 32px; margin: 0 auto 3px;
+    border-radius: 999px; border: 1.5px solid var(--border); font-style: normal; font-size: 0.8rem; font-weight: 700;
+  }
+  .ch-dot.done i { background: var(--green); border-color: var(--green); color: var(--bg); }
+  .ch-dot.miss i { border-color: #5a2a2a; color: var(--red); }
+  .ch-dot.today i { border-color: var(--amber); color: var(--amber); }
+  .ch-dot.today { color: var(--amber); font-weight: 700; }
+  .ch-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .ch-score { font-size: 0.8rem; color: var(--text-dim); }
+  .challenge.finished { border-left-color: var(--green); }
+  .challenge.finished h3 { font-size: 1.02rem; margin: 6px 0 4px; overflow-wrap: anywhere; }
+  .challenge.finished p { font-size: 0.86rem; color: var(--text-dim); margin-bottom: 12px; }
+
+  /* ---------- Mastery levels ---------- */
+  .lvl {
+    display: inline-block; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.03em;
+    padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap;
+  }
+  .lvl-learning { color: var(--text-dim); }
+  .lvl-practicing { color: #7fd6a4; border-color: #1f4a33; }
+  .lvl-living { color: var(--green); border-color: var(--green-dim); }
+  .lvl-mastered { color: var(--amber); border-color: #6b5220; }
+  @media (max-width: 380px) { .lvl .lvl-word { display: none; } }
+  .card-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .card-actions button { font-size: 0.8rem; padding: 7px 12px; }
+  .mastery-summary {
+    grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 16px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px 14px; font-size: 0.84rem; color: var(--text-dim);
+  }
+  .mastery-summary b { color: var(--text); }
 
   /* ---------- Book tag ---------- */
   .book-tag {
@@ -529,6 +603,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   </header>
 
   <div id="spotlight-box"></div>
+  <div id="challenge-box"></div>
 
   <div class="toolbar">
     <input type="search" id="search" placeholder="Search rules…" autocomplete="off">
@@ -601,7 +676,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v21 · 2026-07-03 (Daily Focus)';
+const APP_VERSION = 'v22 · 2026-09-28 (mission + challenges)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -775,7 +850,7 @@ function ticksKey() { return 'ticks_' + currentDay; }
 function getTicks() { return data[ticksKey()] || []; }
 function setTicks(arr) {
   data[ticksKey()] = arr;
-  _doneSet = null; // tick set changed → rebuild lookup on next use
+  _doneSet = null; _livedCache = null; // tick set changed → rebuild lookups on next use
   data.tickStamp = { [currentDay]: Date.now() }; // per-day timestamp drives sync conflict resolution
   // keep history (for the smart spotlight), but prune anything older than HISTORY_DAYS
   const cutoff = dateKey(new Date(Date.now() - HISTORY_DAYS * 86400000));
@@ -843,6 +918,37 @@ function ruleByUid(uid) {
 let _doneSet = null;
 function doneSet() { return _doneSet || (_doneSet = new Set(getTicks())); }
 function isDone(uid) { return doneSet().has(uid); }
+
+/* ================= Mastery levels =================
+   A rule's level = how many days you LIVED it (ticked it) within the kept
+   tick history (last HISTORY_DAYS days). Rolling on purpose: stop living a
+   rule and its level fades — mastery you don't practise isn't mastery. */
+let _livedCache = null;
+function livedCounts() {
+  if (_livedCache) return _livedCache;
+  const c = new Map();
+  for (const k of Object.keys(data)) {
+    if (!k.startsWith('ticks_')) continue;
+    for (const uid of data[k] || []) c.set(uid, (c.get(uid) || 0) + 1);
+  }
+  return (_livedCache = c);
+}
+const LEVELS = [   // highest first
+  { min: 14, key: 'mastered',   icon: '🏆', label: 'Mastered' },
+  { min: 7,  key: 'living',     icon: '🌳', label: 'Living it' },
+  { min: 3,  key: 'practicing', icon: '🌿', label: 'Practicing' },
+  { min: 1,  key: 'learning',   icon: '🌱', label: 'Learning' }
+];
+function masteryOf(uid) {
+  const n = livedCounts().get(uid) || 0;
+  const lv = LEVELS.find(l => n >= l.min);
+  return lv ? { ...lv, n } : null;
+}
+function lvlBadge(uid) {
+  const m = masteryOf(uid);
+  if (!m) return '';
+  return `<span class="lvl lvl-${m.key}" title="${m.label} — lived ${m.n} day${m.n === 1 ? '' : 's'} in the last ${HISTORY_DAYS}">${m.icon}<span class="lvl-word"> ${m.label}</span></span>`;
+}
 
 // ticks that still point at an existing rule (stale ids can appear after a book is re-imported on another device)
 function validTicks() {
@@ -946,10 +1052,17 @@ function getDailyFocus() {
   const all = allRules();
   const dayN = Math.floor(Date.parse(currentDay + 'T00:00:00') / 86400000);
   const last = lastTickedMap();
-  const scored = all.map(r => ({
-    uid: r.uid,
-    score: (r.uid in last) ? Math.min(dayN - last[r.uid], NEVER_TICKED) : NEVER_TICKED
-  }));
+  // days lived BEFORE today (so the selection stays fixed while you tick today)
+  const pastLived = {};
+  for (const k of Object.keys(data)) {
+    if (!k.startsWith('ticks_') || k.slice(6) >= currentDay) continue;
+    for (const uid of data[k] || []) pastLived[uid] = (pastLived[uid] || 0) + 1;
+  }
+  const scored = all.map(r => {
+    let score = (r.uid in last) ? Math.min(dayN - last[r.uid], NEVER_TICKED) : NEVER_TICKED;
+    if ((pastLived[r.uid] || 0) >= LEVELS[0].min) score = Math.floor(score / 2); // Mastered → surfaces less often
+    return { uid: r.uid, score };
+  });
   // most-neglected first; stable tie-break by uid so every device agrees
   scored.sort((a, b) => b.score - a.score || (a.uid < b.uid ? -1 : 1));
   _focusCache = new Set(scored.slice(0, focusSize).map(s => s.uid));
@@ -964,6 +1077,119 @@ function focusProgress() {
   for (const uid of focus) if (ds.has(uid)) done++;
   return { done, total: focus.size };
 }
+
+/* ================= Today's Mission & 7-day challenge =================
+   Reading 15 rules is fine; ACTING on 15 is impossible. The mission is the ONE
+   rule you commit to live today. A challenge commits you to one rule for 7
+   days straight, because habits only form through repetition.
+   Stored in data.plan (synced with ticks):
+     missions:     { 'YYYY-MM-DD': { uid, at } }   uid null = cleared
+     challenge:    { uid, start, at }              uid null = ended
+     challengeLog: [ { uid, start, days, at } ]    finished challenges */
+
+const CHALLENGE_DAYS = 7;
+
+function plan() {
+  const p = data.plan || (data.plan = {});
+  if (!p.missions) p.missions = {};
+  if (!Array.isArray(p.challengeLog)) p.challengeLog = [];
+  if (p.challenge === undefined) p.challenge = null;
+  return p;
+}
+
+// DST-safe calendar arithmetic on YYYY-MM-DD keys
+function addDays(key, n) { const [y, m, d] = key.split('-').map(Number); return dateKey(new Date(y, m - 1, d + n)); }
+function daysBetween(a, b) {
+  const [y1, m1, d1] = a.split('-').map(Number), [y2, m2, d2] = b.split('-').map(Number);
+  return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000);
+}
+function livedOn(uid, day) { return day === currentDay ? isDone(uid) : (data['ticks_' + day] || []).includes(uid); }
+
+function todaysMission() {
+  const m = plan().missions[currentDay];
+  return (m && m.uid) ? ruleByUid(m.uid) || null : null;
+}
+
+function setMission(uid) {
+  const p = plan();
+  const cur = p.missions[currentDay];
+  if (cur && cur.uid === uid) { toast('Already today\'s mission'); return; }
+  p.missions[currentDay] = { uid, at: Date.now() };
+  const cutoff = dateKey(new Date(Date.now() - HISTORY_DAYS * 86400000));
+  for (const k of Object.keys(p.missions)) if (k < cutoff) delete p.missions[k];
+  save();
+  todayOpenUid = null;
+  renderToday();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  toast('⚔️ Mission set — live this one today');
+}
+
+function clearMission() {
+  plan().missions[currentDay] = { uid: null, at: Date.now() };
+  save();
+  renderToday();
+}
+
+// missions you actually lived (set AND ticked that day) within kept history
+function missionsLived() {
+  let n = 0;
+  for (const [day, m] of Object.entries(plan().missions)) if (m && m.uid && livedOn(m.uid, day)) n++;
+  return n;
+}
+
+// Resolved view of the current challenge, or null when there isn't one.
+function activeChallenge() {
+  const ch = plan().challenge;
+  if (!ch || !ch.uid) return null;
+  const hit = ruleByUid(ch.uid);
+  if (!hit) return null;                                  // its book was removed
+  const dayIdx = Math.max(0, daysBetween(ch.start, currentDay)); // 0-based day of the challenge
+  const days = [];
+  let doneCount = 0;
+  for (let i = 0; i < CHALLENGE_DAYS; i++) {
+    const key = addDays(ch.start, i);
+    const lived = i <= dayIdx && livedOn(ch.uid, key);
+    if (lived) doneCount++;
+    days.push({ key, state: lived ? 'done' : i < dayIdx ? 'miss' : i === dayIdx ? 'today' : 'future' });
+  }
+  // finished once the 7th day has passed — or the 7th day is today and already lived
+  const finished = dayIdx >= CHALLENGE_DAYS || (dayIdx === CHALLENGE_DAYS - 1 && livedOn(ch.uid, currentDay));
+  return { ...ch, ...hit, dayIdx, days, doneCount, finished };
+}
+
+function logChallenge(c) {
+  const p = plan();
+  if (!p.challengeLog.some(x => x.uid === c.uid && x.start === c.start)) {
+    p.challengeLog.push({ uid: c.uid, start: c.start, days: c.doneCount, at: Date.now() });
+    if (p.challengeLog.length > 200) p.challengeLog.splice(0, p.challengeLog.length - 200);
+  }
+}
+
+function startChallenge(uid) {
+  const cur = activeChallenge();
+  if (cur && !cur.finished) {
+    if (cur.uid === uid) { toast('Already your 7-day challenge'); return; }
+    if (!confirm(`You're on day ${cur.dayIdx + 1} of a challenge for Rule ${cur.rule.n}.\n\nReplace it with this rule?`)) return;
+  }
+  if (cur && cur.finished) logChallenge(cur);
+  plan().challenge = { uid, start: currentDay, at: Date.now() };
+  save();
+  renderToday();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  toast('🔥 7-day challenge started — live it every day this week');
+}
+
+function endChallenge() {
+  const cur = activeChallenge();
+  if (!cur) return;
+  if (!cur.finished && !confirm('End this challenge early?')) return;
+  if (cur.finished) logChallenge(cur);
+  plan().challenge = { uid: null, at: Date.now() };
+  save();
+  renderToday();
+}
+
+function completedChallenges() { return plan().challengeLog.filter(c => c.days >= CHALLENGE_DAYS).length; }
 
 /* ================= UI state ================= */
 
@@ -1003,35 +1229,123 @@ function renderProgress() {
   $('ring-label').innerHTML = `${done} / ${total}<br>focus done`;
 }
 
-let spotUid = null;
+let todayOpenUid = null;   // mission/suggestion card whose full rule text is expanded
+
+// Top of the page: today's mission if you've set one, otherwise a suggested
+// mission (the rule you've neglected longest) you can accept with one tap.
 function renderSpotlight() {
-  const spot = spotlightRule();
   const box = $('spotlight-box');
-  spotUid = spot ? spot.uid : null;
+  const mission = todaysMission();
+  const readBtn = (uid) => `<button id="today-read">${todayOpenUid === uid ? 'Hide rule ▴' : 'Read full rule ▾'}</button>`;
+  const body = (uid, rule) => todayOpenUid === uid ? `<div class="mission-body">${bodyHtml(rule)}</div>` : '';
+
+  if (mission) {
+    const { book, rule, uid } = mission;
+    const done = isDone(uid);
+    const ch = plan().challenge;
+    const isChallenge = ch && ch.uid === uid;
+    const lived = missionsLived();
+    box.innerHTML = `
+      <div class="spotlight mission ${done ? 'accomplished' : ''}" style="border-left-color:${done ? 'var(--green)' : book.color}">
+        <div class="kicker">⚔️ Today's mission · ${done ? '✓ accomplished' : 'live this one rule today'}</div>
+        <div class="mission-meta">${bookTag(book)}${lvlBadge(uid)}</div>
+        <h2>Rule ${rule.n} — ${esc(rule.title)}</h2>
+        ${rule.standard ? `<div class="std">${esc(rule.standard)}</div>` : ''}
+        ${body(uid, rule)}
+        <div class="spot-actions">
+          <button class="lived-btn ${done ? 'on' : ''}" id="mission-lived">${done ? '✓ Lived it' : '✓ I lived it'}</button>
+          ${readBtn(uid)}
+          ${isChallenge ? '' : '<button id="mission-challenge" title="Live this rule every day for 7 days">🔥 Make it 7 days</button>'}
+          <button class="link-btn" id="mission-change">Change</button>
+        </div>
+        ${done && lived ? `<div class="mission-stat">⚔️ ${lived} mission${lived === 1 ? '' : 's'} lived in the last ${HISTORY_DAYS} days</div>` : ''}
+      </div>`;
+    $('mission-lived').onclick = () => toggleTick(uid);
+    $('today-read').onclick = () => { todayOpenUid = todayOpenUid === uid ? null : uid; renderSpotlight(); };
+    if (!isChallenge) $('mission-challenge').onclick = () => startChallenge(uid);
+    $('mission-change').onclick = clearMission;
+    return;
+  }
+
+  const spot = spotlightRule();
   if (!spot) { box.innerHTML = ''; return; }
-  const done = isDone(spot.uid);
   const why = spot.random ? 'random pick'
-    : spot.score >= NEVER_TICKED ? 'never ticked yet'
-    : spot.score === 1 ? 'last done yesterday'
-    : `not done in ${spot.score} days`;
+    : spot.score >= NEVER_TICKED ? 'never lived yet'
+    : spot.score === 1 ? 'last lived yesterday'
+    : `not lived in ${spot.score} days`;
   box.innerHTML = `
-    <div class="spotlight" style="border-left-color:${spot.book.color}">
-      <div class="kicker">★ Today's Spotlight · ${why}</div>
-      ${bookTag(spot.book)}
+    <div class="spotlight mission" style="border-left-color:${spot.book.color}">
+      <div class="kicker">⚔️ Pick today's mission · one rule to live today</div>
+      <div class="mission-meta">${bookTag(spot.book)}${lvlBadge(spot.uid)}<span class="rule-n">Suggested · ${why}</span></div>
       <h2>Rule ${spot.rule.n} — ${esc(spot.rule.title)}</h2>
-      <div class="std">${esc(spot.rule.standard)}</div>
+      ${spot.rule.standard ? `<div class="std">${esc(spot.rule.standard)}</div>` : ''}
+      ${body(spot.uid, spot.rule)}
       <div class="spot-actions">
-        <button id="spot-jump">Jump to rule ↓</button>
-        <button id="spot-shuffle" title="Show a random rule instead">🎲</button>
+        <button class="primary-btn" id="mission-pick">⚔️ Make this my mission</button>
+        <button id="spot-shuffle" title="Suggest a different rule">🎲</button>
         ${spot.random ? '<button id="spot-smart" title="Back to the rule picked for you">★ Smart pick</button>' : ''}
-        <button class="tick ${done ? 'on' : ''}" id="spot-tick" title="Mark done">✓</button>
+        ${readBtn(spot.uid)}
+      </div>
+      <div class="mission-hint">…or open any rule below and tap ⚔️ to make it your mission.</div>
+    </div>`;
+  $('mission-pick').onclick = () => setMission(spot.uid);
+  $('spot-shuffle').onclick = () => { todayOpenUid = null; shuffleSpotlight(); };
+  if (spot.random) $('spot-smart').onclick = smartSpotlight;
+  $('today-read').onclick = () => { todayOpenUid = todayOpenUid === spot.uid ? null : spot.uid; renderSpotlight(); };
+}
+
+function renderChallenge() {
+  const box = $('challenge-box');
+  const c = activeChallenge();
+  if (!c) { box.innerHTML = ''; return; }
+  const title = `Rule ${c.rule.n} — ${esc(c.rule.title)}`;
+
+  if (c.finished) {
+    const perfect = c.doneCount >= CHALLENGE_DAYS;
+    const lv = masteryOf(c.uid);
+    box.innerHTML = `
+      <div class="challenge finished">
+        <div class="kicker">${perfect ? '🏆 Challenge complete' : '🔥 Challenge finished'}</div>
+        <h3>${c.doneCount}/${CHALLENGE_DAYS} days · ${title}</h3>
+        <p>${perfect
+          ? 'You lived it every single day. That\'s how a rule stops being something you read and becomes who you are.'
+          : `${c.doneCount} day${c.doneCount === 1 ? '' : 's'} lived. The days you missed are the lesson — run it again and close the gap.`}
+          ${lv ? `<br>Level now: ${lv.icon} ${lv.label}.` : ''}</p>
+        <div class="ch-actions">
+          <button class="lived-btn" id="ch-again">🔥 Go again</button>
+          <button id="ch-close">Close</button>
+        </div>
+      </div>`;
+    $('ch-again').onclick = () => { logChallenge(c); plan().challenge = null; startChallenge(c.uid); };
+    $('ch-close').onclick = endChallenge;
+    return;
+  }
+
+  const todayDone = isDone(c.uid);
+  const dots = c.days.map((d, i) => {
+    const [y, m, dd] = d.key.split('-').map(Number);
+    const wd = 'SMTWTFS'[new Date(y, m - 1, dd).getDay()];
+    const mark = d.state === 'done' ? '✓' : d.state === 'miss' ? '✗' : String(i + 1);
+    return `<div class="ch-dot ${d.state}"><i>${mark}</i>${wd}</div>`;
+  }).join('');
+  box.innerHTML = `
+    <div class="challenge">
+      <div class="ch-head">
+        <span class="kicker">🔥 7-day challenge · day ${c.dayIdx + 1} of ${CHALLENGE_DAYS}</span>
+        <button class="link-btn" id="ch-end">End</button>
+      </div>
+      <div class="ch-rule">${bookTag(c.book)}${title}</div>
+      <div class="ch-dots">${dots}</div>
+      <div class="ch-actions">
+        <button class="lived-btn ${todayDone ? 'on' : ''}" id="ch-lived">${todayDone ? '✓ Lived it today' : '✓ I lived it today'}</button>
+        <span class="ch-score">${c.doneCount}/${CHALLENGE_DAYS} days so far</span>
       </div>
     </div>`;
-  $('spot-jump').onclick = () => jumpTo(spot.uid);
-  $('spot-shuffle').onclick = shuffleSpotlight;
-  if (spot.random) $('spot-smart').onclick = smartSpotlight;
-  $('spot-tick').onclick = () => toggleTick(spot.uid);
+  $('ch-lived').onclick = () => toggleTick(c.uid);
+  $('ch-end').onclick = endChallenge;
 }
+
+function renderToday() { renderSpotlight(); renderChallenge(); }
 
 let chipsCollapsed = false;
 try { chipsCollapsed = localStorage.getItem('mastery_chips_collapsed') === '1'; } catch (e) { /* ignore */ }
@@ -1046,11 +1360,14 @@ function chipHtml(c) {
 
 function renderChips() {
   const fp = focusProgress();
+  let growing = 0;
+  for (const [uid, n] of livedCounts()) if (n > 0 && ruleByUid(uid)) growing++;
   const base = [
     { id: 'focus', label: `🎯 Focus ${fp.done}/${fp.total}` },
     { id: 'all', label: 'All' },
     { id: 'todo', label: 'To Do' },
-    { id: 'done', label: 'Done' }
+    { id: 'done', label: 'Done' },
+    { id: 'mastery', label: `🏆 Mastery${growing ? ' ' + growing : ''}` }
   ];
   const books = data.books.map(b => ({ id: b.id, label: b.name, color: b.color }));
 
@@ -1121,8 +1438,10 @@ function orderCards() {
 function visibleRules() {
   const term = searchTerm.trim().toLowerCase();
   const focus = filter === 'focus' ? getDailyFocus() : null;
-  return applyMix(allRules()).filter(({ book, rule, uid }) => {
+  const lived = filter === 'mastery' ? livedCounts() : null;
+  const out = applyMix(allRules()).filter(({ book, rule, uid }) => {
     if (focus) { if (!focus.has(uid)) return false; }
+    else if (lived) { if (!lived.get(uid)) return false; }
     else if (filter === 'todo' && isDone(uid)) return false;
     else if (filter === 'done' && !isDone(uid)) return false;
     else if (filter !== 'all' && filter !== 'todo' && filter !== 'done' && book.id !== filter) return false;
@@ -1132,9 +1451,13 @@ function visibleRules() {
     }
     return true;
   });
+  // Mastery view: the rules you've lived most, first (unless you've mixed the order)
+  if (lived && !Array.isArray(mixOrder)) out.sort((a, b) => lived.get(b.uid) - lived.get(a.uid));
+  return out;
 }
 
-function bodyHtml(rule) {
+// uid given → it's a grid card, so append the mission/challenge actions
+function bodyHtml(rule, uid) {
   return `
       ${rule.gain.length ? `<h4 class="gain-h">What you gain</h4>
         <ul>${rule.gain.map(g => `<li>${esc(g)}</li>`).join('')}</ul>` : ''}
@@ -1145,7 +1468,11 @@ function bodyHtml(rule) {
       ${rule.choice ? `<h4 class="choice-h">The Choice</h4>
         <p class="para">${esc(rule.choice)}</p>` : ''}
       ${rule.standard ? `<h4>The Standard</h4>
-        <div class="standard-text">${esc(rule.standard)}</div>` : ''}`;
+        <div class="standard-text">${esc(rule.standard)}</div>` : ''}
+      ${uid ? `<div class="card-actions">
+        <button data-mission="${uid}">⚔️ Today's mission</button>
+        <button data-challenge="${uid}">🔥 7-day challenge</button>
+      </div>` : ''}`;
 }
 
 // The heavy detail body is built lazily — only for cards that are open.
@@ -1163,11 +1490,12 @@ function cardHtml(book, rule, uid, showTag) {
       <div class="card-top-left">
         ${showTag ? bookTag(book) : ''}
         <span class="rule-n">RULE ${rule.n}</span>
+        <span class="lvl-slot">${lvlBadge(uid)}</span>
       </div>
-      <button class="tick ${done ? 'on' : ''}" data-tick="${uid}" title="Mark done">✓</button>
+      <button class="tick ${done ? 'on' : ''}" data-tick="${uid}" title="Lived it today">✓</button>
     </div>
     <div class="card-title">${esc(rule.title)}</div>
-    <div class="card-body">${open ? bodyHtml(rule) : ''}</div>
+    <div class="card-body">${open ? bodyHtml(rule, uid) : ''}</div>
   </div>`;
 }
 
@@ -1192,7 +1520,7 @@ function renderGrid() {
   // Sections show unless mixing, searching, or in Focus (whose rules span books
   // and should read as one flat to-do list).
   const searching = !!searchTerm.trim();
-  const showSections = !mixOrder && !searching && filter !== 'focus';
+  const showSections = !mixOrder && !searching && filter !== 'focus' && filter !== 'mastery';
 
   let html = '';
   if (showSections) {
@@ -1222,14 +1550,30 @@ function renderGrid() {
     html = rules.map(({ book, rule, uid }) => cardHtml(book, rule, uid, true)).join('');
   }
 
+  // Mastery view: a one-line scoreboard of how many rules sit at each level
+  if (filter === 'mastery' && rules.length) {
+    const tally = { mastered: 0, living: 0, practicing: 0, learning: 0 };
+    for (const r of rules) { const m = masteryOf(r.uid); if (m) tally[m.key]++; }
+    const done7 = completedChallenges();
+    html = `<div class="mastery-summary">
+      ${LEVELS.map(l => `<span>${l.icon} <b>${tally[l.key]}</b> ${l.label}</span>`).join('')}
+      ${done7 ? `<span>🔥 <b>${done7}</b> challenge${done7 === 1 ? '' : 's'} completed</span>` : ''}
+    </div>` + html;
+  }
+
   // No matches for the current search/filter — explain instead of a blank page
   if (!rules.length) {
     const term = searchTerm.trim();
-    html = `<div class="empty" style="grid-column:1/-1">
-      <strong>No matching rules</strong>
-      <p>${term ? `Nothing matches “${esc(term)}”` : 'Nothing here with the current filter'}.</p>
-      <button id="clear-filters">Clear ${term ? 'search' : 'filter'}</button>
-    </div>`;
+    html = (filter === 'mastery' && !term)
+      ? `<div class="empty" style="grid-column:1/-1">
+          <strong>Nothing mastered yet — that's the point</strong>
+          <p>Every day you tick a rule because you actually lived it, it grows: 🌱 Learning → 🌿 Practicing → 🌳 Living it → 🏆 Mastered. Pick a mission or start a 7-day challenge to begin.</p>
+        </div>`
+      : `<div class="empty" style="grid-column:1/-1">
+          <strong>No matching rules</strong>
+          <p>${term ? `Nothing matches “${esc(term)}”` : 'Nothing here with the current filter'}.</p>
+          <button id="clear-filters">Clear ${term ? 'search' : 'filter'}</button>
+        </div>`;
   }
 
   $('grid').innerHTML = html;
@@ -1249,6 +1593,11 @@ function renderGrid() {
 $('grid').addEventListener('click', (e) => {
   const tickBtn = e.target.closest('[data-tick]');
   if (tickBtn) { toggleTick(tickBtn.dataset.tick); return; }
+  const missionBtn = e.target.closest('[data-mission]');
+  if (missionBtn) { setMission(missionBtn.dataset.mission); return; }
+  const challengeBtn = e.target.closest('[data-challenge]');
+  if (challengeBtn) { startChallenge(challengeBtn.dataset.challenge); return; }
+  if (e.target.closest('#clear-filters')) return;
 
   const hdr = e.target.closest('.section-header');
   if (hdr) {
@@ -1270,7 +1619,7 @@ $('grid').addEventListener('click', (e) => {
       expanded.add(uid);
       if (body && !body.firstChild) {        // build the detail body on first open
         const hit = ruleByUid(uid);
-        if (hit) body.innerHTML = bodyHtml(hit.rule);
+        if (hit) body.innerHTML = bodyHtml(hit.rule, uid);
       }
       card.classList.add('open');
     }
@@ -1404,7 +1753,7 @@ function renderAll() {
   renderCountdown();
   renderProgress();
   renderStreak();
-  renderSpotlight();
+  renderToday();
   renderChips();
   renderGrid();
   renderLibrary();
@@ -1428,16 +1777,32 @@ function toggleTick(uid) {
     card.classList.toggle('done', done);
     const tb = card.querySelector('[data-tick]');
     if (tb) { tb.classList.toggle('on', done); if (done) popTick(tb); }
+    const slot = card.querySelector('.lvl-slot');
+    if (slot) slot.innerHTML = lvlBadge(uid);   // living it moves the mastery level
   }
-  const st = $('spot-tick');
-  if (st && spotUid === uid) { st.classList.toggle('on', done); if (done) popTick(st); }
+
+  // Mission / challenge panels are tiny — just redraw them when their rule is ticked.
+  const m = plan().missions[currentDay];
+  const isMission = !!(m && m.uid === uid);
+  const ch = plan().challenge;
+  const isChallenge = !!(ch && ch.uid === uid);
+  if (isMission || isChallenge) {
+    renderToday();
+    if (done) {
+      for (const id of ['mission-lived', 'ch-lived']) { const b = $(id); if (b) popTick(b); }
+      const c = isChallenge ? activeChallenge() : null;
+      if (c && c.finished && c.doneCount >= CHALLENGE_DAYS) toast('🏆 7 for 7 — challenge complete!');
+      else if (c) toast(`🔥 Day ${c.dayIdx + 1} of ${CHALLENGE_DAYS} — lived`);
+      else toast('⚔️ Mission accomplished');
+    }
+  }
 
   renderProgress();
   renderCountdown();
   renderStreak();
-  renderChips();   // keep the 🎯 Focus done/total count in step
+  renderChips();   // keep the 🎯 Focus / 🏆 Mastery counts in step
   // These filters change membership on a tick → need a grid rebuild.
-  if (filter === 'todo' || filter === 'done') renderGrid();
+  if (filter === 'todo' || filter === 'done' || filter === 'mastery') renderGrid();
   else updateSectionHeader(uid.slice(0, uid.lastIndexOf(':')));
 }
 
@@ -1996,6 +2361,7 @@ let _lastTk = null, _lastTomb = null; // last payloads sent/seen → confirmed e
 function tickPayload() {
   const t = { tickStamp: data.tickStamp || {} };
   for (const k of Object.keys(data)) if (k.startsWith('ticks_')) t[k] = data[k];
+  if (data.plan) t.plan = data.plan;   // today's mission + 7-day challenge
   return JSON.stringify(t);
 }
 
@@ -2099,7 +2465,7 @@ function onMetaSnapshot(snap) {
   // cloud missing ticks we hold (e.g. ticked while offline) → push them back
   let remoteTicks = {};
   try { remoteTicks = d.tk ? JSON.parse(d.tk) : {}; } catch (e) { /* ignore */ }
-  if (remoteMissingOurTicks(remoteTicks)) pushMeta().catch(onRemoteError);
+  if (remoteMissingOurTicks(remoteTicks) || remoteMissingOurPlan(remoteTicks.plan)) pushMeta().catch(onRemoteError);
   syncOk();
 }
 
@@ -2188,8 +2554,44 @@ function mergeTicks(remote) {
     stamps[day] = Math.max(lt, rt);
   }
   data.tickStamp = stamps;
-  if (changed) _doneSet = null;
+  if (changed) { _doneSet = null; _livedCache = null; }
+  if (mergePlan(remote.plan)) changed = true;   // missions + challenges ride in the same payload
   return changed;
+}
+
+// Missions/challenges: newest timestamp wins per entry; finished challenges union.
+function mergePlan(rp) {
+  if (!rp) return false;
+  const p = plan();
+  let changed = false;
+  for (const [day, m] of Object.entries(rp.missions || {})) {
+    const cur = p.missions[day];
+    if (m && (!cur || (m.at || 0) > (cur.at || 0))) { p.missions[day] = m; changed = true; }
+  }
+  if (rp.challenge && (!p.challenge || (rp.challenge.at || 0) > (p.challenge.at || 0))) {
+    p.challenge = rp.challenge; changed = true;
+  }
+  const have = new Set(p.challengeLog.map(c => c.uid + '|' + c.start));
+  for (const c of rp.challengeLog || []) {
+    const k = c.uid + '|' + c.start;
+    if (!have.has(k)) { p.challengeLog.push(c); have.add(k); changed = true; }
+  }
+  return changed;
+}
+
+// does the cloud lack a mission/challenge change we made (e.g. set while offline)?
+function remoteMissingOurPlan(rp) {
+  const p = data.plan;
+  if (!p) return false;
+  rp = rp || {};
+  const rm = rp.missions || {};
+  for (const [day, m] of Object.entries(p.missions || {})) {
+    if (!rm[day] || (m.at || 0) > (rm[day].at || 0)) return true;
+  }
+  if (p.challenge && (!rp.challenge || (p.challenge.at || 0) > (rp.challenge.at || 0))) return true;
+  const rk = new Set((rp.challengeLog || []).map(c => c.uid + '|' + c.start));
+  for (const c of p.challengeLog || []) if (!rk.has(c.uid + '|' + c.start)) return true;
+  return false;
 }
 
 function onRemoteError(err) {
@@ -2232,7 +2634,7 @@ function mergeRemote(remote) {
   data = { ...data, ...ticks, books, deletedBooks: tomb, tickStamp: stamps,
            updatedAt: Math.max(data.updatedAt || 0, remote.updatedAt || 0) };
   invalidateRules();
-  _doneSet = null;
+  _doneSet = null; _livedCache = null;
   for (const b of books) dirtyBookIds.add(b.id); // legacy merge touches everything once
   writeLocal(); // direct write: no save() to avoid re-scheduling sync
 }
