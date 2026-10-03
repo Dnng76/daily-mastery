@@ -676,7 +676,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v23 · 2026-10-02 (health principle PDFs)';
+const APP_VERSION = 'v24 · 2026-10-03 (duplicate PDF protection)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -2157,6 +2157,24 @@ function cleanPdfPages(pages) {
   });
 }
 
+async function pdfFileHash(buffer) {
+  // File names can change; hash the bytes before PDF.js transfers the buffer.
+  if (!globalThis.crypto?.subtle) return null;
+  try {
+    const digest = await crypto.subtle.digest('SHA-256', buffer);
+    return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+  } catch (e) {
+    return null; // Content comparison also supports browsers without Web Crypto.
+  }
+}
+
+function rememberPdfHash(book, hash) {
+  if (!hash || (book.pdfHashes || []).includes(hash)) return;
+  book.pdfHashes = [...(book.pdfHashes || []), hash];
+  booksChanged(book.id);
+  save();
+}
+
 async function importPdf(file) {
   const diag = { name: file.name, size: file.size, type: file.type || '(none)', pdfjs: typeof pdfjsLib !== 'undefined' };
   if (typeof pdfjsLib === 'undefined') {  // CDN script didn't load (offline / bad network)
@@ -2171,6 +2189,12 @@ async function importPdf(file) {
     diag.error = 'arrayBuffer: ' + ((e && e.message) || e);
     showImportDiag(`Couldn't read "${file.name}"`, 'The file could not be read from your device.', diag);
     return { status: 'error' };
+  }
+  const fileHash = await pdfFileHash(buf);
+  const knownFile = fileHash && data.books.find(b => (b.pdfHashes || []).includes(fileHash));
+  if (knownFile) {
+    clearImportDiag();
+    return { status: 'uptodate', name: knownFile.name };
   }
   try {
     pdf = await pdfjsLib.getDocument({ data: buf }).promise;
@@ -2256,9 +2280,16 @@ async function importPdf(file) {
   }
   clearImportDiag();
 
-  // exact match → already fully imported, skip silently
-  const exact = data.books.find(b => contentSignature(b.rules) === contentSignature(rules));
-  if (exact) return { status: 'uptodate', name: exact.name };
+  // Recheck after parsing: another import may have completed while we awaited pages.
+  // Only remember complete reads, so a failed page can be recovered on re-import.
+  const completeHash = pageErrors === 0 ? fileHash : null;
+  const signature = contentSignature(rules);
+  const exact = data.books.find(b =>
+    (fileHash && (b.pdfHashes || []).includes(fileHash)) || contentSignature(b.rules) === signature);
+  if (exact) {
+    rememberPdfHash(exact, completeHash);
+    return { status: 'uptodate', name: exact.name };
+  }
 
   // Same-book detection by CONTENT, not just numbers. Two PDFs are the same
   // book only if the rules they share by NUMBER also have matching TITLES.
@@ -2279,10 +2310,14 @@ async function importPdf(file) {
   if (bestMatch) {
     const existingNums = new Set(bestMatch.rules.map(r => r.n));
     const newRules = rules.filter(r => !existingNums.has(r.n));
-    if (!newRules.length) return { status: 'uptodate', name: bestMatch.name };
+    if (!newRules.length) {
+      rememberPdfHash(bestMatch, completeHash);
+      return { status: 'uptodate', name: bestMatch.name };
+    }
     bestMatch.rules = [...bestMatch.rules, ...newRules].sort((a, b) => a.n - b.n);
     assignRuleIds(bestMatch); // give the newly-merged rules stable unique ids
     booksChanged(bestMatch.id);
+    rememberPdfHash(bestMatch, completeHash);
     save();
     return { status: 'merged', count: newRules.length, name: bestMatch.name };
   }
@@ -2294,6 +2329,7 @@ async function importPdf(file) {
     name: bookNameFromFile(file.name, coverLines),
     color: bookColor(data.books.length),
     importedAt: todayKey(),
+    pdfHashes: completeHash ? [completeHash] : [],
     rules
   };
   assignRuleIds(newBook); // unique id per rule (handles compendiums with repeating numbers)
@@ -2303,10 +2339,11 @@ async function importPdf(file) {
   return { status: 'added', count: rules.length };
 }
 
-// fingerprint of a book's contents (rule count + each rule's number and title)
+// Ignore page order, case, and spacing when comparing previously imported rules.
 function contentSignature(rules) {
-  return rules.length + '#' + rules.map(r =>
-    r.n + ':' + (r.title || '').toLowerCase().replace(/\s+/g, ' ').trim()).join('|');
+  return JSON.stringify(rules.map(r =>
+    [r.n, (r.title || '').normalize('NFKC').toLowerCase().replace(/\s+/g, ' ').trim()])
+    .sort((a, b) => a[0] - b[0] || a[1].localeCompare(b[1])));
 }
 
 async function importFiles(fileList) {
@@ -2343,10 +2380,10 @@ async function importFiles(fileList) {
     const parts = [];
     if (addedBooks) parts.push(`Imported ${added} rule${added === 1 ? '' : 's'} from ${addedBooks} new book${addedBooks === 1 ? '' : 's'}`);
     if (mergedBooks) parts.push(`Added ${merged} new rule${merged === 1 ? '' : 's'} to ${mergedBooks} book${mergedBooks === 1 ? '' : 's'}`);
-    if (uptodate) parts.push(`${uptodate} already up to date`);
+    if (uptodate) parts.push(`${uptodate} already in your library - skipped`);
     toast(parts.join(' · '));
   } else if (uptodate) {
-    toast('Already up to date — nothing new to add');
+    toast('Already in your library - duplicate PDF skipped. Nothing added.');
   }
 }
 

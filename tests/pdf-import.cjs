@@ -88,8 +88,65 @@ const source = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8')
     await page.reload();
     const restored = await page.evaluate(() => data.books[0].rules);
     assert.deepEqual(restored, result.rules, 'All fields survive a reload');
+    const { PDFDocument, StandardFonts } = require(path.join(modules, 'pdf-lib'));
+    const reExport = await PDFDocument.load(new Uint8Array(bytes));
+    reExport.setTitle('Same principles with different PDF metadata');
+    const reExportBytes = Array.from(await reExport.save());
+    const different = await PDFDocument.create();
+    const font = await different.embedFont(StandardFonts.Helvetica);
+    const differentPage = different.addPage();
+    ['RULE 1', 'A distinct principle from another book', 'WHAT YOU GAIN', 'A different benefit',
+      'THE STANDARD', 'A different action'].forEach((line, i) => differentPage.drawText(line, { x: 40, y: 750 - i * 25, size: 12, font }));
+    const differentBytes = Array.from(await different.save());
+    const duplicates = await page.evaluate(async ({ bytes, reExportBytes, differentBytes, name }) => {
+      const file = (content, filename = name) => new File([new Uint8Array(content)], filename, { type: 'application/pdf' });
+      const retainedHash = data.books[0].pdfHashes[0];
+      const baseline = JSON.stringify(data);
+      const renamed = await importPdf(file(bytes, 'renamed-copy.pdf'));
+      const noChanges = baseline === JSON.stringify(data);
+      const reexported = await importPdf(file(reExportBytes));
+      const hashesAfterReexport = data.books[0].pdfHashes.length;
+      delete data.books[0].pdfHashes; // Library imported before file hashes existed.
+      data.books[0].rules.reverse(); // Page order must not affect duplicate detection.
+      const legacyCopy = await importPdf(file(bytes));
+      const retainedId = data.books[0].id;
+      await importFiles([file(bytes), file(bytes, 'another-copy.pdf')]);
+      const notice = document.getElementById('toast').textContent;
+      const stillOne = data.books.length === 1 && data.books[0].id === retainedId;
+      const differentResult = await importPdf(file(differentBytes));
+      const differentCount = data.books.length;
+      data.books = []; // New, disposable library for simultaneous first imports.
+      const concurrent = await Promise.all([importPdf(file(bytes)), importPdf(file(bytes, 'parallel.pdf'))]);
+      const concurrentCount = data.books.length;
+      data.books = [];
+      await importFiles([file(bytes), file(bytes, 'batch-copy.pdf')]);
+      const batchCount = data.books.length;
+      const hashFn = pdfFileHash;
+      pdfFileHash = async () => null;
+      data.books = [];
+      const noCrypto = [await importPdf(file(bytes)), await importPdf(file(bytes, 'no-crypto-copy.pdf'))];
+      const noCryptoCount = data.books.length;
+      pdfFileHash = hashFn;
+      return { retainedHash, noChanges, renamed, reexported, hashesAfterReexport, legacyCopy,
+        notice, stillOne, differentResult, differentCount, concurrent, concurrentCount, batchCount, noCrypto, noCryptoCount };
+    }, { bytes, reExportBytes, differentBytes, name: path.basename(pdfPath) });
+    assert.match(duplicates.retainedHash, /^[0-9a-f]{64}$/);
+    assert.equal(duplicates.renamed.status, 'uptodate');
+    assert.ok(duplicates.noChanges, 'A known duplicate does not alter library or progress');
+    assert.equal(duplicates.reexported.status, 'uptodate');
+    assert.equal(duplicates.hashesAfterReexport, 2);
+    assert.equal(duplicates.legacyCopy.status, 'uptodate');
+    assert.ok(duplicates.stillOne);
+    assert.match(duplicates.notice, /Already in your library.*skipped/);
+    assert.equal(duplicates.differentResult.status, 'added');
+    assert.equal(duplicates.differentCount, 2, 'A different PDF with the same filename is accepted');
+    assert.deepEqual(duplicates.concurrent.map(r => r.status).sort(), ['added', 'uptodate']);
+    assert.equal(duplicates.concurrentCount, 1);
+    assert.equal(duplicates.batchCount, 1);
+    assert.deepEqual(duplicates.noCrypto.map(r => r.status), ['added', 'uptodate']);
+    assert.equal(duplicates.noCryptoCount, 1);
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ imported: result.first.count, duplicate: result.duplicate.status, persisted: restored.length, legacy: 'passed', widths: [320, 390, 768, 1280], outputDir }, null, 2));
+    console.log(JSON.stringify({ imported: result.first.count, duplicate: result.duplicate.status, persisted: restored.length, legacy: 'passed', duplicateCases: 'renamed, re-exported, legacy, reordered, concurrent, batch, no-crypto, different same-name PDF: passed', widths: [320, 390, 768, 1280], outputDir }, null, 2));
   } finally {
     await browser.close();
   }
