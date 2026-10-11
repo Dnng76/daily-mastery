@@ -152,8 +152,27 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   }
   .chip.active { color: var(--bg); font-weight: 600; }
   .chip.active.neutral { background: var(--text); border-color: var(--text); }
-  .chip-toggle { color: var(--green); border-color: var(--green-dim); font-weight: 600; }
-  .chip-toggle:hover { background: var(--surface-2); }
+  /* one chip stands in for every book; tapping it opens the book picker */
+  .chip-book { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; color: var(--text); border-color: var(--text-faint); }
+  .chip-book-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 52vw; }
+  .chip-clear { padding: 5px 10px; }
+
+  /* ---------- Book picker ---------- */
+  .picker-modal { padding-top: 0; }
+  .picker-head { position: sticky; top: 0; z-index: 1; background: var(--surface); padding: 20px 0 10px; }
+  .picker-head h3 { margin-bottom: 10px; }
+  .picker-row {
+    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    padding: 11px 6px; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent;
+  }
+  .picker-row:hover { background: var(--surface-2); }
+  .picker-row.active { background: var(--surface-2); }
+  .picker-row .book-dot { width: 10px; height: 10px; }
+  .picker-name { flex: 1; min-width: 0; font-size: 0.92rem; overflow-wrap: anywhere; }
+  .picker-row.active .picker-name { font-weight: 700; }
+  .picker-meta { font-size: 0.74rem; color: var(--text-faint); white-space: nowrap; }
+  .picker-meta .dup { color: var(--amber); }
+  .picker-empty { padding: 18px 6px; color: var(--text-dim); font-size: 0.85rem; }
 
   /* ---------- Spotlight ---------- */
   .spotlight {
@@ -664,6 +683,17 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   </div>
 </div>
 
+<div class="modal-backdrop" id="book-picker">
+  <div class="modal picker-modal">
+    <div class="picker-head">
+      <h3>📚 Choose a book</h3>
+      <input type="search" id="picker-search" class="rename-field" autocomplete="off" placeholder="Search books…">
+    </div>
+    <div id="picker-list"></div>
+    <div class="modal-footer"><button id="picker-close">Close</button></div>
+  </div>
+</div>
+
 <input type="file" id="file-input" accept="application/pdf,.pdf" multiple hidden>
 <div id="toast"></div>
 
@@ -676,7 +706,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v24 · 2026-10-03 (duplicate PDF protection)';
+const APP_VERSION = 'v25 · 2026-10-11 (book picker)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1213,8 +1243,27 @@ function esc(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Display-only tidy-up of filename-style book names:
+//   "SevenHabits20" → "Seven Habits", "01 Attraction20" → "01 Attraction",
+//   "TCMEarlySleep20" → "TCM Early Sleep", "101Essays20" → "101 Essays".
+// Only touches names that are one squashed word (optionally after a number);
+// anything you typed with spaces is shown exactly as written. The stored name
+// is never changed — the Rename box still shows the original.
+function prettyName(name) {
+  const s = String(name || '').trim();
+  const m = s.match(/^(\d+\s+)?(\S+)$/);
+  if (!m) return s;
+  const word = m[2]
+    .replace(/_+/g, ' ')
+    .replace(/([A-Za-z])\d+$/, '$1')           // count glued on the end: "Habits20"
+    .replace(/^(\d+)(?=[A-Za-z])/, '$1 ')       // number glued on the front: "101Essays"
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')  // acronym boundary: "TCMEarly"
+    .replace(/([a-z])([A-Z])/g, '$1 $2');       // camel case: "SevenHabits"
+  return ((m[1] || '') + word).replace(/\s+/g, ' ').trim();
+}
+
 function bookTag(book) {
-  return `<span class="book-tag" style="background:${book.color}">${esc(book.name)}</span>`;
+  return `<span class="book-tag" style="background:${book.color}">${esc(prettyName(book.name))}</span>`;
 }
 
 function renderProgress() {
@@ -1347,9 +1396,6 @@ function renderChallenge() {
 
 function renderToday() { renderSpotlight(); renderChallenge(); }
 
-let chipsCollapsed = false;
-try { chipsCollapsed = localStorage.getItem('mastery_chips_collapsed') === '1'; } catch (e) { /* ignore */ }
-
 function chipHtml(c) {
   const active = filter === c.id;
   const style = (active && c.color)
@@ -1369,18 +1415,19 @@ function renderChips() {
     { id: 'done', label: 'Done' },
     { id: 'mastery', label: `🏆 Mastery${growing ? ' ' + growing : ''}` }
   ];
-  const books = data.books.map(b => ({ id: b.id, label: b.name, color: b.color }));
-
   let parts = base.map(chipHtml);
-  if (books.length) {
-    if (chipsCollapsed) {
-      // keep the active book visible so you can see what's filtered, plus an expander
-      const activeBook = books.find(b => b.id === filter);
-      if (activeBook) parts.push(chipHtml(activeBook));
-      parts.push(`<button class="chip chip-toggle" data-toggle-chips="1">▾ ${books.length} books</button>`);
+
+  // All books sit behind ONE chip (a wall of 60+ book chips was unreadable).
+  // When a book is selected, the chip shows its name in its colour, plus ✕ to clear.
+  if (data.books.length) {
+    const active = data.books.find(b => b.id === filter);
+    if (active) {
+      parts.push(`<button class="chip chip-book active" data-open-picker="1"
+        style="background:${active.color};border-color:${active.color};color:var(--bg)">
+        <span class="chip-book-label">${esc(prettyName(active.name))}</span> ▾</button>`);
+      parts.push(`<button class="chip chip-clear neutral" data-filter="all" title="Show all books">✕</button>`);
     } else {
-      parts = parts.concat(books.map(chipHtml));
-      parts.push(`<button class="chip chip-toggle" data-toggle-chips="1">▴ Hide books</button>`);
+      parts.push(`<button class="chip chip-book" data-open-picker="1">📚 Books · ${data.books.length} ▾</button>`);
     }
   }
   $('chips').innerHTML = parts.join('');
@@ -1388,13 +1435,58 @@ function renderChips() {
   for (const el of $('chips').querySelectorAll('.chip[data-filter]')) {
     el.onclick = () => { filter = el.dataset.filter; renderAll(); };
   }
-  const tog = $('chips').querySelector('[data-toggle-chips]');
-  if (tog) tog.onclick = () => {
-    chipsCollapsed = !chipsCollapsed;
-    try { localStorage.setItem('mastery_chips_collapsed', chipsCollapsed ? '1' : '0'); } catch (e) { /* ignore */ }
-    renderChips();
-  };
+  const pick = $('chips').querySelector('[data-open-picker]');
+  if (pick) pick.onclick = openBookPicker;
 }
+
+/* ================= Book picker ================= */
+
+// Natural A–Z: numbered books first in number order (2 before 10), then by name.
+function sortedBooks() {
+  return [...data.books].sort((a, b) =>
+    prettyName(a.name).localeCompare(prettyName(b.name), undefined, { numeric: true, sensitivity: 'base' }));
+}
+
+function renderPickerList() {
+  const term = $('picker-search').value.trim().toLowerCase();
+  const ds = doneSet();
+  const nameCount = new Map();
+  for (const b of data.books) {
+    const k = prettyName(b.name).toLowerCase();
+    nameCount.set(k, (nameCount.get(k) || 0) + 1);
+  }
+  const books = sortedBooks().filter(b =>
+    !term || prettyName(b.name).toLowerCase().includes(term) || b.name.toLowerCase().includes(term));
+
+  let html = term ? '' : `
+    <button class="picker-row ${data.books.some(b => b.id === filter) ? '' : 'active'}" data-pick="all">
+      <span class="book-dot" style="background:var(--text-faint)"></span>
+      <span class="picker-name">All books</span>
+      <span class="picker-meta">${data.books.length} books</span>
+    </button>`;
+  html += books.map(b => {
+    const done = b.rules.reduce((n, r) => n + (ds.has(ruleUid(b, r)) ? 1 : 0), 0);
+    const dup = nameCount.get(prettyName(b.name).toLowerCase()) > 1;
+    return `<button class="picker-row ${filter === b.id ? 'active' : ''}" data-pick="${b.id}">
+      <span class="book-dot" style="background:${b.color}"></span>
+      <span class="picker-name">${esc(prettyName(b.name))}</span>
+      <span class="picker-meta">${dup ? '<span class="dup">duplicate · </span>' : ''}${done ? `${done}/` : ''}${b.rules.length}</span>
+    </button>`;
+  }).join('');
+  if (term && !books.length) html = `<div class="picker-empty">No book matches “${esc(term)}”.</div>`;
+  $('picker-list').innerHTML = html;
+}
+
+function openBookPicker() {
+  $('picker-search').value = '';
+  renderPickerList();
+  $('book-picker').classList.add('show');
+  $('book-picker').querySelector('.modal').scrollTop = 0;
+  // auto-focus only with a real keyboard — on a phone it would pop the keyboard over the list
+  if (window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches) $('picker-search').focus();
+}
+
+function closeBookPicker() { $('book-picker').classList.remove('show'); }
 
 // Optional shuffled card order — per device, persists until "Order" is pressed
 const MIX_KEY = 'mastery_mix_order';
@@ -1540,7 +1632,7 @@ function renderGrid() {
       const done = items.reduce((n, r) => n + (ds.has(r.uid) ? 1 : 0), 0);
       const pct = items.length ? Math.round(done / items.length * 100) : 0;
       html += `<div class="section-header ${isOpen ? 'sec-open' : ''}" data-collapse="${book.id}" style="border-left-color:${book.color}">
-        <span class="book-tag" style="background:${book.color}">${esc(book.name)}</span>
+        <span class="book-tag" style="background:${book.color}">${esc(prettyName(book.name))}</span>
         <span class="section-count">${done ? `${done}/${items.length}` : items.length}${done === items.length && done ? ' ✓' : ''}</span>
         <span class="sec-bar"><span class="sec-bar-fill" style="width:${pct}%;background:${book.color}"></span></span>
         <button class="collapse-arrow">${isOpen ? '▲' : '▼'}</button>
@@ -1660,7 +1752,7 @@ function renderLibrary() {
         <span class="book-dot" style="background:${b.color}"></span>
         <div>
           <div class="book-row-name">
-            <span class="book-name-text" data-id="${b.id}">${esc(b.name)}</span><button class="rename-btn" data-rename="${b.id}" title="Rename">✏</button>
+            <span class="book-name-text" data-id="${b.id}" title="${esc(b.name)}">${esc(prettyName(b.name))}</span><button class="rename-btn" data-rename="${b.id}" title="Rename">✏</button>
           </div>
           <div class="book-row-meta">${b.rules.length} rules · imported ${esc(b.importedAt)}</div>
         </div>
@@ -1855,7 +1947,7 @@ function randomRule() {
 function removeBook(id) {
   const book = data.books.find(b => b.id === id);
   if (!book) return;
-  if (!confirm(`Remove "${book.name}" and its ${book.rules.length} rules?`)) return;
+  if (!confirm(`Remove "${prettyName(book.name)}" and its ${book.rules.length} rules?`)) return;
   data.books = data.books.filter(b => b.id !== id);
   bookRemoved(id);
   if (!data.deletedBooks) data.deletedBooks = {};
@@ -1864,7 +1956,7 @@ function removeBook(id) {
   if (filter === id) filter = 'all';
   save();
   renderAll();
-  toast(`Removed "${book.name}"`);
+  toast(`Removed "${prettyName(book.name)}"`);
 }
 
 function removeAllBooks() {
@@ -2865,6 +2957,19 @@ $('rename-input').addEventListener('keydown', (e) => {
 });
 $('rename-modal').addEventListener('click', (e) => {
   if (e.target === $('rename-modal')) cancelRename();
+});
+
+$('picker-search').addEventListener('input', renderPickerList);
+$('picker-search').addEventListener('keydown', (e) => { if (e.key === 'Escape') closeBookPicker(); });
+$('picker-close').onclick = closeBookPicker;
+$('book-picker').addEventListener('click', (e) => {
+  if (e.target === $('book-picker')) { closeBookPicker(); return; }
+  const row = e.target.closest('[data-pick]');
+  if (!row) return;
+  filter = row.dataset.pick;
+  closeBookPicker();
+  renderAll();
+  $('chips').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
 // Drag & drop anywhere on the page
