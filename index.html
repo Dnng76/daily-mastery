@@ -105,7 +105,10 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     text-anchor: middle;
     dominant-baseline: central;
   }
-  .ring-label { font-size: 0.72rem; color: var(--text-dim); line-height: 1.3; }
+  .ring-label { font-size: 0.72rem; color: var(--text-dim); line-height: 1.3; white-space: nowrap; }
+  /* narrow phones: the ring already shows "3/15", so drop the side label and give the title room */
+  @media (max-width: 480px) { .ring-label { display: none; } }
+  header h1 { white-space: nowrap; }
 
   /* ---------- Buttons ---------- */
   button {
@@ -574,9 +577,9 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .collapse-arrow:hover { background: transparent; color: var(--text); }
 
   /* ---------- Rename in library ---------- */
-  .rename-btn { padding: 2px 6px; font-size: 0.8rem; border: none; background: transparent; color: var(--text-faint); vertical-align: middle; margin-left: 2px; }
-  .rename-btn:hover { background: transparent; color: var(--text); }
-  .book-name-text { cursor: default; }
+  .rename-btn { padding: 4px 8px; font-size: 0.95rem; line-height: 1; border: none; background: transparent; vertical-align: middle; margin-left: 2px; opacity: 0.75; }
+  .rename-btn:hover { background: transparent; opacity: 1; }
+  .book-name-text { cursor: pointer; }
 
   /* ---------- Rename modal ---------- */
   .rename-modal { max-width: 400px; border-radius: 16px; }
@@ -605,7 +608,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 <div class="wrap">
   <header>
     <div>
-      <h1>Daily Mastery <span id="date-label"></span> <span class="ver-mark" id="ver-mark"></span></h1>
+      <h1>Daily Mastery <span class="ver-mark" id="ver-mark"></span></h1>
       <div class="day-left" id="countdown"></div>
     </div>
     <div class="header-right">
@@ -706,7 +709,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v25 · 2026-10-11 (book picker)';
+const APP_VERSION = 'v26 · 2026-10-12 (polish pass)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1091,13 +1094,32 @@ function getDailyFocus() {
   const scored = all.map(r => {
     let score = (r.uid in last) ? Math.min(dayN - last[r.uid], NEVER_TICKED) : NEVER_TICKED;
     if ((pastLived[r.uid] || 0) >= LEVELS[0].min) score = Math.floor(score / 2); // Mastered → surfaces less often
-    return { uid: r.uid, score };
+    return { uid: r.uid, book: r.book.id, score, shuffle: hashStr(r.uid + '|' + currentDay) };
   });
-  // most-neglected first; stable tie-break by uid so every device agrees
-  scored.sort((a, b) => b.score - a.score || (a.uid < b.uid ? -1 : 1));
-  _focusCache = new Set(scored.slice(0, focusSize).map(s => s.uid));
+  // Most-neglected first. Ties (e.g. the hundreds of never-lived rules) break by a
+  // per-day shuffle — the old alphabetical tie-break filled Focus with one book.
+  // Same inputs on every device → same list on phone and iPad.
+  scored.sort((a, b) => b.score - a.score || a.shuffle - b.shuffle);
+  // At most `cap` rules per book so the day draws from several books;
+  // top up from the rest if the library is too small to fill the set that way.
+  const cap = Math.max(2, Math.ceil(focusSize / Math.max(1, data.books.length)));
+  const picked = [], perBook = new Map(), skipped = [];
+  for (const s of scored) {
+    if (picked.length >= focusSize) break;
+    const n = perBook.get(s.book) || 0;
+    if (n < cap) { picked.push(s.uid); perBook.set(s.book, n + 1); } else skipped.push(s.uid);
+  }
+  for (const uid of skipped) { if (picked.length >= focusSize) break; picked.push(uid); }
+  _focusCache = new Set(picked);
   _focusDay = currentDay;
   return _focusCache;
+}
+
+// Small deterministic string hash (FNV-1a) for stable per-day shuffles.
+function hashStr(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
 }
 
 function focusProgress() {
@@ -1274,8 +1296,13 @@ function renderProgress() {
   const bar = $('ring-bar');
   bar.style.strokeDasharray = circ;
   bar.style.strokeDashoffset = total ? circ * (1 - done / total) : circ;
-  $('ring-text').textContent = pct + '%';
-  $('ring-label').innerHTML = `${done} / ${total}<br>focus done`;
+  // The ring shows the count itself ("3/15") so it still reads when the side label
+  // is hidden on narrow phones; shrink the text when the numbers get long.
+  const t = $('ring-text');
+  t.textContent = `${done}/${total}`;
+  t.style.fontSize = t.textContent.length > 5 ? '8px' : t.textContent.length > 4 ? '9.5px' : '';
+  $('ring-label').innerHTML = `${pct}% of<br>focus done`;
+  $('ring-label').closest('.ring-box').title = `${done} of today's ${total} focus rules lived (${pct}%)`;
 }
 
 let todayOpenUid = null;   // mission/suggestion card whose full rule text is expanded
@@ -1566,9 +1593,16 @@ function bodyHtml(rule, uid) {
       ${rule.standard && rule.standard !== rule.today ? `<h4>The Standard</h4>
         <div class="standard-text">${esc(rule.standard)}</div>` : ''}
       ${uid ? `<div class="card-actions">
+        ${livedBtnHtml(uid)}
         <button data-mission="${uid}">⚔️ Today's mission</button>
         <button data-challenge="${uid}">🔥 7-day challenge</button>
       </div>` : ''}`;
+}
+
+// Bottom-of-card tick: after reading a rule you shouldn't have to scroll back up to mark it.
+function livedBtnHtml(uid) {
+  const on = isDone(uid);
+  return `<button class="lived-btn card-lived ${on ? 'on' : ''}" data-tick="${uid}">${on ? '✓ Lived it today' : '✓ I lived it'}</button>`;
 }
 
 // The heavy detail body is built lazily — only for cards that are open.
@@ -1616,7 +1650,8 @@ function renderGrid() {
   // Sections show unless mixing, searching, or in Focus (whose rules span books
   // and should read as one flat to-do list).
   const searching = !!searchTerm.trim();
-  const showSections = !mixOrder && !searching && filter !== 'focus' && filter !== 'mastery';
+  // Done is a short "what I lived today" list — show the rules themselves, not closed book headers.
+  const showSections = !mixOrder && !searching && filter !== 'focus' && filter !== 'mastery' && filter !== 'done';
 
   let html = '';
   if (showSections) {
@@ -1660,7 +1695,12 @@ function renderGrid() {
   // No matches for the current search/filter — explain instead of a blank page
   if (!rules.length) {
     const term = searchTerm.trim();
-    html = (filter === 'mastery' && !term)
+    html = (filter === 'done' && !term)
+      ? `<div class="empty" style="grid-column:1/-1">
+          <strong>Nothing lived yet today</strong>
+          <p>Tick a rule once you've actually lived it today and it shows up here.</p>
+        </div>`
+      : (filter === 'mastery' && !term)
       ? `<div class="empty" style="grid-column:1/-1">
           <strong>Nothing mastered yet — that's the point</strong>
           <p>Every day you tick a rule because you actually lived it, it grows: 🌱 Learning → 🌿 Practicing → 🌳 Living it → 🏆 Mastered. Pick a mission or start a 7-day challenge to begin.</p>
@@ -1752,7 +1792,7 @@ function renderLibrary() {
         <span class="book-dot" style="background:${b.color}"></span>
         <div>
           <div class="book-row-name">
-            <span class="book-name-text" data-id="${b.id}" title="${esc(b.name)}">${esc(prettyName(b.name))}</span><button class="rename-btn" data-rename="${b.id}" title="Rename">✏</button>
+            <span class="book-name-text" data-id="${b.id}" title="${esc(b.name)}">${esc(prettyName(b.name))}</span><button class="rename-btn" data-rename="${b.id}" title="Rename" aria-label="Rename">✏️</button>
           </div>
           <div class="book-row-meta">${b.rules.length} rules · imported ${esc(b.importedAt)}</div>
         </div>
@@ -1761,6 +1801,7 @@ function renderLibrary() {
     </div>`).join('');
   for (const btn of list.querySelectorAll('[data-remove]')) btn.onclick = () => removeBook(btn.dataset.remove);
   for (const btn of list.querySelectorAll('[data-rename]')) btn.onclick = () => startRename(btn.dataset.rename);
+  for (const nm of list.querySelectorAll('.book-name-text')) nm.onclick = () => startRename(nm.dataset.id);
   for (const btn of list.querySelectorAll('[data-up]'))   btn.onclick = () => moveBook(btn.dataset.up, -1);
   for (const btn of list.querySelectorAll('[data-down]')) btn.onclick = () => moveBook(btn.dataset.down, 1);
 }
@@ -1812,8 +1853,11 @@ function renderCountdown() {
   const el = $('countdown');
   const { done, total } = focusProgress();
   const left = total - done;
-  el.textContent = (h ? `${h}h ${m}m` : `${m}m`) + ' left today' +
-    (left > 0 ? ` · ${left} focus rule${left === 1 ? '' : 's'} to go` : ' · focus done 🎉');
+  const [y, mo, d] = currentDay.split('-').map(Number);
+  const dayLabel = new Date(y, mo - 1, d).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  el.textContent = `${dayLabel} · ` + (h ? `${h}h ${m}m` : `${m}m`) + ' left' +
+    (left > 0 ? ` · ${left} to go` : ' · focus done 🎉');
+  el.title = left > 0 ? `${left} of today's ${total} focus rules still to live` : 'Today\'s focus is done';
   el.classList.toggle('urgent', h < 2 && left > 0);
 }
 
@@ -1845,7 +1889,6 @@ function renderStreak() {
 
 function renderAll() {
   checkDayRollover();
-  $('date-label').textContent = '· ' + currentDay;
   renderCountdown();
   renderProgress();
   renderStreak();
@@ -1871,8 +1914,10 @@ function toggleTick(uid) {
   const card = $('card-' + cssId(uid));
   if (card) {
     card.classList.toggle('done', done);
-    const tb = card.querySelector('[data-tick]');
+    const tb = card.querySelector('.tick[data-tick]');
     if (tb) { tb.classList.toggle('on', done); if (done) popTick(tb); }
+    const lb = card.querySelector('.card-lived');
+    if (lb) { lb.classList.toggle('on', done); lb.textContent = done ? '✓ Lived it today' : '✓ I lived it'; if (done) popTick(lb); }
     const slot = card.querySelector('.lvl-slot');
     if (slot) slot.innerHTML = lvlBadge(uid);   // living it moves the mastery level
   }
