@@ -709,7 +709,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v26 · 2026-10-12 (polish pass)';
+const APP_VERSION = 'v27 · 2026-10-12 (no duplicates)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1497,7 +1497,7 @@ function renderPickerList() {
     return `<button class="picker-row ${filter === b.id ? 'active' : ''}" data-pick="${b.id}">
       <span class="book-dot" style="background:${b.color}"></span>
       <span class="picker-name">${esc(prettyName(b.name))}</span>
-      <span class="picker-meta">${dup ? '<span class="dup">duplicate · </span>' : ''}${done ? `${done}/` : ''}${b.rules.length}</span>
+      <span class="picker-meta">${dup ? '<span class="dup" title="Different content, same name — rename one to tell them apart">same name · </span>' : ''}${done ? `${done}/` : ''}${b.rules.length}</span>
     </button>`;
   }).join('');
   if (term && !books.length) html = `<div class="picker-empty">No book matches “${esc(term)}”.</div>`;
@@ -2522,6 +2522,169 @@ async function importFiles(fileList) {
   } else if (uptodate) {
     toast('Already in your library - duplicate PDF skipped. Nothing added.');
   }
+  const m = dedupeBooks();   // belt and braces: never leave two copies of one book
+  if (m) { renderAll(); toast(duplicateToast(m)); }
+}
+
+/* ================= Duplicate books =================
+   Import already refuses a PDF you have. Copies can still appear when the same
+   PDF is imported on two devices before they sync, or from before that check
+   existed. dedupeBooks() finds books with the same content and merges each extra
+   copy into one keeper: every tick, mission and challenge moves across, then the
+   copy is deleted with a tombstone so it can't sync back.
+
+   The keeper is chosen deterministically (earliest import, then smallest id) so
+   phone and iPad, merging independently, always keep the SAME copy.
+   data.bookAlias = { removedId: { to: keeperId, map: { oldRuleId: newRuleId } } }
+   syncs too, so ticks for the removed copy arriving later from another device
+   are rewritten onto the keeper (applyAliases). */
+
+const normRuleTitle = t => String(t || '').normalize('NFKC').toLowerCase().replace(/\s+/g, ' ').trim();
+const ruleKey = r => r.n + '|' + normRuleTitle(r.title);
+
+// Same book? ≥80% of the smaller book's rules (number + title) appear in the other.
+// Also true when they share a PDF fingerprint. Conservative on purpose: two
+// different books that happen to share a name are NOT merged.
+function sameBookContent(a, b) {
+  if ((a.pdfHashes || []).some(h => (b.pdfHashes || []).includes(h))) return true;
+  const [small, big] = a.rules.length <= b.rules.length ? [a, b] : [b, a];
+  if (!small.rules.length) return false;
+  const bigKeys = new Set(big.rules.map(ruleKey));
+  let match = 0;
+  for (const r of small.rules) if (bigKeys.has(ruleKey(r))) match++;
+  return match >= Math.ceil(small.rules.length * 0.8);
+}
+
+function keeperFirst(a, b) {   // negative → a should be the keeper
+  return String(a.importedAt || '').localeCompare(String(b.importedAt || '')) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+}
+
+function splitUid(uid) { const i = uid.lastIndexOf(':'); return [uid.slice(0, i), uid.slice(i + 1)]; }
+
+// Rewrite every stored rule reference through `fn(uid) → uid`; returns true if anything changed.
+function rewriteUids(fn) {
+  let changed = false;
+  for (const k of Object.keys(data)) {
+    if (!k.startsWith('ticks_') || !Array.isArray(data[k])) continue;
+    const next = [...new Set(data[k].map(fn))];
+    if (next.length !== data[k].length || next.some((u, i) => u !== data[k][i])) { data[k] = next; changed = true; }
+  }
+  const p = data.plan;
+  if (p) {
+    for (const m of Object.values(p.missions || {})) if (m && m.uid) { const u = fn(m.uid); if (u !== m.uid) { m.uid = u; changed = true; } }
+    if (p.challenge && p.challenge.uid) { const u = fn(p.challenge.uid); if (u !== p.challenge.uid) { p.challenge.uid = u; changed = true; } }
+    for (const c of p.challengeLog || []) { const u = fn(c.uid); if (u !== c.uid) { c.uid = u; changed = true; } }
+  }
+  // this device's view settings
+  if (Array.isArray(mixOrder)) {
+    const next = [...new Set(mixOrder.map(fn))];
+    if (next.join() !== mixOrder.join()) { mixOrder = next; try { localStorage.setItem(MIX_KEY, JSON.stringify(mixOrder)); } catch (e) { /* ignore */ } }
+  }
+  try {
+    const o = JSON.parse(localStorage.getItem(SPOT_OVERRIDE_KEY));
+    if (o && o.uid && fn(o.uid) !== o.uid) { o.uid = fn(o.uid); localStorage.setItem(SPOT_OVERRIDE_KEY, JSON.stringify(o)); }
+  } catch (e) { /* ignore */ }
+  for (const u of [...expanded]) { const v = fn(u); if (v !== u) { expanded.delete(u); expanded.add(v); } }
+  if (changed) { _doneSet = null; _livedCache = null; _focusCache = null; }
+  return changed;
+}
+
+// uid of a removed copy → uid on its keeper (follows chains, e.g. A→B→C)
+function aliasUid(uid) {
+  const al = data.bookAlias;
+  if (!al) return uid;
+  for (let hop = 0; hop < 8; hop++) {
+    const [bid, rid] = splitUid(uid);
+    const a = al[bid];
+    if (!a || !a.to) return uid;
+    uid = a.to + ':' + ((a.map && a.map[rid] != null) ? a.map[rid] : rid);
+  }
+  return uid;
+}
+function applyAliases() { return data.bookAlias ? rewriteUids(aliasUid) : false; }
+
+function mergeAliases(remoteAlias) {
+  if (!remoteAlias) return false;
+  if (!data.bookAlias) data.bookAlias = {};
+  let changed = false;
+  for (const [id, a] of Object.entries(remoteAlias)) {
+    if (!data.bookAlias[id] && a && a.to) { data.bookAlias[id] = a; changed = true; }
+  }
+  return changed;
+}
+
+// Merge book `dup` into `keep`. Returns nothing; caller persists.
+function mergeBookInto(keep, dup) {
+  const map = {};
+  const byKey = new Map(keep.rules.map(r => [ruleKey(r), r]));
+  const byTitle = new Map(keep.rules.map(r => [normRuleTitle(r.title), r]));
+  const adopted = [];
+  for (const r of dup.rules) {
+    const hit = byKey.get(ruleKey(r)) || byTitle.get(normRuleTitle(r.title));
+    if (hit) { map[r.id != null ? r.id : r.n] = hit.id != null ? hit.id : hit.n; continue; }
+    const copy = { ...r }; delete copy.id;          // a rule only the copy had — keep it
+    keep.rules.push(copy); adopted.push([r, copy]);
+  }
+  if (adopted.length) {
+    keep.rules.sort((a, b) => a.n - b.n);
+    assignRuleIds(keep);
+    for (const [orig, copy] of adopted) map[orig.id != null ? orig.id : orig.n] = copy.id;
+  }
+  keep.pdfHashes = [...new Set([...(keep.pdfHashes || []), ...(dup.pdfHashes || [])])];
+
+  // record the alias (only non-identity rule mappings) and rewrite all references
+  const slim = {};
+  for (const [from, to] of Object.entries(map)) if (String(from) !== String(to)) slim[from] = to;
+  if (!data.bookAlias) data.bookAlias = {};
+  data.bookAlias[dup.id] = { to: keep.id, map: slim, at: Date.now() };
+  rewriteUids(aliasUid);
+
+  // remove the copy everywhere (tombstone → other devices drop it too)
+  data.books = data.books.filter(b => b.id !== dup.id);
+  if (!data.deletedBooks) data.deletedBooks = {};
+  data.deletedBooks[dup.id] = Date.now();
+  bookRemoved(dup.id);
+  booksChanged(keep.id);
+  if (openBooks.has(dup.id)) { openBooks.delete(dup.id); openBooks.add(keep.id); saveOpenBooks(); }
+  if (filter === dup.id) filter = keep.id;
+}
+
+// Find and merge every duplicate; returns how many copies were removed.
+function dedupeBooks() {
+  const books = data.books;
+  if (books.length < 2) return 0;
+  // only compare books that share at least one rule key or PDF fingerprint
+  const index = new Map();
+  books.forEach((b, i) => {
+    const keys = new Set([...b.rules.map(ruleKey), ...(b.pdfHashes || []).map(h => '#' + h)]);
+    for (const k of keys) { if (!index.has(k)) index.set(k, []); index.get(k).push(i); }
+  });
+  const parent = books.map((_, i) => i);
+  const find = i => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  const tried = new Set();
+  for (const list of index.values()) {
+    if (list.length < 2) continue;
+    for (let x = 0; x < list.length; x++) for (let y = x + 1; y < list.length; y++) {
+      const i = list[x], j = list[y], key = i + ',' + j;
+      if (tried.has(key) || find(i) === find(j)) continue;
+      tried.add(key);
+      if (sameBookContent(books[i], books[j])) parent[find(i)] = find(j);
+    }
+  }
+  const groups = new Map();
+  books.forEach((b, i) => { const r = find(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(b); });
+  let removed = 0;
+  for (const g of groups.values()) {
+    if (g.length < 2) continue;
+    g.sort(keeperFirst);
+    for (const dup of g.slice(1)) { mergeBookInto(g[0], dup); removed++; }
+  }
+  if (removed) { invalidateRules(); save(); flushSave(); }
+  return removed;
+}
+
+function duplicateToast(n) {
+  return `🧹 Merged ${n} duplicate book${n === 1 ? '' : 's'} — your ticks and missions were kept`;
 }
 
 /* ================= Cloud sync (Firebase / Google sign-in) ================= */
@@ -2583,6 +2746,7 @@ function tickPayload() {
   const t = { tickStamp: data.tickStamp || {} };
   for (const k of Object.keys(data)) if (k.startsWith('ticks_')) t[k] = data[k];
   if (data.plan) t.plan = data.plan;   // today's mission + 7-day challenge
+  if (data.bookAlias) t.alias = data.bookAlias;   // merged duplicate copies → their keeper
   return JSON.stringify(t);
 }
 
@@ -2686,7 +2850,12 @@ function onMetaSnapshot(snap) {
   // cloud missing ticks we hold (e.g. ticked while offline) → push them back
   let remoteTicks = {};
   try { remoteTicks = d.tk ? JSON.parse(d.tk) : {}; } catch (e) { /* ignore */ }
-  if (remoteMissingOurTicks(remoteTicks) || remoteMissingOurPlan(remoteTicks.plan)) pushMeta().catch(onRemoteError);
+  let remoteTomb = {};
+  try { remoteTomb = d.tomb ? JSON.parse(d.tomb) : {}; } catch (e) { /* ignore */ }
+  const cloudLacksMerges =
+    Object.keys(data.deletedBooks || {}).some(id => !(id in remoteTomb)) ||
+    Object.keys(data.bookAlias || {}).some(id => !(remoteTicks.alias || {})[id]);
+  if (remoteMissingOurTicks(remoteTicks) || remoteMissingOurPlan(remoteTicks.plan) || cloudLacksMerges) pushMeta().catch(onRemoteError);
   syncOk();
 }
 
@@ -2708,7 +2877,12 @@ function onBooksSnapshot(snap) {
     if (!book || book.id !== id || !Array.isArray(book.rules)) continue;
     changed = applyRemoteBook(book) || changed;
   }
-  if (changed) { flushSave(); renderAll(); }
+  if (changed) {
+    // the same PDF imported on two devices arrives here as a second copy — merge it
+    const m = dedupeBooks();
+    flushSave(); renderAll();
+    if (m) toast(duplicateToast(m));
+  }
 
   // reconcile: local books the cloud doesn't have yet (imported offline, or the
   // one-time migration) get queued for upload. Only from a fresh server read.
@@ -2777,6 +2951,8 @@ function mergeTicks(remote) {
   data.tickStamp = stamps;
   if (changed) { _doneSet = null; _livedCache = null; }
   if (mergePlan(remote.plan)) changed = true;   // missions + challenges ride in the same payload
+  if (mergeAliases(remote.alias)) changed = true;
+  if (applyAliases()) changed = true;           // ticks for a merged-away copy → its keeper
   return changed;
 }
 
@@ -3051,8 +3227,13 @@ setInterval(() => {
 $('ver-mark').textContent = APP_VERSION.split(' ')[0]; // small always-visible build mark, e.g. "v11"
 $('ver-mark').title = APP_VERSION;
 
+// One library, no duplicate books: merge any copies now (keeps all their ticks).
+if (applyAliases()) save();
+const mergedAtStart = dedupeBooks();
+
 renderAll();
 initFirebase();
+if (mergedAtStart) setTimeout(() => toast(duplicateToast(mergedAtStart)), 600);
 
 // Service worker: keeps the installed (home-screen) app updating to the latest
 // build when online, instead of being stuck on a cached old version.
