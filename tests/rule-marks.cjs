@@ -37,6 +37,8 @@ const seed = { books: [{ id: 'test', name: 'Personal Mastery and Everyday Princi
     await a.locator('[data-uid="test:1"] .card-title').click();
     assert.equal(await a.locator('.card-actions [data-star="test:1"]').count(), 1, 'Star is a footer action');
     assert.equal(await a.locator('.card-actions [data-hide="test:1"]').count(), 1, 'Hide is a footer action');
+    assert.equal(await a.locator('[data-star="test:1"]').evaluate(el => getComputedStyle(el).color), 'rgb(250, 204, 21)', 'Star is yellow before selection');
+    assert.equal(await a.locator('[data-hide="test:1"]').evaluate(el => getComputedStyle(el).color), 'rgb(224, 82, 82)', 'Hide is red without hover');
     await a.locator('[data-star="test:1"]').click();
     assert.equal(await a.locator('[data-star="test:1"]').getAttribute('aria-pressed'), 'true');
     assert.equal(await a.locator('.card.open').count(), 1, 'Starring must keep the card expanded');

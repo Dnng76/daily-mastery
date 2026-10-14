@@ -525,12 +525,12 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 
   /* ---------- ⭐ star / ✕ not-for-me ---------- */
   .card-top-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: auto; }
-  .card-actions .star-btn { color: var(--text-dim); }
-  .card-actions .star-btn:hover, .card-actions .star-btn.on { color: var(--amber); border-color: #6b5220; }
+  .card-actions .star-btn { color: #facc15; border-color: #8a701c; }
+  .card-actions .star-btn:hover, .card-actions .star-btn.on { color: #facc15; border-color: #facc15; background: #302710; }
   .star-btn.pop { animation: tick-pop 0.35s ease; }
   .card.starred { border-color: #4a3c1c; }
-  .card-actions .hide-btn { color: var(--text-dim); }
-  .card-actions .hide-btn:hover { color: var(--red); border-color: #3a2424; }
+  .card-actions .hide-btn { color: var(--red); border-color: #873737; }
+  .card-actions .hide-btn:hover { color: var(--red); border-color: var(--red); background: #301919; }
   .hidden-row {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
     margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: var(--radius);
@@ -727,7 +727,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v29 · 2026-10-14 (principle footer actions)';
+const APP_VERSION = 'v30 · 2026-10-14 (colored principle actions)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
