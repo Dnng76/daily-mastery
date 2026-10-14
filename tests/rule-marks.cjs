@@ -33,6 +33,16 @@ const seed = { books: [{ id: 'test', name: 'Personal Mastery and Everyday Princi
       pages.push(page);
     }
     const [a, b] = pages;
+    const tick = a.locator('[data-uid="test:1"] .tick');
+    const sizes = await tick.evaluate(el => ({
+      target: [el.offsetWidth, el.offsetHeight],
+      circle: [getComputedStyle(el, '::before').width, getComputedStyle(el, '::before').height]
+    }));
+    assert.deepEqual(sizes, { target: [44, 44], circle: ['30px', '30px'] }, 'Small visible circle retains the full tap area');
+    await tick.click({ position: { x: 3, y: 22 } });
+    assert.equal(await tick.getAttribute('aria-pressed'), 'true', 'Outer invisible tap area completes the rule');
+    await tick.click();
+    assert.equal(await tick.getAttribute('aria-pressed'), 'false');
     assert.equal(await a.locator('.card-top [data-star], .card-top [data-hide]').count(), 0, 'Header only contains the completion control');
     await a.locator('[data-uid="test:1"] .card-title').click();
     assert.equal(await a.locator('.card-actions [data-star="test:1"]').count(), 1, 'Star is a footer action');

@@ -336,11 +336,13 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .card.open .card-chevron { transform: rotate(180deg); }
 
   .tick {
+    position: relative;
+    isolation: isolate;
     flex-shrink: 0;
     width: 44px;
     height: 44px;
     border-radius: 999px;
-    border: 1.5px solid var(--text-faint);
+    border: none;
     background: transparent;
     color: transparent;
     font-size: 0.95rem;
@@ -350,9 +352,20 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     align-items: center;
     justify-content: center;
   }
-  .tick:hover { border-color: var(--green); background: transparent; }
+  .tick::before {
+    content: "";
+    position: absolute;
+    inset: 7px;
+    box-sizing: border-box;
+    border: 1.5px solid var(--text-faint);
+    border-radius: 50%;
+    z-index: -1;
+  }
+  .tick:hover { background: transparent; }
+  .tick:hover::before { border-color: var(--green); }
   .tick:active { transform: scale(0.9); }
-  .tick.on { background: var(--green); border-color: var(--green); color: var(--bg); }
+  .tick.on { color: var(--bg); }
+  .tick.on::before { background: var(--green); border-color: var(--green); }
   .tick.pop { animation: tick-pop 0.28s ease; }
   @keyframes tick-pop {
     0% { transform: scale(1); }
@@ -798,7 +811,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v31 · 2026-10-14 (reading and layout refinements)';
+const APP_VERSION = 'v32 · 2026-10-14 (compact completion circles)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
