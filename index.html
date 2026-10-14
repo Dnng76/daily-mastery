@@ -311,8 +311,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     0%, 60% { border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
     100% { box-shadow: none; }
   }
-  .card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-  .card-top-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .card-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .card-top-left { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
   .card .book-tag { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rule-n { font-size: 0.72rem; color: var(--text-faint); font-weight: 600; white-space: nowrap; }
   .card-title { font-size: 0.95rem; font-weight: 600; letter-spacing: -0.01em; overflow-wrap: anywhere; }
@@ -518,6 +518,28 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     text-align: center;
   }
   #toast.show { transform: translateX(-50%) translateY(0); }
+  .toast-btn {
+    margin-left: 8px; padding: 3px 12px; font-size: 0.82rem; font-weight: 700;
+    color: var(--amber); border-color: #6b5220; border-radius: 999px; background: transparent;
+  }
+
+  /* ---------- ⭐ star / ✕ not-for-me ---------- */
+  .card-top-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: auto; }
+  .star-btn {
+    width: 40px; height: 40px; padding: 0; border: none; background: transparent;
+    font-size: 1.25rem; line-height: 1; color: var(--text-faint);
+  }
+  .star-btn:hover { background: transparent; color: var(--amber); }
+  .star-btn.on { color: var(--amber); }
+  .star-btn.pop { animation: tick-pop 0.35s ease; }
+  .card.starred { border-color: #4a3c1c; }
+  .card-actions .hide-btn { color: var(--text-dim); }
+  .card-actions .hide-btn:hover { color: var(--red); border-color: #3a2424; }
+  .hidden-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: var(--radius);
+    font-size: 0.84rem; color: var(--text-dim);
+  }
 
   .section-label {
     font-size: 0.72rem;
@@ -709,7 +731,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v27 · 2026-10-12 (no duplicates)';
+const APP_VERSION = 'v28 · 2026-10-14 (star and hide principles)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1000,7 +1022,7 @@ function getSpotOverride() {
 }
 
 function shuffleSpotlight() {
-  const all = allRules();
+  const all = allRules().filter(r => !isHidden(r.uid));
   if (all.length < 2) return;
   const cur = spotlightRule();
   let pick;
@@ -1018,7 +1040,9 @@ function smartSpotlight() {
 // Selection only looks at history before today, so it stays stable all day
 // and is identical on every synced device. Ties rotate by date.
 function spotlightRule() {
-  const all = allRules();
+  const eligible = allRules().filter(r => !isHidden(r.uid));
+  const stars = eligible.filter(r => isStarred(r.uid));
+  const all = stars.length ? stars : eligible;
   if (!all.length) return null;
   const dayN = Math.floor(Date.parse(currentDay + 'T00:00:00') / 86400000);
 
@@ -1035,7 +1059,7 @@ function spotlightRule() {
 
   const o = getSpotOverride();
   if (o) {
-    const hit = all.find(r => r.uid === o.uid);
+    const hit = eligible.find(r => r.uid === o.uid);
     if (hit) return { ...hit, score: -1, random: true };
   }
 
@@ -1082,7 +1106,7 @@ function lastTickedMap() {
 let _focusCache = null, _focusDay = null;
 function getDailyFocus() {
   if (_focusCache && _focusDay === currentDay) return _focusCache;
-  const all = allRules();
+  const all = allRules().filter(r => !isHidden(r.uid));
   const dayN = Math.floor(Date.parse(currentDay + 'T00:00:00') / 86400000);
   const last = lastTickedMap();
   // days lived BEFORE today (so the selection stays fixed while you tick today)
@@ -1099,7 +1123,7 @@ function getDailyFocus() {
   // Most-neglected first. Ties (e.g. the hundreds of never-lived rules) break by a
   // per-day shuffle — the old alphabetical tie-break filled Focus with one book.
   // Same inputs on every device → same list on phone and iPad.
-  scored.sort((a, b) => b.score - a.score || a.shuffle - b.shuffle);
+  scored.sort((a, b) => Number(isStarred(b.uid)) - Number(isStarred(a.uid)) || b.score - a.score || a.shuffle - b.shuffle);
   // At most `cap` rules per book so the day draws from several books;
   // top up from the rest if the library is too small to fill the set that way.
   const cap = Math.max(2, Math.ceil(focusSize / Math.max(1, data.books.length)));
@@ -1146,7 +1170,50 @@ function plan() {
   if (!p.missions) p.missions = {};
   if (!Array.isArray(p.challengeLog)) p.challengeLog = [];
   if (p.challenge === undefined) p.challenge = null;
+  if (!p.marks) p.marks = {};
   return p;
+}
+
+/* ================= Your marks: ⭐ star / ✕ not for me =================
+   Not every principle fits you. plan().marks = { uid: { v: 'star'|'hide'|null, at } }
+   (v null = cleared, kept so the clearing syncs; newest `at` wins on merge).
+   ⭐ starred rules come up more often (reserved Focus slots, preferred mission).
+   ✕ hidden rules drop out of Focus, suggestions, Random, search and book lists —
+   nothing is deleted, they can be restored from the Hidden view. */
+function markOf(uid) { const m = data.plan && data.plan.marks && data.plan.marks[uid]; return m ? m.v : null; }
+function isStarred(uid) { return markOf(uid) === 'star'; }
+function isHidden(uid) { return markOf(uid) === 'hide'; }
+function markCount(v) {
+  let n = 0;
+  for (const [uid, m] of Object.entries((data.plan && data.plan.marks) || {})) if (m && m.v === v && ruleByUid(uid)) n++;
+  return n;
+}
+
+// Toggle a mark on a rule: tapping the same mark again clears it.
+function toggleMark(uid, v) {
+  if (!ruleByUid(uid)) return;
+  const p = plan();
+  const prev = markOf(uid);
+  const next = prev === v ? null : v;
+  p.marks[uid] = { v: next, at: Math.max(Date.now(), (p.marks[uid]?.at || 0) + 1) };
+  _focusCache = null;            // hiding/starring changes what today's Focus draws from
+  save();
+  renderAll();
+  const hit = ruleByUid(uid);
+  const label = hit ? `Rule ${hit.rule.n}` : 'Rule';
+  if (next === 'hide') toastAction(`✕ ${label} hidden — it won't come up any more`, 'Undo', () => setMark(uid, prev));
+  else if (next === 'star') toast(`⭐ ${label} starred — it'll come up more often`);
+  else if (prev === 'hide') toast(`↩ ${label} is back in your rotation`);
+  else if (prev === 'star') toast(`${label} unstarred`);
+}
+
+function setMark(uid, v) {
+  if (!ruleByUid(uid)) return;
+  const marks = plan().marks;
+  marks[uid] = { v: v || null, at: Math.max(Date.now(), (marks[uid]?.at || 0) + 1) };
+  _focusCache = null;
+  save();
+  renderAll();
 }
 
 // DST-safe calendar arithmetic on YYYY-MM-DD keys
@@ -1159,10 +1226,11 @@ function livedOn(uid, day) { return day === currentDay ? isDone(uid) : (data['ti
 
 function todaysMission() {
   const m = plan().missions[currentDay];
-  return (m && m.uid) ? ruleByUid(m.uid) || null : null;
+  return (m && m.uid && !isHidden(m.uid)) ? ruleByUid(m.uid) || null : null;
 }
 
 function setMission(uid) {
+  if (isHidden(uid)) return;
   const p = plan();
   const cur = p.missions[currentDay];
   if (cur && cur.uid === uid) { toast('Already today\'s mission'); return; }
@@ -1192,7 +1260,7 @@ function missionsLived() {
 // Resolved view of the current challenge, or null when there isn't one.
 function activeChallenge() {
   const ch = plan().challenge;
-  if (!ch || !ch.uid) return null;
+  if (!ch || !ch.uid || isHidden(ch.uid)) return null;
   const hit = ruleByUid(ch.uid);
   if (!hit) return null;                                  // its book was removed
   const dayIdx = Math.max(0, daysBetween(ch.start, currentDay)); // 0-based day of the challenge
@@ -1218,6 +1286,7 @@ function logChallenge(c) {
 }
 
 function startChallenge(uid) {
+  if (isHidden(uid)) return;
   const cur = activeChallenge();
   if (cur && !cur.finished) {
     if (cur.uid === uid) { toast('Already your 7-day challenge'); return; }
@@ -1440,6 +1509,8 @@ function renderChips() {
     { id: 'all', label: 'All' },
     { id: 'todo', label: 'To Do' },
     { id: 'done', label: 'Done' },
+    { id: 'starred', label: `★ Starred ${markCount('star')}` },
+    { id: 'hidden', label: `Hidden ${markCount('hide')}` },
     { id: 'mastery', label: `🏆 Mastery${growing ? ' ' + growing : ''}` }
   ];
   let parts = base.map(chipHtml);
@@ -1559,8 +1630,11 @@ function visibleRules() {
   const focus = filter === 'focus' ? getDailyFocus() : null;
   const lived = filter === 'mastery' ? livedCounts() : null;
   const out = applyMix(allRules()).filter(({ book, rule, uid }) => {
+    if (filter === 'hidden' ? !isHidden(uid) : isHidden(uid)) return false;
     if (focus) { if (!focus.has(uid)) return false; }
     else if (lived) { if (!lived.get(uid)) return false; }
+    else if (filter === 'starred') { if (!isStarred(uid)) return false; }
+    else if (filter === 'hidden') { /* hidden rules are explicitly requested */ }
     else if (filter === 'todo' && isDone(uid)) return false;
     else if (filter === 'done' && !isDone(uid)) return false;
     else if (filter !== 'all' && filter !== 'todo' && filter !== 'done' && book.id !== filter) return false;
@@ -1593,9 +1667,11 @@ function bodyHtml(rule, uid) {
       ${rule.standard && rule.standard !== rule.today ? `<h4>The Standard</h4>
         <div class="standard-text">${esc(rule.standard)}</div>` : ''}
       ${uid ? `<div class="card-actions">
+        ${isHidden(uid) ? '' : `
         ${livedBtnHtml(uid)}
         <button data-mission="${uid}">⚔️ Today's mission</button>
         <button data-challenge="${uid}">🔥 7-day challenge</button>
+        `}
       </div>` : ''}`;
 }
 
@@ -1614,7 +1690,7 @@ function cardHtml(book, rule, uid, showTag) {
   const done = isDone(uid);
   const open = expanded.has(uid);
   return `
-  <div class="card ${done ? 'done' : ''} ${open ? 'open' : ''}"
+  <div class="card ${done ? 'done' : ''} ${open ? 'open' : ''} ${isStarred(uid) ? 'starred' : ''}"
        id="card-${cssId(uid)}" data-uid="${uid}" style="border-left-color:${book.color}">
     <div class="card-top">
       <div class="card-top-left">
@@ -1622,7 +1698,11 @@ function cardHtml(book, rule, uid, showTag) {
         <span class="rule-n">RULE ${rule.n}</span>
         <span class="lvl-slot">${lvlBadge(uid)}</span>
       </div>
-      <button class="tick ${done ? 'on' : ''}" data-tick="${uid}" title="Lived it today">✓</button>
+      <div class="card-top-right">
+        <button class="star-btn ${isStarred(uid) ? 'on' : ''}" data-star="${uid}" title="${isStarred(uid) ? 'Unstar' : 'Star helpful principle'}" aria-label="${isStarred(uid) ? 'Unstar' : 'Star helpful principle'}" aria-pressed="${isStarred(uid)}">${isStarred(uid) ? '★' : '☆'}</button>
+        <button class="star-btn" data-hide="${uid}" title="${isHidden(uid) ? 'Restore principle' : 'Hide: not relevant'}" aria-label="${isHidden(uid) ? 'Restore principle' : 'Hide: not relevant'}">${isHidden(uid) ? '↶' : '×'}</button>
+        ${isHidden(uid) ? '' : `<button class="tick ${done ? 'on' : ''}" data-tick="${uid}" title="Lived it today">✓</button>`}
+      </div>
     </div>
     <div class="card-title">${esc(rule.title)}</div>
     <div class="card-body">${open ? bodyHtml(rule, uid) : ''}</div>
@@ -1651,7 +1731,7 @@ function renderGrid() {
   // and should read as one flat to-do list).
   const searching = !!searchTerm.trim();
   // Done is a short "what I lived today" list — show the rules themselves, not closed book headers.
-  const showSections = !mixOrder && !searching && filter !== 'focus' && filter !== 'mastery' && filter !== 'done';
+  const showSections = !mixOrder && !searching && !['focus', 'mastery', 'done', 'starred', 'hidden'].includes(filter);
 
   let html = '';
   if (showSections) {
@@ -1695,7 +1775,9 @@ function renderGrid() {
   // No matches for the current search/filter — explain instead of a blank page
   if (!rules.length) {
     const term = searchTerm.trim();
-    html = (filter === 'done' && !term)
+    html = (filter === 'starred' || filter === 'hidden') && !term
+      ? `<div class="empty" style="grid-column:1/-1"><strong>${filter === 'starred' ? 'No starred principles yet' : 'No hidden principles'}</strong></div>`
+      : (filter === 'done' && !term)
       ? `<div class="empty" style="grid-column:1/-1">
           <strong>Nothing lived yet today</strong>
           <p>Tick a rule once you've actually lived it today and it shows up here.</p>
@@ -1727,6 +1809,10 @@ function renderGrid() {
 // One delegated listener for the whole grid — attaching thousands of
 // per-card handlers on every render was a big part of the lag.
 $('grid').addEventListener('click', (e) => {
+  const starBtn = e.target.closest('[data-star]');
+  if (starBtn) { toggleMark(starBtn.dataset.star, 'star'); return; }
+  const hideBtn = e.target.closest('[data-hide]');
+  if (hideBtn) { toggleMark(hideBtn.dataset.hide, 'hide'); return; }
   const tickBtn = e.target.closest('[data-tick]');
   if (tickBtn) { toggleTick(tickBtn.dataset.tick); return; }
   const missionBtn = e.target.closest('[data-mission]');
@@ -1976,8 +2062,9 @@ function jumpTo(uid) {
 }
 
 function randomRule() {
-  const undone = allRules().filter(r => !isDone(r.uid));
-  if (!undone.length) { toast(allRules().length ? 'Everything is done today 🎉' : 'Library is empty'); return; }
+  const eligible = allRules().filter(r => !isHidden(r.uid));
+  const undone = eligible.filter(r => !isDone(r.uid));
+  if (!undone.length) { toast(!allRules().length ? 'Library is empty' : !eligible.length ? 'All principles are hidden' : 'Everything is done today'); return; }
   const pick = undone[Math.floor(Math.random() * undone.length)];
   // make sure it's visible
   if (filter === 'done' || (filter !== 'all' && filter !== 'todo' && filter !== pick.book.id)) {
@@ -2564,6 +2651,16 @@ function splitUid(uid) { const i = uid.lastIndexOf(':'); return [uid.slice(0, i)
 // Rewrite every stored rule reference through `fn(uid) → uid`; returns true if anything changed.
 function rewriteUids(fn) {
   let changed = false;
+  const marks = data.plan && data.plan.marks;
+  if (marks) {
+    for (const [uid, mark] of Object.entries(marks)) {
+      const next = fn(uid);
+      if (next === uid) continue;
+      if (newerMark(mark, marks[next])) marks[next] = mark;
+      delete marks[uid];
+      changed = true;
+    }
+  }
   for (const k of Object.keys(data)) {
     if (!k.startsWith('ticks_') || !Array.isArray(data[k])) continue;
     const next = [...new Set(data[k].map(fn))];
@@ -2956,11 +3053,19 @@ function mergeTicks(remote) {
   return changed;
 }
 
-// Missions/challenges: newest timestamp wins per entry; finished challenges union.
+function newerMark(mark, current) {
+  return mark && [null, 'star', 'hide'].includes(mark.v) && Number.isFinite(mark.at) &&
+    (!current || mark.at > current.at || (mark.at === current.at && String(mark.v) > String(current.v)));
+}
+
+// Missions/challenges/marks: newest timestamp wins per entry; finished challenges union.
 function mergePlan(rp) {
   if (!rp) return false;
   const p = plan();
   let changed = false;
+  for (const [uid, mark] of Object.entries(rp.marks || {})) {
+    if (newerMark(mark, p.marks[uid])) { p.marks[uid] = { ...mark }; changed = true; _focusCache = null; }
+  }
   for (const [day, m] of Object.entries(rp.missions || {})) {
     const cur = p.missions[day];
     if (m && (!cur || (m.at || 0) > (cur.at || 0))) { p.missions[day] = m; changed = true; }
@@ -2981,6 +3086,9 @@ function remoteMissingOurPlan(rp) {
   const p = data.plan;
   if (!p) return false;
   rp = rp || {};
+  for (const [uid, mark] of Object.entries(p.marks || {})) {
+    if (newerMark(mark, (rp.marks || {})[uid])) return true;
+  }
   const rm = rp.missions || {};
   for (const [day, m] of Object.entries(p.missions || {})) {
     if (!rm[day] || (m.at || 0) > (rm[day].at || 0)) return true;
@@ -3003,6 +3111,7 @@ function onRemoteError(err) {
 //  - ticks are resolved per day by their own timestamp (unioned on a tie)
 function mergeRemote(remote) {
   if (!remote) return;
+  mergePlan(remote.plan);
 
   // book deletions — union of tombstones, newest timestamp wins
   const tomb = { ...(data.deletedBooks || {}) };
@@ -3109,6 +3218,16 @@ function toast(msg) {
   t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// Toast with one action button (e.g. Undo); stays up a little longer.
+function toastAction(msg, label, fn) {
+  const t = $('toast');
+  t.innerHTML = `${esc(msg)} <button class="toast-btn">${esc(label)}</button>`;
+  t.querySelector('.toast-btn').onclick = () => { t.classList.remove('show'); fn(); };
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 5500);
 }
 
 // Persistent, screenshottable diagnostic shown when a PDF import fails, so a
