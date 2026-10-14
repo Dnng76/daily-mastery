@@ -33,9 +33,13 @@ const seed = { books: [{ id: 'test', name: 'Personal Mastery and Everyday Princi
       pages.push(page);
     }
     const [a, b] = pages;
+    assert.equal(await a.locator('.card-top [data-star], .card-top [data-hide]').count(), 0, 'Header only contains the completion control');
+    await a.locator('[data-uid="test:1"] .card-title').click();
+    assert.equal(await a.locator('.card-actions [data-star="test:1"]').count(), 1, 'Star is a footer action');
+    assert.equal(await a.locator('.card-actions [data-hide="test:1"]').count(), 1, 'Hide is a footer action');
     await a.locator('[data-star="test:1"]').click();
     assert.equal(await a.locator('[data-star="test:1"]').getAttribute('aria-pressed'), 'true');
-    assert.equal(await a.locator('.card.open').count(), 0, 'Starring must not expand the card');
+    assert.equal(await a.locator('.card.open').count(), 1, 'Starring must keep the card expanded');
     await a.locator('[data-filter="starred"]').click();
     assert.equal(await a.locator('.card').count(), 1);
     assert.equal(await a.evaluate(() => spotlightRule().uid), 'test:1');
@@ -74,6 +78,7 @@ const seed = { books: [{ id: 'test', name: 'Personal Mastery and Everyday Princi
     await a.reload();
     assert.ok(await a.evaluate(() => isStarred('test:3') && !isHidden('test:1')));
     await a.evaluate(() => { filter = 'starred'; renderAll(); });
+    await a.locator('[data-uid="test:3"] .card-title').click();
     await a.locator('[data-star="test:3"]').click();
     assert.equal(await a.locator('.card').count(), 0, 'Unstar removes from starred filter');
     await a.evaluate(() => { for (const r of allRules()) setMark(r.uid, 'hide'); });
@@ -84,6 +89,10 @@ const seed = { books: [{ id: 'test', name: 'Personal Mastery and Everyday Princi
     for (const width of [320, 390, 768, 1280]) {
       await a.setViewportSize({ width, height: 900 });
       assert.ok(await a.evaluate(() => [...document.querySelectorAll('.card')].every(el => el.scrollWidth <= el.clientWidth + 1)), `Card overflow at ${width}px`);
+      assert.ok(await a.evaluate(() => {
+        const buttons = [...document.querySelectorAll('.card-actions button')].map(el => el.getBoundingClientRect());
+        return buttons.every((a, i) => buttons.slice(i + 1).every(b => a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top));
+      }), `Footer buttons overlap at ${width}px`);
     }
     await a.setViewportSize({ width: 390, height: 844 });
     await a.locator('.card').first().screenshot({ path: path.join(output, 'starred-card.png') });

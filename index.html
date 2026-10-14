@@ -525,12 +525,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 
   /* ---------- ⭐ star / ✕ not-for-me ---------- */
   .card-top-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: auto; }
-  .star-btn {
-    width: 40px; height: 40px; padding: 0; border: none; background: transparent;
-    font-size: 1.25rem; line-height: 1; color: var(--text-faint);
-  }
-  .star-btn:hover { background: transparent; color: var(--amber); }
-  .star-btn.on { color: var(--amber); }
+  .card-actions .star-btn { color: var(--text-dim); }
+  .card-actions .star-btn:hover, .card-actions .star-btn.on { color: var(--amber); border-color: #6b5220; }
   .star-btn.pop { animation: tick-pop 0.35s ease; }
   .card.starred { border-color: #4a3c1c; }
   .card-actions .hide-btn { color: var(--text-dim); }
@@ -731,7 +727,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v28 · 2026-10-14 (star and hide principles)';
+const APP_VERSION = 'v29 · 2026-10-14 (principle footer actions)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1672,6 +1668,8 @@ function bodyHtml(rule, uid) {
         <button data-mission="${uid}">⚔️ Today's mission</button>
         <button data-challenge="${uid}">🔥 7-day challenge</button>
         `}
+        <button class="star-btn ${isStarred(uid) ? 'on' : ''}" data-star="${uid}" title="${isStarred(uid) ? 'Unstar' : 'Star helpful principle'}" aria-label="${isStarred(uid) ? 'Unstar' : 'Star helpful principle'}" aria-pressed="${isStarred(uid)}">${isStarred(uid) ? '★ Starred' : '☆ Star'}</button>
+        <button class="hide-btn" data-hide="${uid}" title="${isHidden(uid) ? 'Restore principle' : 'Hide: not relevant'}" aria-label="${isHidden(uid) ? 'Restore principle' : 'Hide: not relevant'}">${isHidden(uid) ? '↶ Restore' : '× Not for me'}</button>
       </div>` : ''}`;
 }
 
@@ -1699,8 +1697,6 @@ function cardHtml(book, rule, uid, showTag) {
         <span class="lvl-slot">${lvlBadge(uid)}</span>
       </div>
       <div class="card-top-right">
-        <button class="star-btn ${isStarred(uid) ? 'on' : ''}" data-star="${uid}" title="${isStarred(uid) ? 'Unstar' : 'Star helpful principle'}" aria-label="${isStarred(uid) ? 'Unstar' : 'Star helpful principle'}" aria-pressed="${isStarred(uid)}">${isStarred(uid) ? '★' : '☆'}</button>
-        <button class="star-btn" data-hide="${uid}" title="${isHidden(uid) ? 'Restore principle' : 'Hide: not relevant'}" aria-label="${isHidden(uid) ? 'Restore principle' : 'Hide: not relevant'}">${isHidden(uid) ? '↶' : '×'}</button>
         ${isHidden(uid) ? '' : `<button class="tick ${done ? 'on' : ''}" data-tick="${uid}" title="Lived it today">✓</button>`}
       </div>
     </div>
