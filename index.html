@@ -28,14 +28,14 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     --surface-2: #1b1b20;
     --border: #26262c;
     --text: #e8e8ea;
-    --text-dim: #8b8b93;
-    --text-faint: #5a5a62;
+    --text-dim: #b0b0b9;
+    --text-faint: #92929e;
     --green: #2ecc71;
     --green-dim: #1d7a47;
     --red: #e05252;
     --amber: #e0a53c;
     --cyan: #54b8c7;
-    --radius: 12px;
+    --radius: 8px;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: smooth; }
@@ -47,7 +47,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     min-height: 100vh;
     padding-bottom: 80px;
   }
-  .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 20px; }
 
   /* ---------- Header ---------- */
   header {
@@ -56,8 +56,11 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     justify-content: space-between;
     gap: 12px;
     padding: 12px 0 20px;
+    flex-wrap: wrap;
   }
-  header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand-icon { width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0; }
+  header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: 0; }
   header > div:first-child { min-width: 0; }
   header h1 { overflow-wrap: anywhere; }
   header h1 span { color: var(--text-faint); font-weight: 400; }
@@ -74,7 +77,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   }
   .day-left { font-size: 0.72rem; color: var(--text-faint); margin-top: 2px; }
   .day-left.urgent { color: var(--red); }
-  .header-right { display: flex; align-items: center; gap: 10px; }
+  .header-right { display: flex; align-items: center; gap: 12px; margin-left: auto; }
   .streak-badge {
     font-size: 0.9rem;
     font-weight: 700;
@@ -106,9 +109,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     dominant-baseline: central;
   }
   .ring-label { font-size: 0.72rem; color: var(--text-dim); line-height: 1.3; white-space: nowrap; }
-  /* narrow phones: the ring already shows "3/15", so drop the side label and give the title room */
-  @media (max-width: 480px) { .ring-label { display: none; } }
   header h1 { white-space: nowrap; }
+  header .ver-mark { display: none; }
 
   /* ---------- Buttons ---------- */
   button {
@@ -124,12 +126,16 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     -webkit-tap-highlight-color: transparent;
   }
   button:hover { background: var(--surface-2); }
+  :is(button, input, a):focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+  button { min-height: 44px; }
+  button:disabled { cursor: default; }
   button.danger { color: var(--red); border-color: #3a2424; }
   button.danger:hover { background: #241616; }
   button.icon-btn { padding: 8px 10px; }
 
   /* ---------- Toolbar ---------- */
-  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  .toolbar-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
   .toolbar input[type="search"] {
     flex: 1 1 180px;
     min-width: 0;
@@ -137,21 +143,22 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     border: 1px solid var(--border);
     border-radius: 8px;
     color: var(--text);
-    padding: 8px 12px;
+    padding: 11px 14px;
     font: inherit;
     font-size: 0.85rem;
     outline: none;
   }
-  .toolbar input[type="search"]:focus { border-color: var(--text-faint); }
+  .toolbar input[type="search"]:focus { border-color: var(--cyan); }
+  input::placeholder { color: var(--text-faint); opacity: 1; }
 
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
   .chip {
     border: 1px solid var(--border);
     background: transparent;
     color: var(--text-dim);
-    border-radius: 999px;
-    padding: 5px 13px;
-    font-size: 0.78rem;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.8rem;
   }
   .chip.active { color: var(--bg); font-weight: 600; }
   .chip.active.neutral { background: var(--text); border-color: var(--text); }
@@ -179,12 +186,13 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 
   /* ---------- Spotlight ---------- */
   .spotlight {
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--border);
     border-left: 4px solid var(--green);
-    border-radius: var(--radius);
-    padding: 16px;
-    margin-bottom: 22px;
+    border-radius: 0;
+    padding: 8px 0 24px 20px;
+    margin-bottom: 24px;
   }
   .spotlight .kicker {
     font-size: 0.68rem;
@@ -194,18 +202,19 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     color: var(--text-faint);
     margin-bottom: 8px;
   }
-  .spotlight h2 { font-size: 1.15rem; margin: 4px 0 8px; letter-spacing: -0.01em; overflow-wrap: anywhere; }
-  .spotlight .std { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 12px; overflow-wrap: anywhere; }
+  .spotlight h2 { font-size: 1.25rem; line-height: 1.45; margin: 10px 0; letter-spacing: 0; overflow-wrap: anywhere; max-width: 60ch; }
+  .spotlight .std { color: var(--text-dim); font-size: 0.95rem; margin-bottom: 18px; overflow-wrap: anywhere; max-width: 75ch; }
   .spotlight .spot-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
   /* ---------- Today's Mission ---------- */
   .spotlight.mission .kicker { color: var(--amber); }
-  .spotlight.mission.accomplished { background: linear-gradient(0deg, rgba(46,204,113,0.06), rgba(46,204,113,0.06)), var(--surface); }
+  .spotlight.mission.accomplished { border-bottom-color: var(--green-dim); }
   .spotlight.mission.accomplished .kicker { color: var(--green); }
   .mission-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .mission-hint { font-size: 0.76rem; color: var(--text-faint); margin-top: 10px; }
   .mission-stat { font-size: 0.78rem; color: var(--text-dim); margin-top: 10px; }
-  .mission-body { margin: 4px 0 12px; font-size: 0.84rem; }
+  .mission-body { margin: 4px 0 18px; font-size: 0.95rem; line-height: 1.7; max-width: 75ch; }
+  .mission-body .rule-section { margin-top: 18px; }
   .mission-body h4 { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); margin: 12px 0 5px; }
   .mission-body h4.gain-h { color: var(--green); }
   .mission-body h4.lose-h { color: var(--red); }
@@ -215,20 +224,21 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .mission-body li { color: var(--text-dim); padding-left: 14px; position: relative; margin-bottom: 3px; overflow-wrap: anywhere; }
   .mission-body li::before { content: "–"; position: absolute; left: 0; color: var(--text-faint); }
   .mission-body .para { color: var(--text-dim); overflow-wrap: anywhere; }
-  .mission-body .standard-text { color: var(--text); font-weight: 500; background: var(--surface-2); border-radius: 8px; padding: 9px 11px; overflow-wrap: anywhere; }
+  .mission-body .standard-text { color: var(--text); font-weight: 500; border-left: 2px solid var(--cyan); padding: 2px 0 2px 14px; overflow-wrap: anywhere; }
   .lived-btn { font-weight: 700; border-color: var(--green-dim); color: var(--green); padding: 9px 16px; }
   .lived-btn.on { background: var(--green); border-color: var(--green); color: var(--bg); }
-  .lived-btn.on:hover { background: var(--green-dim); border-color: var(--green-dim); }
+  .lived-btn.on:hover { background: #45da87; border-color: #45da87; }
   .lived-btn.pop { animation: tick-pop 0.35s ease; }
   .link-btn { border: none; background: transparent; color: var(--text-faint); padding: 8px 6px; font-size: 0.8rem; text-decoration: underline; text-underline-offset: 3px; }
   .link-btn:hover { background: transparent; color: var(--text); }
 
   /* ---------- 7-day challenge ---------- */
   .challenge {
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--border);
     border-left: 4px solid var(--amber);
-    border-radius: var(--radius);
+    border-radius: 0;
     padding: 14px 16px;
     margin: -10px 0 22px;
   }
@@ -263,24 +273,27 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .lvl-living { color: var(--green); border-color: var(--green-dim); }
   .lvl-mastered { color: var(--amber); border-color: #6b5220; }
   @media (max-width: 380px) { .lvl .lvl-word { display: none; } }
-  .card-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
-  .card-actions button { font-size: 0.8rem; padding: 7px 12px; }
+  .card-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; padding-top: 16px; border-top: 1px solid var(--border); grid-column: 1 / -1; }
+  .action-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .action-group-personal { margin-left: auto; }
+  .card-actions button { font-size: 0.84rem; padding: 10px 12px; }
   .mastery-summary {
     grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 16px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 12px 14px; font-size: 0.84rem; color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 0; font-size: 0.84rem; color: var(--text-dim);
   }
   .mastery-summary b { color: var(--text); }
 
   /* ---------- Book tag ---------- */
   .book-tag {
     display: inline-block;
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    padding: 2px 9px;
-    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    padding: 3px 8px;
+    border-radius: 4px;
+    max-width: 100%;
+    overflow-wrap: anywhere;
     color: var(--bg);
   }
 
@@ -288,7 +301,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 14px;
+    align-items: start;
   }
   @media (min-width: 560px) { .grid { grid-template-columns: repeat(2, 1fr); } }
   @media (min-width: 880px) { .grid { grid-template-columns: repeat(3, 1fr); } }
@@ -297,30 +311,34 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 14px;
+    padding: 18px;
     cursor: pointer;
     transition: border-color 0.15s, background 0.15s, transform 0.08s ease;
     border-left-width: 4px;
   }
-  .card:hover { background: var(--surface-2); }
-  .card:active { transform: scale(0.985); }
-  .card.done { opacity: 0.55; }
-  .card.done .card-title { text-decoration: line-through; text-decoration-color: var(--text-faint); }
+  .card:hover { border-color: #44444e; }
+  .card.open { grid-column: 1 / -1; cursor: default; }
+  .card.done { background: #111a15; }
+  .card.done .card-title { color: #bce8cc; }
   .card.flash { animation: flash 1.6s ease; }
   @keyframes flash {
     0%, 60% { border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
     100% { box-shadow: none; }
   }
-  .card-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .card-top { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: start; gap: 12px; margin-bottom: 10px; }
   .card-top-left { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
-  .card .book-tag { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .book-tag { white-space: normal; }
   .rule-n { font-size: 0.72rem; color: var(--text-faint); font-weight: 600; white-space: nowrap; }
-  .card-title { font-size: 0.95rem; font-weight: 600; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+  .card-title { font-size: 1rem; line-height: 1.5; font-weight: 600; letter-spacing: 0; overflow-wrap: anywhere; }
+  .card-expand { display: flex; align-items: start; justify-content: space-between; gap: 12px; width: 100%; text-align: left; padding: 0; border: none; background: transparent; }
+  .card-expand:hover { background: transparent; }
+  .card-chevron { color: var(--text-faint); flex-shrink: 0; font-size: 1.1rem; transition: transform 0.15s; }
+  .card.open .card-chevron { transform: rotate(180deg); }
 
   .tick {
     flex-shrink: 0;
-    width: 30px;
-    height: 30px;
+    width: 44px;
+    height: 44px;
     border-radius: 999px;
     border: 1.5px solid var(--text-faint);
     background: transparent;
@@ -342,15 +360,18 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     100% { transform: scale(1); }
   }
 
-  .card-body { display: none; margin-top: 12px; font-size: 0.84rem; }
-  .card.open .card-body { display: block; }
+  .card-body { display: none; margin-top: 20px; font-size: 0.95rem; line-height: 1.7; }
+  .card.open .card-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .rule-section { min-width: 0; }
+  .rule-section-wide { grid-column: 1 / -1; }
+  .card-body p, .card-body .standard-text { max-width: 75ch; }
   .card-body h4 {
-    font-size: 0.66rem;
+    font-size: 0.75rem;
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: 0;
     text-transform: uppercase;
     color: var(--text-faint);
-    margin: 12px 0 5px;
+    margin: 0 0 8px;
   }
   .card-body h4:first-child { margin-top: 0; }
   .card-body h4.gain-h { color: var(--green); }
@@ -362,7 +383,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     color: var(--text-dim);
     padding-left: 14px;
     position: relative;
-    margin-bottom: 3px;
+    margin-bottom: 7px;
     overflow-wrap: anywhere;
   }
   .card-body li::before { content: "–"; position: absolute; left: 0; color: var(--text-faint); }
@@ -370,9 +391,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .card-body .standard-text {
     color: var(--text);
     font-weight: 500;
-    background: var(--surface-2);
-    border-radius: 8px;
-    padding: 9px 11px;
+    border-left: 2px solid var(--cyan);
+    padding: 2px 0 2px 14px;
     overflow-wrap: anywhere;
   }
 
@@ -431,8 +451,12 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     .modal { border-radius: 16px; }
   }
   .modal h3 { font-size: 1.05rem; margin-bottom: 14px; }
+  .modal-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; z-index: 2; padding: 8px 0; margin-bottom: 12px; background: var(--surface); }
+  .modal-heading h3 { margin: 0; }
+  .modal-heading button { width: 44px; flex-shrink: 0; padding: 0; font-size: 1.3rem; }
   .book-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
@@ -442,7 +466,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .book-row:last-of-type { border-bottom: none; }
   .reorder { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
   .reorder-btn {
-    padding: 0; width: 26px; height: 18px; line-height: 1; font-size: 0.6rem;
+    padding: 0; width: 34px; height: 34px; min-height: 34px; line-height: 1; font-size: 0.7rem;
     border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim);
   }
   .reorder-btn:disabled { opacity: 0.3; cursor: default; }
@@ -451,17 +475,18 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   /* Daily Focus size stepper */
   .focus-setting {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    padding: 12px; margin-bottom: 8px;
-    background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px 0 18px; margin-bottom: 8px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
   }
   .focus-setting-label { font-size: 0.9rem; font-weight: 600; }
   .focus-setting-note { font-size: 0.74rem; color: var(--text-dim); margin-top: 2px; }
   .focus-stepper { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-  .focus-stepper button { width: 34px; height: 34px; padding: 0; font-size: 1.1rem; font-weight: 700; }
+  .focus-stepper button { width: 44px; height: 44px; padding: 0; font-size: 1.1rem; font-weight: 700; }
   .focus-stepper span { min-width: 34px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
   .book-row-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .book-row-left > div { min-width: 0; }
   .book-dot { width: 12px; height: 12px; border-radius: 999px; flex-shrink: 0; }
-  .book-row-name { font-size: 0.9rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .book-row-name { font-size: 0.9rem; font-weight: 600; overflow-wrap: anywhere; }
   .book-row-meta { font-size: 0.72rem; color: var(--text-faint); }
   .modal-footer { margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end; }
   .modal h3.sync-title { margin: 22px 0 4px; }
@@ -505,19 +530,22 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     position: fixed;
     bottom: 20px;
     left: 50%;
-    transform: translateX(-50%) translateY(80px);
+    transform: translateX(-50%) translateY(12px);
+    opacity: 0;
+    visibility: hidden;
     background: var(--surface-2);
     border: 1px solid var(--border);
     color: var(--text);
     padding: 10px 18px;
-    border-radius: 999px;
+    border-radius: 8px;
     font-size: 0.85rem;
     z-index: 200;
-    transition: transform 0.25s ease;
-    max-width: 90vw;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+    width: max-content;
+    max-width: calc(100vw - 32px);
     text-align: center;
   }
-  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; }
   .toast-btn {
     margin-left: 8px; padding: 3px 12px; font-size: 0.82rem; font-weight: 700;
     color: var(--amber); border-color: #6b5220; border-radius: 999px; background: transparent;
@@ -580,7 +608,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   }
   .section-header:hover { background: var(--surface-2); }
   .section-header.sec-open { background: var(--surface-2); }
-  .section-header .book-tag { max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .section-header .book-tag { flex: 1; min-width: 0; white-space: normal; }
   .section-count { font-size: 0.74rem; color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .sec-bar {
     flex: 1;
@@ -616,7 +644,43 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   }
   .rename-field:focus { border-color: var(--green); }
   .primary-btn { background: var(--green); border-color: var(--green); color: var(--bg); font-weight: 600; }
-  .primary-btn:hover { background: var(--green-dim); border-color: var(--green-dim); }
+  .primary-btn:hover { background: #45da87; border-color: #45da87; }
+  .mission-body h4 { font-size: 0.75rem; }
+  .mission-body h4, .spotlight .kicker, .challenge .kicker, .lvl, .ver-mark, .section-label { letter-spacing: 0; }
+  @media (min-width: 760px) {
+    .card.open .card-body { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 40px; }
+  }
+  @media (max-width: 700px) {
+    .toolbar input[type="search"] { flex-basis: 100%; font-size: 1rem; }
+    .toolbar-actions { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .toolbar-actions button { padding: 10px 6px; }
+    .card-actions { display: grid; gap: 12px; }
+    .action-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .action-group > [data-challenge] { grid-column: 1 / -1; }
+    .action-group-personal { margin-left: 0; }
+    .card-actions button { min-width: 0; padding: 10px 6px; font-size: 0.8rem; }
+    .sec-bar { display: none; }
+  }
+  @media (max-width: 480px) {
+    .wrap { padding: 16px; }
+    header { padding-top: 4px; }
+    .brand-icon { width: 34px; height: 34px; }
+    .day-left { max-width: 22ch; }
+    .ring-box { gap: 6px; }
+    .spotlight { padding-left: 14px; }
+    .card { padding: 16px; }
+    .book-row { grid-template-columns: 34px minmax(0, 1fr); }
+    .book-row > [data-remove] { grid-column: 2; justify-self: start; min-height: 36px; padding: 6px 12px; }
+    .modal { padding: 18px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+  @media (max-width: 360px) {
+    .ring-box { flex-direction: column; gap: 2px; }
+    .ring-label { text-align: center; }
+  }
 </style>
 </head>
 <body>
@@ -625,13 +689,16 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 
 <div class="wrap">
   <header>
-    <div>
-      <h1>Daily Mastery <span class="ver-mark" id="ver-mark"></span></h1>
-      <div class="day-left" id="countdown"></div>
+    <div class="brand">
+      <img class="brand-icon" src="icon-192.png" alt="" width="40" height="40">
+      <div>
+        <h1>Daily Mastery <span class="ver-mark" id="ver-mark"></span></h1>
+        <div class="day-left" id="countdown"></div>
+      </div>
     </div>
     <div class="header-right">
       <span class="streak-badge" id="streak" hidden></span>
-      <div class="ring-box">
+      <div class="ring-box" role="progressbar" aria-label="Today's focus" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <svg class="ring" viewBox="0 0 48 48">
           <circle class="track" cx="24" cy="24" r="20"></circle>
           <circle class="bar" id="ring-bar" cx="24" cy="24" r="20"></circle>
@@ -646,13 +713,15 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   <div id="challenge-box"></div>
 
   <div class="toolbar">
-    <input type="search" id="search" placeholder="Search rules…" autocomplete="off">
+    <input type="search" id="search" placeholder="Search principles…" aria-label="Search principles" autocomplete="off">
+    <div class="toolbar-actions">
     <button id="btn-random" title="Pick a random undone rule">🎲 Random</button>
     <button id="btn-mix" title="Shuffle the order of the cards">🔀 Mix</button>
-    <button id="btn-order" title="Back to rule-number order" hidden>1→50 Order</button>
     <button id="btn-import">＋ Add PDF</button>
-    <button id="btn-library" class="icon-btn" title="Library">📚</button>
-    <button id="btn-reset" class="icon-btn danger" title="Reset today's ticks">↺</button>
+    <button id="btn-library" title="Library">📚 Library</button>
+    <button id="btn-order" title="Back to rule-number order" hidden>1→50 Order</button>
+    <button id="btn-reset" class="danger" title="Reset today's ticks">↺ Reset</button>
+    </div>
   </div>
 
   <div class="chips" id="chips"></div>
@@ -666,7 +735,10 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 
 <div class="modal-backdrop" id="library-modal">
   <div class="modal">
-    <h3 id="library-title">📚 Library</h3>
+    <div class="modal-heading">
+      <h3 id="library-title">📚 Library</h3>
+      <button id="btn-modal-close" title="Close library" aria-label="Close library">×</button>
+    </div>
 
     <div class="focus-setting">
       <div>
@@ -688,7 +760,6 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     <div id="sync-box"></div>
     <div class="modal-footer">
       <button id="btn-modal-import">＋ Add PDF</button>
-      <button id="btn-modal-close">Close</button>
     </div>
   </div>
 </div>
@@ -716,7 +787,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 </div>
 
 <input type="file" id="file-input" accept="application/pdf,.pdf" multiple hidden>
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script>
 'use strict';
@@ -727,7 +798,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v30 · 2026-10-14 (colored principle actions)';
+const APP_VERSION = 'v31 · 2026-10-14 (reading and layout refinements)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1368,6 +1439,8 @@ function renderProgress() {
   t.style.fontSize = t.textContent.length > 5 ? '8px' : t.textContent.length > 4 ? '9.5px' : '';
   $('ring-label').innerHTML = `${pct}% of<br>focus done`;
   $('ring-label').closest('.ring-box').title = `${done} of today's ${total} focus rules lived (${pct}%)`;
+  $('ring-label').closest('.ring-box').setAttribute('aria-valuenow', String(pct));
+  $('ring-label').closest('.ring-box').setAttribute('aria-valuetext', `${done} of ${total} focus principles completed`);
 }
 
 let todayOpenUid = null;   // mission/suggestion card whose full rule text is expanded
@@ -1416,7 +1489,7 @@ function renderSpotlight() {
     : `not lived in ${spot.score} days`;
   box.innerHTML = `
     <div class="spotlight mission" style="border-left-color:${spot.book.color}">
-      <div class="kicker">⚔️ Pick today's mission · one rule to live today</div>
+      <div class="kicker">⚔️ Today's suggested mission</div>
       <div class="mission-meta">${bookTag(spot.book)}${lvlBadge(spot.uid)}<span class="rule-n">Suggested · ${why}</span></div>
       <h2>Rule ${spot.rule.n} — ${esc(spot.rule.title)}</h2>
       ${spot.rule.standard ? `<div class="std">${esc(spot.rule.standard)}</div>` : ''}
@@ -1427,7 +1500,6 @@ function renderSpotlight() {
         ${spot.random ? '<button id="spot-smart" title="Back to the rule picked for you">★ Smart pick</button>' : ''}
         ${readBtn(spot.uid)}
       </div>
-      <div class="mission-hint">…or open any rule below and tap ⚔️ to make it your mission.</div>
     </div>`;
   $('mission-pick').onclick = () => setMission(spot.uid);
   $('spot-shuffle').onclick = () => { todayOpenUid = null; shuffleSpotlight(); };
@@ -1493,7 +1565,7 @@ function chipHtml(c) {
   const style = (active && c.color)
     ? `style="background:${c.color};border-color:${c.color}"` : '';
   return `<button class="chip ${active ? 'active' : ''} ${c.color ? '' : 'neutral'}"
-    data-filter="${c.id}" ${style}>${esc(c.label)}</button>`;
+    data-filter="${c.id}" aria-pressed="${active}" ${style}>${esc(c.label)}</button>`;
 }
 
 function renderChips() {
@@ -1648,28 +1720,30 @@ function visibleRules() {
 // uid given → it's a grid card, so append the mission/challenge actions
 function bodyHtml(rule, uid) {
   return `
-      ${rule.today ? `<h4 class="choice-h">Today</h4>
-        <div class="standard-text">${esc(rule.today)}</div>` : ''}
-      ${rule.gain.length ? `<h4 class="gain-h">What you gain</h4>
-        <ul>${rule.gain.map(g => `<li>${esc(g)}</li>`).join('')}</ul>` : ''}
-      ${rule.lose.length ? `<h4 class="lose-h">What you lose if you ignore this</h4>
-        <ul>${rule.lose.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
-      ${rule.reality ? `<h4 class="reality-h">Reality Check</h4>
-        <p class="para">${esc(rule.reality)}</p>` : ''}
-      ${rule.choice ? `<h4 class="choice-h">The Choice</h4>
-        <p class="para">${esc(rule.choice)}</p>` : ''}
-      ${rule.why ? `<h4 class="choice-h">Why it works</h4>
-        <p class="para">${esc(rule.why)}</p>` : ''}
-      ${rule.standard && rule.standard !== rule.today ? `<h4>The Standard</h4>
-        <div class="standard-text">${esc(rule.standard)}</div>` : ''}
+      ${rule.today ? `<section class="rule-section rule-section-wide"><h4 class="choice-h">Today</h4>
+        <div class="standard-text">${esc(rule.today)}</div></section>` : ''}
+      ${rule.gain.length ? `<section class="rule-section"><h4 class="gain-h">What you gain</h4>
+        <ul>${rule.gain.map(g => `<li>${esc(g)}</li>`).join('')}</ul></section>` : ''}
+      ${rule.lose.length ? `<section class="rule-section"><h4 class="lose-h">What you lose if you ignore this</h4>
+        <ul>${rule.lose.map(l => `<li>${esc(l)}</li>`).join('')}</ul></section>` : ''}
+      ${rule.reality ? `<section class="rule-section"><h4 class="reality-h">Reality Check</h4>
+        <p class="para">${esc(rule.reality)}</p></section>` : ''}
+      ${rule.choice ? `<section class="rule-section"><h4 class="choice-h">The Choice</h4>
+        <p class="para">${esc(rule.choice)}</p></section>` : ''}
+      ${rule.why ? `<section class="rule-section"><h4 class="choice-h">Why it works</h4>
+        <p class="para">${esc(rule.why)}</p></section>` : ''}
+      ${rule.standard && rule.standard !== rule.today ? `<section class="rule-section rule-section-wide"><h4>The Standard</h4>
+        <div class="standard-text">${esc(rule.standard)}</div></section>` : ''}
       ${uid ? `<div class="card-actions">
-        ${isHidden(uid) ? '' : `
+        ${isHidden(uid) ? '' : `<div class="action-group">
         ${livedBtnHtml(uid)}
         <button data-mission="${uid}">⚔️ Today's mission</button>
         <button data-challenge="${uid}">🔥 7-day challenge</button>
-        `}
+        </div>`}
+        <div class="action-group action-group-personal">
         <button class="star-btn ${isStarred(uid) ? 'on' : ''}" data-star="${uid}" title="${isStarred(uid) ? 'Unstar' : 'Star helpful principle'}" aria-label="${isStarred(uid) ? 'Unstar' : 'Star helpful principle'}" aria-pressed="${isStarred(uid)}">${isStarred(uid) ? '★ Starred' : '☆ Star'}</button>
         <button class="hide-btn" data-hide="${uid}" title="${isHidden(uid) ? 'Restore principle' : 'Hide: not relevant'}" aria-label="${isHidden(uid) ? 'Restore principle' : 'Hide: not relevant'}">${isHidden(uid) ? '↶ Restore' : '× Not for me'}</button>
+        </div>
       </div>` : ''}`;
 }
 
@@ -1697,11 +1771,11 @@ function cardHtml(book, rule, uid, showTag) {
         <span class="lvl-slot">${lvlBadge(uid)}</span>
       </div>
       <div class="card-top-right">
-        ${isHidden(uid) ? '' : `<button class="tick ${done ? 'on' : ''}" data-tick="${uid}" title="Lived it today">✓</button>`}
+        ${isHidden(uid) ? '' : `<button class="tick ${done ? 'on' : ''}" data-tick="${uid}" title="Lived it today" aria-label="Lived rule ${rule.n} today" aria-pressed="${done}">✓</button>`}
       </div>
     </div>
-    <div class="card-title">${esc(rule.title)}</div>
-    <div class="card-body">${open ? bodyHtml(rule, uid) : ''}</div>
+    <button class="card-expand" aria-expanded="${open}" aria-controls="body-${cssId(uid)}"><span class="card-title">${esc(rule.title)}</span><span class="card-chevron" aria-hidden="true">⌄</span></button>
+    <div class="card-body" id="body-${cssId(uid)}">${open ? bodyHtml(rule, uid) : ''}</div>
   </div>`;
 }
 
@@ -1746,7 +1820,7 @@ function renderGrid() {
         <span class="book-tag" style="background:${book.color}">${esc(prettyName(book.name))}</span>
         <span class="section-count">${done ? `${done}/${items.length}` : items.length}${done === items.length && done ? ' ✓' : ''}</span>
         <span class="sec-bar"><span class="sec-bar-fill" style="width:${pct}%;background:${book.color}"></span></span>
-        <button class="collapse-arrow">${isOpen ? '▲' : '▼'}</button>
+        <button class="collapse-arrow" aria-expanded="${isOpen}" aria-label="${isOpen ? 'Collapse' : 'Expand'} ${esc(prettyName(book.name))}">${isOpen ? '▲' : '▼'}</button>
       </div>`;
       if (isOpen) {
         for (const { book: b, rule, uid } of items) html += cardHtml(b, rule, uid, false);
@@ -1827,7 +1901,7 @@ $('grid').addEventListener('click', (e) => {
   }
 
   const card = e.target.closest('.card');
-  if (card) {
+  if (card && e.target.closest('.card-expand, .card-top')) {
     const uid = card.dataset.uid;
     const body = card.querySelector('.card-body');
     if (expanded.has(uid)) {
@@ -1841,6 +1915,7 @@ $('grid').addEventListener('click', (e) => {
       }
       card.classList.add('open');
     }
+    card.querySelector('.card-expand').setAttribute('aria-expanded', String(expanded.has(uid)));
   }
 });
 
@@ -1997,7 +2072,7 @@ function toggleTick(uid) {
   if (card) {
     card.classList.toggle('done', done);
     const tb = card.querySelector('.tick[data-tick]');
-    if (tb) { tb.classList.toggle('on', done); if (done) popTick(tb); }
+    if (tb) { tb.classList.toggle('on', done); tb.setAttribute('aria-pressed', String(done)); if (done) popTick(tb); }
     const lb = card.querySelector('.card-lived');
     if (lb) { lb.classList.toggle('on', done); lb.textContent = done ? '✓ Lived it today' : '✓ I lived it'; if (done) popTick(lb); }
     const slot = card.querySelector('.lvl-slot');
@@ -2051,7 +2126,7 @@ function jumpTo(uid) {
   renderGrid();
   const el = $('card-' + cssId(uid));
   if (!el) { toast('Rule is hidden by the current filter'); return; }
-  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
   el.classList.remove('flash');
   void el.offsetWidth;
   el.classList.add('flash');
