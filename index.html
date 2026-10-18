@@ -36,10 +36,10 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     --amber: #e0a53c;
     --cyan: #54b8c7;
     --radius: 8px;
-    --button-bg: #1b1b21;
-    --button-border: #363640;
-    --button-hover: #25252e;
-    --button-text: #dedee5;
+    --button-bg: #202027;
+    --button-border: #464651;
+    --button-hover: #2a2a33;
+    --button-text: #f0f0f5;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: smooth; }
@@ -246,10 +246,10 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .mission-body li::before { content: "–"; position: absolute; left: 0; color: var(--text-faint); }
   .mission-body .para { color: var(--text-dim); overflow-wrap: anywhere; }
   .mission-body .standard-text { color: var(--text); font-weight: 500; border-left: 2px solid var(--cyan); padding: 2px 0 2px 14px; overflow-wrap: anywhere; }
-  .lived-btn { font-weight: 700; border-color: #2c6443; color: #79e3a3; background: #152b1f; padding: 10px 16px; }
-  .lived-btn:hover { background: #1b3828; border-color: #479463; }
-  .lived-btn.on { background: var(--green); border-color: var(--green); color: var(--bg); }
-  .lived-btn.on:hover { background: #45da87; border-color: #45da87; }
+  .lived-btn { font-weight: 700; border-color: #4ade80; color: #092112; background: #4ade80; padding: 10px 16px; }
+  .lived-btn:hover { background: #76eba0; border-color: #76eba0; }
+  .lived-btn.on { background: #1c3426; border-color: #41855c; color: #8cebb3; }
+  .lived-btn.on:hover { background: #254431; border-color: #69bc88; }
   .lived-btn.pop { animation: tick-pop 0.35s ease; }
   .link-btn { border: none; background: transparent; color: var(--text-dim); padding: 8px 6px; font-size: 0.8rem; }
   .link-btn:hover { background: transparent; color: var(--text); }
@@ -305,10 +305,33 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .lvl-living { color: var(--green); border-color: var(--green-dim); }
   .lvl-mastered { color: var(--amber); border-color: #6b5220; }
   @media (max-width: 380px) { .lvl .lvl-word { display: none; } }
-  .card-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; padding-top: 18px; border-top: 1px solid var(--border); grid-column: 1 / -1; }
-  .action-group { display: flex; flex-wrap: wrap; gap: 8px; }
-  .action-group-personal { margin-left: auto; }
-  .card-actions button { font-size: 0.84rem; padding: 11px 14px; }
+  .card-actions {
+    display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px;
+    margin: 4px -18px -18px; padding: 20px 18px;
+    border-top: 1px solid #363640; border-radius: 0 0 7px 4px;
+    background: #18181d; grid-column: 1 / -1;
+  }
+  .action-section { min-width: 0; }
+  .action-label { color: #c5c5cf; font-size: 0.75rem; font-weight: 600; margin-bottom: 8px; }
+  .action-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .action-section-today .action-group { grid-template-columns: minmax(0, 1fr); }
+  .card-actions button { min-width: 0; min-height: 56px; font-size: 0.9rem; padding: 12px 10px; line-height: 1.35; }
+  .card-actions .ui-icon { width: 20px; height: 20px; }
+  .card-actions .btn-content { width: 100%; }
+  .card-actions button[data-mission].is-current { color: #b3edf4; border-color: #49858e; background: #1b3036; }
+  .card-actions button[data-challenge].is-current { color: #f5d39a; border-color: #7d6442; background: #30291d; }
+  @media (min-width: 600px) {
+    .card-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+    .action-section-today { grid-column: 1 / -1; }
+    .action-section-personal { border-left: 1px solid #363640; padding-left: 24px; }
+    .card-actions.personal-only .action-section-personal { border-left: 0; padding-left: 0; }
+  }
+  @media (min-width: 1000px) {
+    .card-actions { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.6fr) minmax(0, 1.5fr); }
+    .action-section-today { grid-column: auto; }
+    .action-section-practice { border-left: 1px solid #363640; padding-left: 24px; }
+  }
+  .card-actions.personal-only { grid-template-columns: minmax(0, 420px); }
   .mastery-summary {
     grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 16px;
     border-bottom: 1px solid var(--border);
@@ -598,13 +621,17 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 
   /* ---------- ⭐ star / ✕ not-for-me ---------- */
   .card-top-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: auto; }
-  .card-actions .star-btn { color: #facc15; border-color: #625123; background: #211e14; }
-  .card-actions .star-btn:hover, .card-actions .star-btn.on { color: #facc15; border-color: #aa8a24; background: #302710; }
+  .card-actions .star-btn { color: var(--button-text); }
+  .card-actions .star-btn .ui-icon { color: #facc15; }
+  .card-actions .star-btn:hover { border-color: #bda034; background: #302a1a; }
+  .card-actions .star-btn.on { color: #ffe58a; border-color: #bda034; background: #40351a; }
   .star-btn.pop { animation: tick-pop 0.35s ease; }
   .card.starred { border-color: #4a3c1c; }
-  .card-actions .hide-btn { color: var(--red); border-color: #623038; background: #24171b; }
-  .card-actions .hide-btn:hover { color: var(--red); border-color: var(--red); background: #301919; }
-  .card-actions .hide-btn.restore { color: var(--cyan); border-color: #31565c; background: #142125; }
+  .card-actions .hide-btn { color: var(--button-text); }
+  .card-actions .hide-btn .ui-icon { color: #ff8585; }
+  .card-actions .hide-btn:hover { color: #ffb9b9; border-color: #a55560; background: #322127; }
+  .card-actions .hide-btn.restore { color: #b3edf4; border-color: #49858e; background: #1b3036; }
+  .card-actions .hide-btn.restore .ui-icon { color: var(--cyan); }
   .hidden-row {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
     margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: var(--radius);
@@ -703,11 +730,6 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     .toolbar-actions #btn-library { grid-column: span 2; }
     .toolbar-actions:has(#btn-order:not([hidden])) #btn-library { grid-column: auto; }
     .toolbar-actions .btn-content { gap: 6px; }
-    .card-actions { display: grid; gap: 12px; }
-    .action-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .action-group > .card-lived { grid-column: 1 / -1; }
-    .action-group-personal { margin-left: 0; }
-    .card-actions button { min-width: 0; padding: 11px 8px; font-size: 0.84rem; }
     .sec-bar { display: none; }
   }
   @media (max-width: 480px) {
@@ -718,6 +740,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     .ring-box { gap: 6px; }
     .spotlight { padding-left: 14px; }
     .card { padding: 16px; }
+    .card-actions { margin-right: -16px; margin-left: -16px; margin-bottom: -16px; padding: 20px 16px; }
     .book-row { grid-template-columns: 34px minmax(0, 1fr); }
     .book-row > [data-remove] { grid-column: 2; justify-self: start; min-height: 36px; padding: 6px 12px; }
     .modal { padding: 18px; }
@@ -886,7 +909,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v34 · 2026-10-18 (refined button controls)';
+const APP_VERSION = 'v35 · 2026-10-18 (clearer rule actions)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1612,7 +1635,7 @@ let todayOpenUid = null;   // mission/suggestion card whose full rule text is ex
 function renderSpotlight() {
   const box = $('spotlight-box');
   const mission = todaysMission();
-  const readBtn = (uid) => `<button id="today-read" aria-expanded="${todayOpenUid === uid}">${buttonContent(todayOpenUid === uid ? 'ChevronUp' : 'BookOpen', todayOpenUid === uid ? 'Hide rule' : 'Read full rule')}</button>`;
+  const readBtn = (uid) => `<button id="today-read" aria-expanded="${todayOpenUid === uid}">${buttonContent(todayOpenUid === uid ? 'ChevronUp' : 'BookOpen', todayOpenUid === uid ? 'Collapse rule' : 'Read full rule')}</button>`;
   const body = (uid, rule) => todayOpenUid === uid ? `<div class="mission-body">${bodyHtml(rule)}</div>` : '';
 
   if (mission) {
@@ -1726,7 +1749,7 @@ function renderChallenge() {
   $('ch-edit').onclick = () => startChallenge(c.uid);
 }
 
-function renderToday() { renderSpotlight(); renderChallenge(); }
+function renderToday() { renderSpotlight(); renderChallenge(); renderCardPracticeActions(); }
 
 function chipHtml(c) {
   const active = filter === c.id;
@@ -1902,15 +1925,24 @@ function bodyHtml(rule, uid) {
         <p class="para">${esc(rule.why)}</p></section>` : ''}
       ${rule.standard && rule.standard !== rule.today ? `<section class="rule-section rule-section-wide"><h4>The Standard</h4>
         <div class="standard-text">${esc(rule.standard)}</div></section>` : ''}
-      ${uid ? `<div class="card-actions">
-        ${isHidden(uid) ? '' : `<div class="action-group">
-        ${livedBtnHtml(uid)}
-        <button data-mission="${uid}" title="Make this today's mission">${buttonContent('Target', 'Mission')}</button>
-        <button data-challenge="${uid}">${buttonContent('Flame', 'Challenge')}</button>
+      ${uid ? `<div class="card-actions ${isHidden(uid) ? 'personal-only' : ''}">
+        ${isHidden(uid) ? '' : `<div class="action-section action-section-today" role="group" aria-label="Today">
+          <p class="action-label">Today</p>
+          <div class="action-group">${livedBtnHtml(uid)}</div>
+        </div>
+        <div class="action-section action-section-practice" role="group" aria-label="Practice">
+          <p class="action-label">Practice</p>
+          <div class="action-group">
+            <button data-mission="${uid}" title="Make this today's mission">${buttonContent('Target', 'Set mission')}</button>
+            <button data-challenge="${uid}" title="Choose a duration for this challenge">${buttonContent('Flame', 'Start challenge')}</button>
+          </div>
         </div>`}
-        <div class="action-group action-group-personal">
-        <button class="star-btn ${isStarred(uid) ? 'on' : ''}" data-star="${uid}" title="${isStarred(uid) ? 'Unstar' : 'Star helpful principle'}" aria-label="${isStarred(uid) ? 'Unstar' : 'Star helpful principle'}" aria-pressed="${isStarred(uid)}">${buttonContent('Star', isStarred(uid) ? 'Starred' : 'Star')}</button>
-        <button class="hide-btn ${isHidden(uid) ? 'restore' : ''}" data-hide="${uid}" title="${isHidden(uid) ? 'Restore principle' : 'Hide: not relevant'}" aria-label="${isHidden(uid) ? 'Restore principle' : 'Hide: not relevant'}">${buttonContent(isHidden(uid) ? 'Undo2' : 'X', isHidden(uid) ? 'Restore' : 'Not for me')}</button>
+        <div class="action-section action-section-personal" role="group" aria-label="My library">
+          <p class="action-label">My library</p>
+          <div class="action-group">
+            <button class="star-btn ${isStarred(uid) ? 'on' : ''}" data-star="${uid}" title="${isStarred(uid) ? 'Remove from Starred' : 'Add to Starred'}" aria-pressed="${isStarred(uid)}">${buttonContent('Star', isStarred(uid) ? 'Starred' : 'Star rule')}</button>
+            <button class="hide-btn ${isHidden(uid) ? 'restore' : ''}" data-hide="${uid}" title="${isHidden(uid) ? 'Return this rule to your library' : 'Hide this rule. Restore it anytime from Hidden.'}">${buttonContent(isHidden(uid) ? 'Undo2' : 'X', isHidden(uid) ? 'Restore rule' : 'Hide rule')}</button>
+          </div>
         </div>
       </div>` : ''}`;
 }
@@ -1918,7 +1950,25 @@ function bodyHtml(rule, uid) {
 // Bottom-of-card tick: after reading a rule you shouldn't have to scroll back up to mark it.
 function livedBtnHtml(uid) {
   const on = isDone(uid);
-  return `<button class="lived-btn card-lived ${on ? 'on' : ''}" data-tick="${uid}" aria-pressed="${on}">${buttonContent('Check', on ? 'Lived it today' : 'I lived it')}</button>`;
+  return `<button class="lived-btn card-lived ${on ? 'on' : ''}" data-tick="${uid}" aria-pressed="${on}" title="${on ? 'Undo today\'s completion' : 'Mark this rule as lived today'}">${buttonContent('Check', on ? 'Completed today' : 'I lived it today')}</button>`;
+}
+
+// Update only the action controls so changing a mission doesn't rebuild an open rule.
+function renderCardPracticeActions() {
+  const mission = todaysMission();
+  const challenge = activeChallenge();
+  for (const button of document.querySelectorAll('.card-actions [data-mission]')) {
+    const current = mission?.uid === button.dataset.mission;
+    button.classList.toggle('is-current', current);
+    button.innerHTML = buttonContent(current ? 'Check' : 'Target', current ? 'Mission set' : 'Set mission');
+    button.title = current ? "Already today's mission" : "Make this today's mission";
+  }
+  for (const button of document.querySelectorAll('.card-actions [data-challenge]')) {
+    const editing = challenge?.uid === button.dataset.challenge && !challenge.finished;
+    button.classList.toggle('is-current', editing);
+    button.innerHTML = buttonContent(editing ? 'Pencil' : 'Flame', editing ? 'Edit duration' : 'Start challenge');
+    button.title = editing ? `Edit your ${challenge.duration}-day challenge` : 'Choose a duration for this challenge';
+  }
 }
 
 // The heavy detail body is built lazily — only for cards that are open.
@@ -2033,6 +2083,7 @@ function renderGrid() {
   }
 
   $('grid').innerHTML = html;
+  renderCardPracticeActions();
   const clr = $('clear-filters');
   if (clr) clr.onclick = () => {
     searchTerm = ''; $('search').value = ''; filter = 'all'; renderAll();
@@ -2079,7 +2130,7 @@ $('grid').addEventListener('click', (e) => {
       expanded.add(uid);
       if (body && !body.firstChild) {        // build the detail body on first open
         const hit = ruleByUid(uid);
-        if (hit) body.innerHTML = bodyHtml(hit.rule, uid);
+        if (hit) { body.innerHTML = bodyHtml(hit.rule, uid); renderCardPracticeActions(); }
       }
       card.classList.add('open');
     }
@@ -2242,7 +2293,13 @@ function toggleTick(uid) {
     const tb = card.querySelector('.tick[data-tick]');
     if (tb) { tb.classList.toggle('on', done); tb.setAttribute('aria-pressed', String(done)); if (done) popTick(tb); }
     const lb = card.querySelector('.card-lived');
-    if (lb) { lb.classList.toggle('on', done); lb.innerHTML = buttonContent('Check', done ? 'Lived it today' : 'I lived it'); lb.setAttribute('aria-pressed', String(done)); if (done) popTick(lb); }
+    if (lb) {
+      lb.classList.toggle('on', done);
+      lb.innerHTML = buttonContent('Check', done ? 'Completed today' : 'I lived it today');
+      lb.title = done ? "Undo today's completion" : 'Mark this rule as lived today';
+      lb.setAttribute('aria-pressed', String(done));
+      if (done) popTick(lb);
+    }
     const slot = card.querySelector('.lvl-slot');
     if (slot) slot.innerHTML = lvlBadge(uid);   // living it moves the mastery level
   }

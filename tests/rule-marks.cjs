@@ -47,8 +47,9 @@ const seed = { books: [{ id: 'test', name: 'Personal Mastery and Everyday Princi
     await a.locator('[data-uid="test:1"] .card-title').click();
     assert.equal(await a.locator('.card-actions [data-star="test:1"]').count(), 1, 'Star is a footer action');
     assert.equal(await a.locator('.card-actions [data-hide="test:1"]').count(), 1, 'Hide is a footer action');
-    assert.equal(await a.locator('[data-star="test:1"]').evaluate(el => getComputedStyle(el).color), 'rgb(250, 204, 21)', 'Star is yellow before selection');
-    assert.equal(await a.locator('[data-hide="test:1"]').evaluate(el => getComputedStyle(el).color), 'rgb(224, 82, 82)', 'Hide is red without hover');
+    assert.equal(await a.locator('[data-star="test:1"] .ui-icon').evaluate(el => getComputedStyle(el).color), 'rgb(250, 204, 21)', 'Star icon is yellow before selection');
+    assert.equal(await a.locator('[data-hide="test:1"] .ui-icon').evaluate(el => getComputedStyle(el).color), 'rgb(255, 133, 133)', 'Hide icon is red without hover');
+    assert.equal(await a.locator('[data-hide="test:1"] .btn-label').textContent(), 'Hide rule');
     await a.locator('[data-star="test:1"] .ui-icon').click();
     assert.equal(await a.locator('[data-star="test:1"]').getAttribute('aria-pressed'), 'true');
     assert.equal(await a.locator('.card.open').count(), 1, 'Starring must keep the card expanded');
@@ -67,7 +68,7 @@ const seed = { books: [{ id: 'test', name: 'Personal Mastery and Everyday Princi
     await a.locator('[data-hide="test:1"]').click();
     await a.locator('[data-filter="hidden"]').click();
     assert.equal(await a.locator('.card').count(), 1);
-    assert.equal(await a.locator('[data-hide="test:1"]').getAttribute('aria-label'), 'Restore principle');
+    assert.equal(await a.locator('[data-hide="test:1"] .btn-label').textContent(), 'Restore rule');
     await a.evaluate(() => { expanded.add('test:1'); renderGrid(); });
     assert.equal(await a.locator('.card [data-tick]').count(), 0);
     await a.screenshot({ path: path.join(output, 'hidden-mobile.png') });

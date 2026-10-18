@@ -48,12 +48,23 @@ const books = ['Personal Growth & Everyday Courage', 'Health & Energy', 'Trading
         const issues = await page.evaluate(() => {
           const bad = [];
           if (document.documentElement.scrollWidth > innerWidth + 1) bad.push('page overflow');
-          for (const el of document.querySelectorAll('.card, .toolbar, header, .spotlight, .card-actions button')) {
+          for (const el of document.querySelectorAll('.card, .toolbar, header, .spotlight, .card-actions, .card-actions button, .card-actions .btn-label')) {
             if (el.scrollWidth > el.clientWidth + 1) bad.push('overflow: ' + el.className);
           }
           for (const row of document.querySelectorAll('.card-actions')) {
             const rects = [...row.querySelectorAll('button')].map(el => el.getBoundingClientRect());
             if (rects.some((a, i) => rects.slice(i + 1).some(b => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top))) bad.push('overlapping actions');
+          }
+          const luminance = color => {
+            const rgb = color.match(/[\d.]+/g).slice(0, 3).map(Number).map(n => n / 255);
+            const linear = rgb.map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+            return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+          };
+          for (const el of document.querySelectorAll('.card.open .card-actions button')) {
+            const style = getComputedStyle(el);
+            const fg = luminance(style.color), bg = luminance(style.backgroundColor);
+            if ((Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05) < 4.5) bad.push('Low text contrast: ' + el.textContent);
+            if (el.offsetHeight < 56) bad.push('Small action target: ' + el.textContent);
           }
           for (const el of document.querySelectorAll('button .ui-icon')) {
             if (!el.getClientRects().length) continue;
@@ -65,8 +76,11 @@ const books = ['Personal Growth & Everyday Courage', 'Health & Energy', 'Trading
         assert.deepEqual(issues, [], `Layout at ${width}px`);
       }
     }
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.locator('[data-uid="book0:1"] .card-actions').screenshot({ path: path.join(output, 'desktop-actions.png') });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('[data-uid="book0:1"]').screenshot({ path: path.join(output, `${mode}-card.png`) });
+    await page.locator('[data-uid="book0:1"] .card-actions').screenshot({ path: path.join(output, 'mobile-actions.png') });
     await page.locator('#btn-library').click();
     await page.screenshot({ path: path.join(output, `${mode}-library.png`) });
     if (mode === 'verify') {
@@ -87,6 +101,11 @@ const books = ['Personal Growth & Everyday Courage', 'Health & Energy', 'Trading
       assert.equal(await page.locator('.ring-box').getAttribute('aria-valuenow'), '17');
       assert.equal(await page.locator('[data-uid="book0:1"] .card-lived .ui-icon').count(), 1, 'Completion preserves the button icon');
       assert.equal(await page.locator('[data-uid="book0:1"] .card-lived').getAttribute('aria-pressed'), 'true');
+      assert.equal(await page.locator('[data-uid="book0:1"] .card-lived .btn-label').textContent(), 'Completed today');
+      assert.equal(await page.locator('[data-uid="book0:1"] .card-lived').getAttribute('title'), "Undo today's completion");
+      await page.locator('[data-uid="book0:1"] .card-lived').click();
+      assert.equal(await page.locator('[data-uid="book0:1"] .card-lived .btn-label').textContent(), 'I lived it today');
+      assert.equal(await page.locator('[data-uid="book0:1"] .tick').getAttribute('aria-pressed'), 'false');
       await page.locator('#btn-mix').click();
       assert.equal(await page.locator('#btn-order').isVisible(), true);
       await page.locator('#btn-order').click();
@@ -102,11 +121,31 @@ const books = ['Personal Growth & Everyday Courage', 'Health & Energy', 'Trading
       assert.equal(await page.locator('.card').count(), 4);
       await page.locator('[data-filter="focus"]').click();
       await page.locator('#mission-pick').click();
+      const missionUid = await page.evaluate(() => todaysMission().uid);
+      await page.evaluate(uid => { expanded.add(uid); renderGrid(); }, missionUid);
+      assert.equal(await page.locator(`[data-mission="${missionUid}"] .btn-label`).textContent(), 'Mission set');
       await page.locator('#mission-challenge').click();
       await page.locator('#challenge-submit').click();
       assert.equal(await page.locator('.challenge').count(), 1);
+      const challengeButton = page.locator(`[data-challenge="${missionUid}"]`);
+      assert.equal(await challengeButton.locator('.btn-label').textContent(), 'Edit duration');
+      await challengeButton.click();
+      await page.locator('#challenge-duration').fill('30');
+      await page.locator('#challenge-submit').click();
+      assert.equal(await challengeButton.getAttribute('title'), 'Edit your 30-day challenge');
+      await page.locator(`[data-uid="${missionUid}"] .card-actions`).screenshot({ path: path.join(output, 'mobile-active-actions.png') });
       await page.screenshot({ path: path.join(output, 'verify-mission-challenge.png') });
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+      await page.locator('#mission-change').click();
+      assert.equal(await page.locator(`[data-mission="${missionUid}"] .btn-label`).textContent(), 'Set mission');
+      page.once('dialog', d => d.accept());
+      await page.locator('#ch-end').click();
+      assert.equal(await challengeButton.locator('.btn-label').textContent(), 'Start challenge');
+      await page.setViewportSize({ width: 320, height: 900 });
+      await page.evaluate(() => document.documentElement.style.fontSize = '24px');
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Page reflows with enlarged text');
+      assert.ok(await page.locator('.card.open .card-actions button').evaluateAll(buttons => buttons.every(el => el.scrollWidth <= el.clientWidth + 1)), 'Action labels fit with enlarged text');
+      await page.evaluate(() => document.documentElement.style.fontSize = '');
       await page.emulateMedia({ reducedMotion: 'reduce' });
       assert.equal(await page.locator('html').evaluate(el => getComputedStyle(el).scrollBehavior), 'auto');
     }
