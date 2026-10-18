@@ -81,6 +81,13 @@ const books = ['Personal Growth & Everyday Courage', 'Health & Energy', 'Trading
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('[data-uid="book0:1"]').screenshot({ path: path.join(output, `${mode}-card.png`) });
     await page.locator('[data-uid="book0:1"] .card-actions').screenshot({ path: path.join(output, 'mobile-actions.png') });
+    if (mode === 'verify') {
+      assert.equal(await page.locator('[data-mission="book0:1"] .btn-label').textContent(), "Set today's mission");
+      assert.equal(await page.locator('[data-mission="book0:1"] use').getAttribute('href'), '#ui-Flag');
+      assert.equal(await page.locator('[data-challenge="book0:1"] .btn-label').textContent(), 'Start daily challenge');
+      assert.equal(await page.locator('[data-challenge="book0:1"] use').getAttribute('href'), '#ui-CalendarDays');
+      assert.equal(await page.locator('#mission-pick use').getAttribute('href'), '#ui-Flag');
+    }
     await page.locator('#btn-library').click();
     await page.screenshot({ path: path.join(output, `${mode}-library.png`) });
     if (mode === 'verify') {
@@ -106,6 +113,12 @@ const books = ['Personal Growth & Everyday Courage', 'Health & Energy', 'Trading
       await page.locator('[data-uid="book0:1"] .card-lived').click();
       assert.equal(await page.locator('[data-uid="book0:1"] .card-lived .btn-label').textContent(), 'I lived it today');
       assert.equal(await page.locator('[data-uid="book0:1"] .tick').getAttribute('aria-pressed'), 'false');
+      await page.locator('[data-mission="book0:1"] .ui-icon').click();
+      assert.equal(await page.evaluate(() => todaysMission().uid), 'book0:1', 'Flag icon sets the mission');
+      await page.locator('#mission-change').click();
+      await page.locator('[data-challenge="book0:1"] .ui-icon').click();
+      assert.equal(await page.locator('#challenge-modal').evaluate(el => el.classList.contains('show')), true, 'Calendar icon opens duration picker');
+      await page.locator('#challenge-cancel').click();
       await page.locator('#btn-mix').click();
       assert.equal(await page.locator('#btn-order').isVisible(), true);
       await page.locator('#btn-order').click();
@@ -123,24 +136,27 @@ const books = ['Personal Growth & Everyday Courage', 'Health & Energy', 'Trading
       await page.locator('#mission-pick').click();
       const missionUid = await page.evaluate(() => todaysMission().uid);
       await page.evaluate(uid => { expanded.add(uid); renderGrid(); }, missionUid);
-      assert.equal(await page.locator(`[data-mission="${missionUid}"] .btn-label`).textContent(), 'Mission set');
+      assert.equal(await page.locator(`[data-mission="${missionUid}"] .btn-label`).textContent(), "Today's mission set");
+      assert.equal(await page.locator('#mission-challenge use').getAttribute('href'), '#ui-CalendarDays');
       await page.locator('#mission-challenge').click();
+      assert.equal(await page.locator('#challenge-submit use').getAttribute('href'), '#ui-CalendarDays');
       await page.locator('#challenge-submit').click();
       assert.equal(await page.locator('.challenge').count(), 1);
       const challengeButton = page.locator(`[data-challenge="${missionUid}"]`);
-      assert.equal(await challengeButton.locator('.btn-label').textContent(), 'Edit duration');
+      assert.equal(await challengeButton.locator('.btn-label').textContent(), 'Edit 7-day challenge');
       await challengeButton.click();
       await page.locator('#challenge-duration').fill('30');
       await page.locator('#challenge-submit').click();
       assert.equal(await challengeButton.getAttribute('title'), 'Edit your 30-day challenge');
+      assert.equal(await challengeButton.locator('.btn-label').textContent(), 'Edit 30-day challenge');
       await page.locator(`[data-uid="${missionUid}"] .card-actions`).screenshot({ path: path.join(output, 'mobile-active-actions.png') });
       await page.screenshot({ path: path.join(output, 'verify-mission-challenge.png') });
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
       await page.locator('#mission-change').click();
-      assert.equal(await page.locator(`[data-mission="${missionUid}"] .btn-label`).textContent(), 'Set mission');
+      assert.equal(await page.locator(`[data-mission="${missionUid}"] .btn-label`).textContent(), "Set today's mission");
       page.once('dialog', d => d.accept());
       await page.locator('#ch-end').click();
-      assert.equal(await challengeButton.locator('.btn-label').textContent(), 'Start challenge');
+      assert.equal(await challengeButton.locator('.btn-label').textContent(), 'Start daily challenge');
       await page.setViewportSize({ width: 320, height: 900 });
       await page.evaluate(() => document.documentElement.style.fontSize = '24px');
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Page reflows with enlarged text');
