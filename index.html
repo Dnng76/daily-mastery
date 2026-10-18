@@ -232,7 +232,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .link-btn { border: none; background: transparent; color: var(--text-faint); padding: 8px 6px; font-size: 0.8rem; text-decoration: underline; text-underline-offset: 3px; }
   .link-btn:hover { background: transparent; color: var(--text); }
 
-  /* ---------- 7-day challenge ---------- */
+  /* ---------- Challenge ---------- */
   .challenge {
     background: transparent;
     border: 0;
@@ -246,7 +246,17 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .challenge .kicker { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--amber); }
   .challenge .ch-rule { margin: 8px 0 10px; font-size: 0.92rem; font-weight: 600; overflow-wrap: anywhere; }
   .challenge .ch-rule .book-tag { margin-right: 6px; vertical-align: 1px; }
-  .ch-dots { display: flex; gap: 6px; margin-bottom: 12px; }
+  .ch-dots { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; max-width: 350px; }
+  .ch-range { color: var(--text-dim); font-size: 0.78rem; margin: 6px 0 10px; }
+  .ch-progress { display: block; width: 100%; max-width: 350px; height: 6px; margin-bottom: 12px; border: 0; border-radius: 3px; overflow: hidden; accent-color: var(--amber); background: var(--surface-2); }
+  .ch-progress::-webkit-progress-bar { background: var(--surface-2); }
+  .ch-progress::-webkit-progress-value { background: var(--amber); }
+  .ch-progress::-moz-progress-bar { background: var(--amber); }
+  .challenge-form label { display: block; font-size: 0.9rem; font-weight: 600; margin-top: 18px; }
+  .challenge-form .duration-input { width: 120px; font-size: 1rem; }
+  .challenge-form .duration-rule { color: var(--text-dim); overflow-wrap: anywhere; }
+  .duration-hint { color: var(--text-dim); font-size: 0.78rem; margin-top: 6px; }
+  .duration-error { color: var(--red); font-size: 0.84rem; margin-top: 8px; }
   .ch-dot { flex: 1; max-width: 44px; text-align: center; font-size: 0.62rem; color: var(--text-faint); }
   .ch-dot i {
     display: flex; align-items: center; justify-content: center;
@@ -788,6 +798,21 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   </div>
 </div>
 
+<div class="modal-backdrop" id="challenge-modal">
+  <form class="modal challenge-form" id="challenge-form" role="dialog" aria-modal="true" aria-labelledby="challenge-title" novalidate>
+    <h3 id="challenge-title">Start challenge</h3>
+    <p class="duration-rule" id="challenge-rule"></p>
+    <label for="challenge-duration">Duration (days)</label>
+    <input type="number" class="rename-field duration-input" id="challenge-duration" min="1" max="365" step="1" value="7" inputmode="numeric" required aria-describedby="duration-hint duration-error">
+    <p class="duration-hint" id="duration-hint">1 to 365 days</p>
+    <p class="duration-error" id="duration-error" role="alert"></p>
+    <div class="modal-footer">
+      <button type="button" id="challenge-cancel">Cancel</button>
+      <button type="submit" class="primary-btn" id="challenge-submit">Start challenge</button>
+    </div>
+  </form>
+</div>
+
 <div class="modal-backdrop" id="book-picker">
   <div class="modal picker-modal">
     <div class="picker-head">
@@ -811,7 +836,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v32 · 2026-10-14 (compact completion circles)';
+const APP_VERSION = 'v33 · 2026-10-18 (custom challenge duration)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -989,6 +1014,7 @@ function setTicks(arr) {
   data.tickStamp = { [currentDay]: Date.now() }; // per-day timestamp drives sync conflict resolution
   // keep history (for the smart spotlight), but prune anything older than HISTORY_DAYS
   const cutoff = dateKey(new Date(Date.now() - HISTORY_DAYS * 86400000));
+  archiveChallengeDays(cutoff);
   for (const k of Object.keys(data)) {
     if (k.startsWith('ticks_') && k.slice(6) < cutoff) delete data[k];
   }
@@ -1234,16 +1260,37 @@ function focusProgress() {
   return { done, total: focus.size };
 }
 
-/* ================= Today's Mission & 7-day challenge =================
+/* ================= Today's Mission & challenge =================
    Reading 15 rules is fine; ACTING on 15 is impossible. The mission is the ONE
-   rule you commit to live today. A challenge commits you to one rule for 7
-   days straight, because habits only form through repetition.
+   rule you commit to live today. A challenge practices one rule over a
+   user-selected number of calendar days.
    Stored in data.plan (synced with ticks):
      missions:     { 'YYYY-MM-DD': { uid, at } }   uid null = cleared
-     challenge:    { uid, start, at }              uid null = ended
-     challengeLog: [ { uid, start, days, at } ]    finished challenges */
+     challenge:    { id, uid, start, duration, livedDays, at }  uid null = ended
+     challengeLog: [ { id, uid, start, days, duration, at } ]   finished challenges */
 
-const CHALLENGE_DAYS = 7;
+const DEFAULT_CHALLENGE_DAYS = 7;
+const MAX_CHALLENGE_DAYS = 365;
+
+function challengeDuration(ch) {
+  const n = ch && ch.duration;
+  return Number.isInteger(n) && n >= 1 && n <= MAX_CHALLENGE_DAYS ? n : DEFAULT_CHALLENGE_DAYS;
+}
+function challengeKey(ch) { return ch.id || `${ch.uid}|${ch.start}`; }
+
+// Keep only this challenge's completed dates after general tick history expires.
+function archiveChallengeDays(cutoff) {
+  const ch = data.plan && data.plan.challenge;
+  if (!ch || !ch.uid || !ch.start) return;
+  const end = addDays(ch.start, MAX_CHALLENGE_DAYS - 1);
+  const lived = new Set(ch.livedDays || []);
+  for (const k of Object.keys(data)) {
+    if (!k.startsWith('ticks_')) continue;
+    const day = k.slice(6);
+    if (day < cutoff && day >= ch.start && day <= end && (data[k] || []).includes(ch.uid)) lived.add(day);
+  }
+  ch.livedDays = [...lived].sort();
+}
 
 function plan() {
   const p = data.plan || (data.plan = {});
@@ -1344,40 +1391,84 @@ function activeChallenge() {
   const hit = ruleByUid(ch.uid);
   if (!hit) return null;                                  // its book was removed
   const dayIdx = Math.max(0, daysBetween(ch.start, currentDay)); // 0-based day of the challenge
+  const duration = challengeDuration(ch);
+  const archived = new Set(ch.livedDays || []);
   const days = [];
   let doneCount = 0;
-  for (let i = 0; i < CHALLENGE_DAYS; i++) {
+  for (let i = 0; i < duration; i++) {
     const key = addDays(ch.start, i);
-    const lived = i <= dayIdx && livedOn(ch.uid, key);
+    const lived = i <= dayIdx && (livedOn(ch.uid, key) || archived.has(key));
     if (lived) doneCount++;
-    days.push({ key, state: lived ? 'done' : i < dayIdx ? 'miss' : i === dayIdx ? 'today' : 'future' });
+    days.push({ key, number: i + 1, state: lived ? 'done' : i < dayIdx ? 'miss' : i === dayIdx ? 'today' : 'future' });
   }
-  // finished once the 7th day has passed — or the 7th day is today and already lived
-  const finished = dayIdx >= CHALLENGE_DAYS || (dayIdx === CHALLENGE_DAYS - 1 && livedOn(ch.uid, currentDay));
-  return { ...ch, ...hit, dayIdx, days, doneCount, finished };
+  const finished = dayIdx >= duration || (dayIdx === duration - 1 && livedOn(ch.uid, currentDay));
+  return { ...ch, ...hit, duration, dayIdx, days, doneCount, finished };
 }
 
 function logChallenge(c) {
   const p = plan();
-  if (!p.challengeLog.some(x => x.uid === c.uid && x.start === c.start)) {
-    p.challengeLog.push({ uid: c.uid, start: c.start, days: c.doneCount, at: Date.now() });
+  if (!p.challengeLog.some(x => challengeKey(x) === challengeKey(c))) {
+    p.challengeLog.push({ id: c.id, uid: c.uid, start: c.start, days: c.doneCount, duration: c.duration, at: Date.now() });
     if (p.challengeLog.length > 200) p.challengeLog.splice(0, p.challengeLog.length - 200);
   }
 }
 
+let challengeDraft = null;
+let challengeReturnFocus = null;
+
 function startChallenge(uid) {
-  if (isHidden(uid)) return;
+  const hit = ruleByUid(uid);
+  if (!hit || isHidden(uid)) return;
   const cur = activeChallenge();
-  if (cur && !cur.finished) {
-    if (cur.uid === uid) { toast('Already your 7-day challenge'); return; }
-    if (!confirm(`You're on day ${cur.dayIdx + 1} of a challenge for Rule ${cur.rule.n}.\n\nReplace it with this rule?`)) return;
+  const editing = cur && cur.uid === uid && !cur.finished;
+  challengeDraft = { uid, editing: editing ? challengeKey(cur) : null };
+  challengeReturnFocus = document.activeElement;
+  $('challenge-title').textContent = editing ? 'Challenge duration' : 'Start challenge';
+  $('challenge-rule').textContent = `Rule ${hit.rule.n}: ${hit.rule.title}`;
+  $('challenge-duration').value = cur ? cur.duration : DEFAULT_CHALLENGE_DAYS;
+  $('challenge-duration').removeAttribute('aria-invalid');
+  $('duration-error').textContent = '';
+  $('challenge-submit').textContent = editing ? 'Save duration' : 'Start challenge';
+  $('challenge-modal').classList.add('show');
+  $('challenge-duration').focus();
+  $('challenge-duration').select();
+}
+
+function closeChallengeDialog() {
+  $('challenge-modal').classList.remove('show');
+  challengeDraft = null;
+  if (challengeReturnFocus && challengeReturnFocus.isConnected) challengeReturnFocus.focus();
+}
+
+function commitChallenge() {
+  if (!challengeDraft) return;
+  const duration = $('challenge-duration').valueAsNumber;
+  const fail = (message) => {
+    $('duration-error').textContent = message;
+    $('challenge-duration').setAttribute('aria-invalid', 'true');
+    $('challenge-duration').focus();
+  };
+  if (!Number.isInteger(duration) || duration < 1 || duration > MAX_CHALLENGE_DAYS) {
+    fail(`Enter a whole number from 1 to ${MAX_CHALLENGE_DAYS}.`);
+    return;
   }
-  if (cur && cur.finished) logChallenge(cur);
-  plan().challenge = { uid, start: currentDay, at: Date.now() };
+  const { uid, editing } = challengeDraft;
+  if (!ruleByUid(uid) || isHidden(uid)) { fail('This principle is no longer available.'); return; }
+  const cur = activeChallenge();
+  const at = Math.max(Date.now(), (plan().challenge?.at || 0) + 1);
+  if (editing) {
+    if (!cur || challengeKey(cur) !== editing) { fail('The challenge has changed. Close this dialog and try again.'); return; }
+    plan().challenge = { ...plan().challenge, duration, at };
+  } else {
+    if (cur && !cur.finished && !confirm(`You're on day ${cur.dayIdx + 1} of a ${cur.duration}-day challenge for Rule ${cur.rule.n}.\n\nReplace it with this rule?`)) return;
+    if (cur && cur.finished) logChallenge(cur);
+    plan().challenge = { id: uuid(), uid, start: currentDay, duration, livedDays: [], at };
+  }
+  closeChallengeDialog();
   save();
   renderToday();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  toast('🔥 7-day challenge started — live it every day this week');
+  window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  toast(editing ? `Challenge updated to ${duration} day${duration === 1 ? '' : 's'}` : `${duration}-day challenge started`);
 }
 
 function endChallenge() {
@@ -1385,12 +1476,12 @@ function endChallenge() {
   if (!cur) return;
   if (!cur.finished && !confirm('End this challenge early?')) return;
   if (cur.finished) logChallenge(cur);
-  plan().challenge = { uid: null, at: Date.now() };
+  plan().challenge = { uid: null, at: Math.max(Date.now(), (plan().challenge?.at || 0) + 1) };
   save();
   renderToday();
 }
 
-function completedChallenges() { return plan().challengeLog.filter(c => c.days >= CHALLENGE_DAYS).length; }
+function completedChallenges() { return plan().challengeLog.filter(c => c.days >= challengeDuration(c)).length; }
 
 /* ================= UI state ================= */
 
@@ -1482,7 +1573,7 @@ function renderSpotlight() {
         <div class="spot-actions">
           <button class="lived-btn ${done ? 'on' : ''}" id="mission-lived">${done ? '✓ Lived it' : '✓ I lived it'}</button>
           ${readBtn(uid)}
-          ${isChallenge ? '' : '<button id="mission-challenge" title="Live this rule every day for 7 days">🔥 Make it 7 days</button>'}
+          ${isChallenge ? '' : '<button id="mission-challenge">🔥 Start challenge</button>'}
           <button class="link-btn" id="mission-change">Change</button>
         </div>
         ${done && lived ? `<div class="mission-stat">⚔️ ${lived} mission${lived === 1 ? '' : 's'} lived in the last ${HISTORY_DAYS} days</div>` : ''}
@@ -1527,12 +1618,12 @@ function renderChallenge() {
   const title = `Rule ${c.rule.n} — ${esc(c.rule.title)}`;
 
   if (c.finished) {
-    const perfect = c.doneCount >= CHALLENGE_DAYS;
+    const perfect = c.doneCount >= c.duration;
     const lv = masteryOf(c.uid);
     box.innerHTML = `
       <div class="challenge finished">
         <div class="kicker">${perfect ? '🏆 Challenge complete' : '🔥 Challenge finished'}</div>
-        <h3>${c.doneCount}/${CHALLENGE_DAYS} days · ${title}</h3>
+        <h3>${c.doneCount}/${c.duration} days · ${title}</h3>
         <p>${perfect
           ? 'You lived it every single day. That\'s how a rule stops being something you read and becomes who you are.'
           : `${c.doneCount} day${c.doneCount === 1 ? '' : 's'} lived. The days you missed are the lesson — run it again and close the gap.`}
@@ -1542,33 +1633,39 @@ function renderChallenge() {
           <button id="ch-close">Close</button>
         </div>
       </div>`;
-    $('ch-again').onclick = () => { logChallenge(c); plan().challenge = null; startChallenge(c.uid); };
+    $('ch-again').onclick = () => startChallenge(c.uid);
     $('ch-close').onclick = endChallenge;
     return;
   }
 
   const todayDone = isDone(c.uid);
-  const dots = c.days.map((d, i) => {
+  const rangeStart = Math.min(Math.floor(c.dayIdx / 7) * 7, Math.max(0, c.duration - 7));
+  const visibleDays = c.days.slice(rangeStart, rangeStart + 7);
+  const dots = visibleDays.map(d => {
     const [y, m, dd] = d.key.split('-').map(Number);
     const wd = 'SMTWTFS'[new Date(y, m - 1, dd).getDay()];
-    const mark = d.state === 'done' ? '✓' : d.state === 'miss' ? '✗' : String(i + 1);
-    return `<div class="ch-dot ${d.state}"><i>${mark}</i>${wd}</div>`;
+    const mark = d.state === 'done' ? '✓' : d.state === 'miss' ? '✗' : String(d.number);
+    return `<div class="ch-dot ${d.state}" title="Day ${d.number}: ${d.key}" aria-label="Day ${d.number}: ${d.state}"><i>${mark}</i>${wd}</div>`;
   }).join('');
   box.innerHTML = `
     <div class="challenge">
       <div class="ch-head">
-        <span class="kicker">🔥 7-day challenge · day ${c.dayIdx + 1} of ${CHALLENGE_DAYS}</span>
+        <span class="kicker">🔥 ${c.duration}-day challenge · day ${c.dayIdx + 1} of ${c.duration}</span>
         <button class="link-btn" id="ch-end">End</button>
       </div>
       <div class="ch-rule">${bookTag(c.book)}${title}</div>
+      <div class="ch-range">Ends ${addDays(c.start, c.duration - 1)}${c.duration > 7 ? ` · Days ${rangeStart + 1}–${rangeStart + visibleDays.length}` : ''}</div>
+      <progress class="ch-progress" value="${c.doneCount}" max="${c.duration}" aria-label="Challenge days completed"></progress>
       <div class="ch-dots">${dots}</div>
       <div class="ch-actions">
         <button class="lived-btn ${todayDone ? 'on' : ''}" id="ch-lived">${todayDone ? '✓ Lived it today' : '✓ I lived it today'}</button>
-        <span class="ch-score">${c.doneCount}/${CHALLENGE_DAYS} days so far</span>
+        <span class="ch-score">${c.doneCount}/${c.duration} days so far</span>
+        <button class="link-btn" id="ch-edit">Edit duration</button>
       </div>
     </div>`;
   $('ch-lived').onclick = () => toggleTick(c.uid);
   $('ch-end').onclick = endChallenge;
+  $('ch-edit').onclick = () => startChallenge(c.uid);
 }
 
 function renderToday() { renderSpotlight(); renderChallenge(); }
@@ -1751,7 +1848,7 @@ function bodyHtml(rule, uid) {
         ${isHidden(uid) ? '' : `<div class="action-group">
         ${livedBtnHtml(uid)}
         <button data-mission="${uid}">⚔️ Today's mission</button>
-        <button data-challenge="${uid}">🔥 7-day challenge</button>
+        <button data-challenge="${uid}">🔥 Challenge</button>
         </div>`}
         <div class="action-group action-group-personal">
         <button class="star-btn ${isStarred(uid) ? 'on' : ''}" data-star="${uid}" title="${isStarred(uid) ? 'Unstar' : 'Star helpful principle'}" aria-label="${isStarred(uid) ? 'Unstar' : 'Star helpful principle'}" aria-pressed="${isStarred(uid)}">${isStarred(uid) ? '★ Starred' : '☆ Star'}</button>
@@ -1868,7 +1965,7 @@ function renderGrid() {
       : (filter === 'mastery' && !term)
       ? `<div class="empty" style="grid-column:1/-1">
           <strong>Nothing mastered yet — that's the point</strong>
-          <p>Every day you tick a rule because you actually lived it, it grows: 🌱 Learning → 🌿 Practicing → 🌳 Living it → 🏆 Mastered. Pick a mission or start a 7-day challenge to begin.</p>
+          <p>Every day you tick a rule because you actually lived it, it grows: 🌱 Learning → 🌿 Practicing → 🌳 Living it → 🏆 Mastered. Pick a mission or start a challenge to begin.</p>
         </div>`
       : `<div class="empty" style="grid-column:1/-1">
           <strong>No matching rules</strong>
@@ -2102,8 +2199,8 @@ function toggleTick(uid) {
     if (done) {
       for (const id of ['mission-lived', 'ch-lived']) { const b = $(id); if (b) popTick(b); }
       const c = isChallenge ? activeChallenge() : null;
-      if (c && c.finished && c.doneCount >= CHALLENGE_DAYS) toast('🏆 7 for 7 — challenge complete!');
-      else if (c) toast(`🔥 Day ${c.dayIdx + 1} of ${CHALLENGE_DAYS} — lived`);
+      if (c && c.finished && c.doneCount >= c.duration) toast(`🏆 ${c.duration} for ${c.duration} — challenge complete!`);
+      else if (c) toast(`🔥 Day ${Math.min(c.dayIdx + 1, c.duration)} of ${c.duration} — lived`);
       else toast('⚔️ Mission accomplished');
     }
   }
@@ -2926,7 +3023,7 @@ let _lastTk = null, _lastTomb = null; // last payloads sent/seen → confirmed e
 function tickPayload() {
   const t = { tickStamp: data.tickStamp || {} };
   for (const k of Object.keys(data)) if (k.startsWith('ticks_')) t[k] = data[k];
-  if (data.plan) t.plan = data.plan;   // today's mission + 7-day challenge
+  if (data.plan) t.plan = data.plan;   // today's mission + challenge
   if (data.bookAlias) t.alias = data.bookAlias;   // merged duplicate copies → their keeper
   return JSON.stringify(t);
 }
@@ -3154,12 +3251,25 @@ function mergePlan(rp) {
     const cur = p.missions[day];
     if (m && (!cur || (m.at || 0) > (cur.at || 0))) { p.missions[day] = m; changed = true; }
   }
+  const previousChallenge = p.challenge;
   if (rp.challenge && (!p.challenge || (rp.challenge.at || 0) > (p.challenge.at || 0))) {
-    p.challenge = rp.challenge; changed = true;
+    p.challenge = { ...rp.challenge }; changed = true;
   }
-  const have = new Set(p.challengeLog.map(c => c.uid + '|' + c.start));
+  if (p.challenge && p.challenge.uid) {
+    const archived = new Set(p.challenge.livedDays || []);
+    for (const other of [previousChallenge, rp.challenge]) {
+      if (other && challengeKey(other) === challengeKey(p.challenge)) {
+        for (const day of other.livedDays || []) archived.add(day);
+      }
+    }
+    const days = [...archived].sort();
+    if (JSON.stringify(days) !== JSON.stringify(p.challenge.livedDays || [])) {
+      p.challenge.livedDays = days; changed = true;
+    }
+  }
+  const have = new Set(p.challengeLog.map(challengeKey));
   for (const c of rp.challengeLog || []) {
-    const k = c.uid + '|' + c.start;
+    const k = challengeKey(c);
     if (!have.has(k)) { p.challengeLog.push(c); have.add(k); changed = true; }
   }
   return changed;
@@ -3178,8 +3288,12 @@ function remoteMissingOurPlan(rp) {
     if (!rm[day] || (m.at || 0) > (rm[day].at || 0)) return true;
   }
   if (p.challenge && (!rp.challenge || (p.challenge.at || 0) > (rp.challenge.at || 0))) return true;
-  const rk = new Set((rp.challengeLog || []).map(c => c.uid + '|' + c.start));
-  for (const c of p.challengeLog || []) if (!rk.has(c.uid + '|' + c.start)) return true;
+  if (p.challenge?.uid && rp.challenge && challengeKey(p.challenge) === challengeKey(rp.challenge)) {
+    const remoteDays = new Set(rp.challenge.livedDays || []);
+    if ((p.challenge.livedDays || []).some(day => !remoteDays.has(day))) return true;
+  }
+  const rk = new Set((rp.challengeLog || []).map(challengeKey));
+  for (const c of p.challengeLog || []) if (!rk.has(challengeKey(c))) return true;
   return false;
 }
 
@@ -3381,6 +3495,24 @@ $('rename-input').addEventListener('keydown', (e) => {
 });
 $('rename-modal').addEventListener('click', (e) => {
   if (e.target === $('rename-modal')) cancelRename();
+});
+
+$('challenge-form').addEventListener('submit', e => { e.preventDefault(); commitChallenge(); });
+$('challenge-cancel').onclick = closeChallengeDialog;
+$('challenge-duration').addEventListener('input', () => {
+  $('challenge-duration').removeAttribute('aria-invalid');
+  $('duration-error').textContent = '';
+});
+$('challenge-modal').addEventListener('click', e => {
+  if (e.target === $('challenge-modal')) closeChallengeDialog();
+});
+$('challenge-modal').addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.preventDefault(); closeChallengeDialog(); }
+  if (e.key === 'Tab') {
+    const first = $('challenge-duration'), last = $('challenge-submit');
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
 });
 
 $('picker-search').addEventListener('input', renderPickerList);

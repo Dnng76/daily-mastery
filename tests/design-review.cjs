@@ -96,6 +96,7 @@ const books = ['Personal Growth & Everyday Courage', 'Health & Energy', 'Trading
       await page.locator('[data-filter="focus"]').click();
       await page.locator('#mission-pick').click();
       await page.locator('#mission-challenge').click();
+      await page.locator('#challenge-submit').click();
       assert.equal(await page.locator('.challenge').count(), 1);
       await page.screenshot({ path: path.join(output, 'verify-mission-challenge.png') });
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
