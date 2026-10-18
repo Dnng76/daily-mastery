@@ -36,6 +36,10 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     --amber: #e0a53c;
     --cyan: #54b8c7;
     --radius: 8px;
+    --button-bg: #1b1b21;
+    --button-border: #363640;
+    --button-hover: #25252e;
+    --button-text: #dedee5;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: smooth; }
@@ -116,22 +120,36 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   button {
     font: inherit;
     cursor: pointer;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    color: var(--text);
+    border: 1px solid var(--button-border);
+    background: var(--button-bg);
+    color: var(--button-text);
     border-radius: 8px;
-    padding: 8px 14px;
+    padding: 10px 14px;
     font-size: 0.85rem;
-    transition: background 0.15s, border-color 0.15s;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: 0;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
     -webkit-tap-highlight-color: transparent;
   }
-  button:hover { background: var(--surface-2); }
+  button:hover { background: var(--button-hover); border-color: #555561; }
+  button:active { background: #2b2b35; }
   :is(button, input, a):focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
   button { min-height: 44px; }
-  button:disabled { cursor: default; }
-  button.danger { color: var(--red); border-color: #3a2424; }
+  button:disabled { cursor: default; opacity: 0.45; }
+  button.danger { color: var(--red); border-color: #573037; background: #211619; }
   button.danger:hover { background: #241616; }
-  button.icon-btn { padding: 8px 10px; }
+  button.icon-btn { padding: 10px; width: 44px; flex-shrink: 0; }
+  .icon-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .ui-icon { display: inline-block; width: 18px; height: 18px; flex-shrink: 0; vertical-align: middle; }
+  .btn-content { display: inline-flex; align-items: center; justify-content: center; gap: 8px; max-width: 100%; vertical-align: middle; }
+  .btn-label { min-width: 0; overflow-wrap: anywhere; }
+  .btn-content > .ui-icon:only-child { margin: 0; }
+  .star-btn.on .ui-icon { fill: currentColor; }
+  button[data-mission] .ui-icon { color: var(--cyan); }
+  button[data-challenge] .ui-icon { color: var(--amber); }
+  #btn-import, #btn-modal-import { border-color: #555561; color: var(--text); }
+  .filter-count { font-size: 0.72rem; font-variant-numeric: tabular-nums; padding: 2px 5px; border-radius: 4px; background: #ffffff0c; }
 
   /* ---------- Toolbar ---------- */
   .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
@@ -153,7 +171,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
   .chip {
-    border: 1px solid var(--border);
+    border: 1px solid transparent;
     background: transparent;
     color: var(--text-dim);
     border-radius: 6px;
@@ -161,9 +179,12 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     font-size: 0.8rem;
   }
   .chip.active { color: var(--bg); font-weight: 600; }
-  .chip.active.neutral { background: var(--text); border-color: var(--text); }
+  .chip.active.neutral { color: #bce8cc; background: #15251c; border-color: #31533d; }
+  .chip .btn-content { gap: 6px; }
+  .chip .ui-icon { width: 15px; height: 15px; }
+  .chip:not(.active):hover { color: var(--text); background: var(--surface-2); border-color: var(--border); }
   /* one chip stands in for every book; tapping it opens the book picker */
-  .chip-book { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; color: var(--text); border-color: var(--text-faint); }
+  .chip-book { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; color: var(--text); border-color: var(--button-border); }
   .chip-book-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 52vw; }
   .chip-clear { padding: 5px 10px; }
 
@@ -225,11 +246,12 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .mission-body li::before { content: "–"; position: absolute; left: 0; color: var(--text-faint); }
   .mission-body .para { color: var(--text-dim); overflow-wrap: anywhere; }
   .mission-body .standard-text { color: var(--text); font-weight: 500; border-left: 2px solid var(--cyan); padding: 2px 0 2px 14px; overflow-wrap: anywhere; }
-  .lived-btn { font-weight: 700; border-color: var(--green-dim); color: var(--green); padding: 9px 16px; }
+  .lived-btn { font-weight: 700; border-color: #2c6443; color: #79e3a3; background: #152b1f; padding: 10px 16px; }
+  .lived-btn:hover { background: #1b3828; border-color: #479463; }
   .lived-btn.on { background: var(--green); border-color: var(--green); color: var(--bg); }
   .lived-btn.on:hover { background: #45da87; border-color: #45da87; }
   .lived-btn.pop { animation: tick-pop 0.35s ease; }
-  .link-btn { border: none; background: transparent; color: var(--text-faint); padding: 8px 6px; font-size: 0.8rem; text-decoration: underline; text-underline-offset: 3px; }
+  .link-btn { border: none; background: transparent; color: var(--text-dim); padding: 8px 6px; font-size: 0.8rem; }
   .link-btn:hover { background: transparent; color: var(--text); }
 
   /* ---------- Challenge ---------- */
@@ -283,10 +305,10 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .lvl-living { color: var(--green); border-color: var(--green-dim); }
   .lvl-mastered { color: var(--amber); border-color: #6b5220; }
   @media (max-width: 380px) { .lvl .lvl-word { display: none; } }
-  .card-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; padding-top: 16px; border-top: 1px solid var(--border); grid-column: 1 / -1; }
+  .card-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; padding-top: 18px; border-top: 1px solid var(--border); grid-column: 1 / -1; }
   .action-group { display: flex; flex-wrap: wrap; gap: 8px; }
   .action-group-personal { margin-left: auto; }
-  .card-actions button { font-size: 0.84rem; padding: 10px 12px; }
+  .card-actions button { font-size: 0.84rem; padding: 11px 14px; }
   .mastery-summary {
     grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 16px;
     border-bottom: 1px solid var(--border);
@@ -341,7 +363,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .rule-n { font-size: 0.72rem; color: var(--text-faint); font-weight: 600; white-space: nowrap; }
   .card-title { font-size: 1rem; line-height: 1.5; font-weight: 600; letter-spacing: 0; overflow-wrap: anywhere; }
   .card-expand { display: flex; align-items: start; justify-content: space-between; gap: 12px; width: 100%; text-align: left; padding: 0; border: none; background: transparent; }
-  .card-expand:hover { background: transparent; }
+  .card-expand:hover, .card-expand:active { background: transparent; }
   .card-chevron { color: var(--text-faint); flex-shrink: 0; font-size: 1.1rem; transition: transform 0.15s; }
   .card.open .card-chevron { transform: rotate(180deg); }
 
@@ -373,7 +395,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   }
   .tick:hover { background: transparent; }
   .tick:hover::before { border-color: var(--green); }
-  .tick:active { transform: scale(0.9); }
+  .tick:active { transform: scale(0.9); background: transparent; }
   .tick.on { color: var(--bg); }
   .tick.on::before { background: var(--green); border-color: var(--green); }
   .tick.pop { animation: tick-pop 0.28s ease; }
@@ -576,12 +598,13 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 
   /* ---------- ⭐ star / ✕ not-for-me ---------- */
   .card-top-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: auto; }
-  .card-actions .star-btn { color: #facc15; border-color: #8a701c; }
-  .card-actions .star-btn:hover, .card-actions .star-btn.on { color: #facc15; border-color: #facc15; background: #302710; }
+  .card-actions .star-btn { color: #facc15; border-color: #625123; background: #211e14; }
+  .card-actions .star-btn:hover, .card-actions .star-btn.on { color: #facc15; border-color: #aa8a24; background: #302710; }
   .star-btn.pop { animation: tick-pop 0.35s ease; }
   .card.starred { border-color: #4a3c1c; }
-  .card-actions .hide-btn { color: var(--red); border-color: #873737; }
+  .card-actions .hide-btn { color: var(--red); border-color: #623038; background: #24171b; }
   .card-actions .hide-btn:hover { color: var(--red); border-color: var(--red); background: #301919; }
+  .card-actions .hide-btn.restore { color: var(--cyan); border-color: #31565c; background: #142125; }
   .hidden-row {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
     margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: var(--radius);
@@ -677,11 +700,14 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     .toolbar input[type="search"] { flex-basis: 100%; font-size: 1rem; }
     .toolbar-actions { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .toolbar-actions button { padding: 10px 6px; }
+    .toolbar-actions #btn-library { grid-column: span 2; }
+    .toolbar-actions:has(#btn-order:not([hidden])) #btn-library { grid-column: auto; }
+    .toolbar-actions .btn-content { gap: 6px; }
     .card-actions { display: grid; gap: 12px; }
     .action-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .action-group > [data-challenge] { grid-column: 1 / -1; }
+    .action-group > .card-lived { grid-column: 1 / -1; }
     .action-group-personal { margin-left: 0; }
-    .card-actions button { min-width: 0; padding: 10px 6px; font-size: 0.8rem; }
+    .card-actions button { min-width: 0; padding: 11px 8px; font-size: 0.84rem; }
     .sec-bar { display: none; }
   }
   @media (max-width: 480px) {
@@ -707,6 +733,30 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 </style>
 </head>
 <body>
+<!-- Lucide 1.8.0 icons, ISC/MIT; see LUCIDE-LICENSE.txt. -->
+<svg xmlns="http://www.w3.org/2000/svg" class="icon-sprite" aria-hidden="true" focusable="false">
+<symbol id="ui-Check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"></path></symbol>
+<symbol id="ui-Target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></symbol>
+<symbol id="ui-Flame" viewBox="0 0 24 24"><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"></path></symbol>
+<symbol id="ui-Star" viewBox="0 0 24 24"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></symbol>
+<symbol id="ui-X" viewBox="0 0 24 24"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></symbol>
+<symbol id="ui-Undo2" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"></path><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"></path></symbol>
+<symbol id="ui-Dice5" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><path d="M16 8h.01"></path><path d="M8 8h.01"></path><path d="M8 16h.01"></path><path d="M16 16h.01"></path><path d="M12 12h.01"></path></symbol>
+<symbol id="ui-Shuffle" viewBox="0 0 24 24"><path d="m18 14 4 4-4 4"></path><path d="m18 2 4 4-4 4"></path><path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22"></path><path d="M2 6h1.972a4 4 0 0 1 3.6 2.2"></path><path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"></path></symbol>
+<symbol id="ui-Upload" viewBox="0 0 24 24"><path d="M12 3v12"></path><path d="m17 8-5-5-5 5"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path></symbol>
+<symbol id="ui-Library" viewBox="0 0 24 24"><path d="m16 6 4 14"></path><path d="M12 6v14"></path><path d="M8 8v12"></path><path d="M4 4v16"></path></symbol>
+<symbol id="ui-RotateCcw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></symbol>
+<symbol id="ui-ListOrdered" viewBox="0 0 24 24"><path d="M11 5h10"></path><path d="M11 12h10"></path><path d="M11 19h10"></path><path d="M4 4h1v5"></path><path d="M4 9h2"></path><path d="M6.5 20H3.4c0-1 2.6-1.925 2.6-3.5a1.5 1.5 0 0 0-2.6-1.02"></path></symbol>
+<symbol id="ui-BookOpen" viewBox="0 0 24 24"><path d="M12 7v14"></path><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"></path></symbol>
+<symbol id="ui-ChevronDown" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></symbol>
+<symbol id="ui-ChevronUp" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"></path></symbol>
+<symbol id="ui-Sparkles" viewBox="0 0 24 24"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"></path><path d="M20 2v4"></path><path d="M22 4h-4"></path><circle cx="4" cy="20" r="2"></circle></symbol>
+<symbol id="ui-Plus" viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="M12 5v14"></path></symbol>
+<symbol id="ui-Minus" viewBox="0 0 24 24"><path d="M5 12h14"></path></symbol>
+<symbol id="ui-Pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path><path d="m15 5 4 4"></path></symbol>
+<symbol id="ui-Trash2" viewBox="0 0 24 24"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></symbol>
+<symbol id="ui-LogOut" viewBox="0 0 24 24"><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path></symbol>
+</svg>
 
 <div class="drop-overlay">Drop PDF to add to library</div>
 
@@ -738,12 +788,12 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   <div class="toolbar">
     <input type="search" id="search" placeholder="Search principles…" aria-label="Search principles" autocomplete="off">
     <div class="toolbar-actions">
-    <button id="btn-random" title="Pick a random undone rule">🎲 Random</button>
-    <button id="btn-mix" title="Shuffle the order of the cards">🔀 Mix</button>
-    <button id="btn-import">＋ Add PDF</button>
-    <button id="btn-library" title="Library">📚 Library</button>
-    <button id="btn-order" title="Back to rule-number order" hidden>1→50 Order</button>
-    <button id="btn-reset" class="danger" title="Reset today's ticks">↺ Reset</button>
+    <button id="btn-random" data-icon="Dice5" title="Pick a random undone rule">Random</button>
+    <button id="btn-mix" data-icon="Shuffle" title="Shuffle the order of the cards">Mix</button>
+    <button id="btn-import" data-icon="Upload">Add PDF</button>
+    <button id="btn-library" data-icon="Library" title="Library">Library</button>
+    <button id="btn-order" data-icon="ListOrdered" title="Back to rule-number order" hidden>Order</button>
+    <button id="btn-reset" class="danger" data-icon="RotateCcw" title="Reset today's ticks">Reset</button>
     </div>
   </div>
 
@@ -760,7 +810,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   <div class="modal">
     <div class="modal-heading">
       <h3 id="library-title">📚 Library</h3>
-      <button id="btn-modal-close" title="Close library" aria-label="Close library">×</button>
+      <button id="btn-modal-close" data-icon="X" title="Close library" aria-label="Close library"></button>
     </div>
 
     <div class="focus-setting">
@@ -769,20 +819,20 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
         <div class="focus-setting-note">Rules the app picks for you each day</div>
       </div>
       <div class="focus-stepper">
-        <button id="focus-minus" title="Fewer">−</button>
+        <button id="focus-minus" data-icon="Minus" title="Fewer" aria-label="Fewer focus rules"></button>
         <span id="focus-size-val">15</span>
-        <button id="focus-plus" title="More">＋</button>
+        <button id="focus-plus" data-icon="Plus" title="More" aria-label="More focus rules"></button>
       </div>
     </div>
 
     <div id="book-list"></div>
     <div id="remove-all-row" style="text-align:right;margin-top:10px" hidden>
-      <button id="btn-remove-all" class="danger">🗑 Remove all books</button>
+      <button id="btn-remove-all" class="danger" data-icon="Trash2">Remove all books</button>
     </div>
     <h3 class="sync-title">☁ Sync across devices</h3>
     <div id="sync-box"></div>
     <div class="modal-footer">
-      <button id="btn-modal-import">＋ Add PDF</button>
+      <button id="btn-modal-import" data-icon="Upload">Add PDF</button>
     </div>
   </div>
 </div>
@@ -793,7 +843,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     <input type="text" id="rename-input" class="rename-field" autocomplete="off" placeholder="Book name">
     <div class="modal-footer">
       <button id="rename-cancel">Cancel</button>
-      <button id="rename-save" class="primary-btn">Save</button>
+      <button id="rename-save" class="primary-btn" data-icon="Check">Save</button>
     </div>
   </div>
 </div>
@@ -836,7 +886,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v33 · 2026-10-18 (custom challenge duration)';
+const APP_VERSION = 'v34 · 2026-10-18 (refined button controls)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1428,7 +1478,7 @@ function startChallenge(uid) {
   $('challenge-duration').value = cur ? cur.duration : DEFAULT_CHALLENGE_DAYS;
   $('challenge-duration').removeAttribute('aria-invalid');
   $('duration-error').textContent = '';
-  $('challenge-submit').textContent = editing ? 'Save duration' : 'Start challenge';
+  $('challenge-submit').innerHTML = buttonContent(editing ? 'Check' : 'Flame', editing ? 'Save duration' : 'Start challenge');
   $('challenge-modal').classList.add('show');
   $('challenge-duration').focus();
   $('challenge-duration').select();
@@ -1500,6 +1550,14 @@ function saveOpenBooks() {
 
 const $ = (id) => document.getElementById(id);
 
+function uiIcon(name) {
+  return `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#ui-${name}"></use></svg>`;
+}
+
+function buttonContent(icon, label) {
+  return `<span class="btn-content">${uiIcon(icon)}${label ? `<span class="btn-label">${esc(label)}</span>` : ''}</span>`;
+}
+
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1554,7 +1612,7 @@ let todayOpenUid = null;   // mission/suggestion card whose full rule text is ex
 function renderSpotlight() {
   const box = $('spotlight-box');
   const mission = todaysMission();
-  const readBtn = (uid) => `<button id="today-read">${todayOpenUid === uid ? 'Hide rule ▴' : 'Read full rule ▾'}</button>`;
+  const readBtn = (uid) => `<button id="today-read" aria-expanded="${todayOpenUid === uid}">${buttonContent(todayOpenUid === uid ? 'ChevronUp' : 'BookOpen', todayOpenUid === uid ? 'Hide rule' : 'Read full rule')}</button>`;
   const body = (uid, rule) => todayOpenUid === uid ? `<div class="mission-body">${bodyHtml(rule)}</div>` : '';
 
   if (mission) {
@@ -1571,9 +1629,9 @@ function renderSpotlight() {
         ${rule.standard ? `<div class="std">${esc(rule.standard)}</div>` : ''}
         ${body(uid, rule)}
         <div class="spot-actions">
-          <button class="lived-btn ${done ? 'on' : ''}" id="mission-lived">${done ? '✓ Lived it' : '✓ I lived it'}</button>
+          <button class="lived-btn ${done ? 'on' : ''}" id="mission-lived" aria-pressed="${done}">${buttonContent('Check', done ? 'Lived it' : 'I lived it')}</button>
           ${readBtn(uid)}
-          ${isChallenge ? '' : '<button id="mission-challenge">🔥 Start challenge</button>'}
+          ${isChallenge ? '' : `<button id="mission-challenge">${buttonContent('Flame', 'Start challenge')}</button>`}
           <button class="link-btn" id="mission-change">Change</button>
         </div>
         ${done && lived ? `<div class="mission-stat">⚔️ ${lived} mission${lived === 1 ? '' : 's'} lived in the last ${HISTORY_DAYS} days</div>` : ''}
@@ -1599,9 +1657,9 @@ function renderSpotlight() {
       ${spot.rule.standard ? `<div class="std">${esc(spot.rule.standard)}</div>` : ''}
       ${body(spot.uid, spot.rule)}
       <div class="spot-actions">
-        <button class="primary-btn" id="mission-pick">⚔️ Make this my mission</button>
-        <button id="spot-shuffle" title="Suggest a different rule">🎲</button>
-        ${spot.random ? '<button id="spot-smart" title="Back to the rule picked for you">★ Smart pick</button>' : ''}
+        <button class="primary-btn" id="mission-pick">${buttonContent('Target', 'Make this my mission')}</button>
+        <button class="icon-btn" id="spot-shuffle" title="Suggest a different rule" aria-label="Suggest a different rule">${buttonContent('Dice5', '')}</button>
+        ${spot.random ? `<button id="spot-smart" title="Back to the rule picked for you">${buttonContent('Sparkles', 'Smart pick')}</button>` : ''}
         ${readBtn(spot.uid)}
       </div>
     </div>`;
@@ -1629,7 +1687,7 @@ function renderChallenge() {
           : `${c.doneCount} day${c.doneCount === 1 ? '' : 's'} lived. The days you missed are the lesson — run it again and close the gap.`}
           ${lv ? `<br>Level now: ${lv.icon} ${lv.label}.` : ''}</p>
         <div class="ch-actions">
-          <button class="lived-btn" id="ch-again">🔥 Go again</button>
+          <button class="lived-btn" id="ch-again">${buttonContent('RotateCcw', 'Go again')}</button>
           <button id="ch-close">Close</button>
         </div>
       </div>`;
@@ -1658,9 +1716,9 @@ function renderChallenge() {
       <progress class="ch-progress" value="${c.doneCount}" max="${c.duration}" aria-label="Challenge days completed"></progress>
       <div class="ch-dots">${dots}</div>
       <div class="ch-actions">
-        <button class="lived-btn ${todayDone ? 'on' : ''}" id="ch-lived">${todayDone ? '✓ Lived it today' : '✓ I lived it today'}</button>
+        <button class="lived-btn ${todayDone ? 'on' : ''}" id="ch-lived" aria-pressed="${todayDone}">${buttonContent('Check', todayDone ? 'Lived it today' : 'I lived it today')}</button>
         <span class="ch-score">${c.doneCount}/${c.duration} days so far</span>
-        <button class="link-btn" id="ch-edit">Edit duration</button>
+        <button class="link-btn" id="ch-edit">${buttonContent('Pencil', 'Edit duration')}</button>
       </div>
     </div>`;
   $('ch-lived').onclick = () => toggleTick(c.uid);
@@ -1675,7 +1733,7 @@ function chipHtml(c) {
   const style = (active && c.color)
     ? `style="background:${c.color};border-color:${c.color}"` : '';
   return `<button class="chip ${active ? 'active' : ''} ${c.color ? '' : 'neutral'}"
-    data-filter="${c.id}" aria-pressed="${active}" ${style}>${esc(c.label)}</button>`;
+    data-filter="${c.id}" aria-pressed="${active}" ${style}><span class="btn-content">${c.icon ? uiIcon(c.icon) : ''}<span>${esc(c.label)}</span>${c.count != null ? `<span class="filter-count">${esc(c.count)}</span>` : ''}</span></button>`;
 }
 
 function renderChips() {
@@ -1683,13 +1741,13 @@ function renderChips() {
   let growing = 0;
   for (const [uid, n] of livedCounts()) if (n > 0 && ruleByUid(uid)) growing++;
   const base = [
-    { id: 'focus', label: `🎯 Focus ${fp.done}/${fp.total}` },
+    { id: 'focus', label: 'Focus', icon: 'Target', count: `${fp.done}/${fp.total}` },
     { id: 'all', label: 'All' },
     { id: 'todo', label: 'To Do' },
     { id: 'done', label: 'Done' },
-    { id: 'starred', label: `★ Starred ${markCount('star')}` },
-    { id: 'hidden', label: `Hidden ${markCount('hide')}` },
-    { id: 'mastery', label: `🏆 Mastery${growing ? ' ' + growing : ''}` }
+    { id: 'starred', label: 'Starred', icon: 'Star', count: markCount('star') },
+    { id: 'hidden', label: 'Hidden', count: markCount('hide') },
+    { id: 'mastery', label: 'Mastery', count: growing || null }
   ];
   let parts = base.map(chipHtml);
 
@@ -1700,10 +1758,10 @@ function renderChips() {
     if (active) {
       parts.push(`<button class="chip chip-book active" data-open-picker="1"
         style="background:${active.color};border-color:${active.color};color:var(--bg)">
-        <span class="chip-book-label">${esc(prettyName(active.name))}</span> ▾</button>`);
-      parts.push(`<button class="chip chip-clear neutral" data-filter="all" title="Show all books">✕</button>`);
+        ${uiIcon('Library')}<span class="chip-book-label">${esc(prettyName(active.name))}</span>${uiIcon('ChevronDown')}</button>`);
+      parts.push(`<button class="chip chip-clear neutral" data-filter="all" title="Show all books" aria-label="Show all books">${uiIcon('X')}</button>`);
     } else {
-      parts.push(`<button class="chip chip-book" data-open-picker="1">📚 Books · ${data.books.length} ▾</button>`);
+      parts.push(`<button class="chip chip-book" data-open-picker="1">${uiIcon('Library')}<span>Books</span><span class="filter-count">${data.books.length}</span>${uiIcon('ChevronDown')}</button>`);
     }
   }
   $('chips').innerHTML = parts.join('');
@@ -1780,7 +1838,7 @@ function applyMix(rules) {
 function updateMixButtons() {
   const mixed = Array.isArray(mixOrder);
   $('btn-order').hidden = !mixed;
-  $('btn-mix').textContent = mixed ? '🔀 Re-mix' : '🔀 Mix';
+  $('btn-mix').innerHTML = buttonContent('Shuffle', mixed ? 'Re-mix' : 'Mix');
 }
 
 function mixCards() {
@@ -1847,12 +1905,12 @@ function bodyHtml(rule, uid) {
       ${uid ? `<div class="card-actions">
         ${isHidden(uid) ? '' : `<div class="action-group">
         ${livedBtnHtml(uid)}
-        <button data-mission="${uid}">⚔️ Today's mission</button>
-        <button data-challenge="${uid}">🔥 Challenge</button>
+        <button data-mission="${uid}" title="Make this today's mission">${buttonContent('Target', 'Mission')}</button>
+        <button data-challenge="${uid}">${buttonContent('Flame', 'Challenge')}</button>
         </div>`}
         <div class="action-group action-group-personal">
-        <button class="star-btn ${isStarred(uid) ? 'on' : ''}" data-star="${uid}" title="${isStarred(uid) ? 'Unstar' : 'Star helpful principle'}" aria-label="${isStarred(uid) ? 'Unstar' : 'Star helpful principle'}" aria-pressed="${isStarred(uid)}">${isStarred(uid) ? '★ Starred' : '☆ Star'}</button>
-        <button class="hide-btn" data-hide="${uid}" title="${isHidden(uid) ? 'Restore principle' : 'Hide: not relevant'}" aria-label="${isHidden(uid) ? 'Restore principle' : 'Hide: not relevant'}">${isHidden(uid) ? '↶ Restore' : '× Not for me'}</button>
+        <button class="star-btn ${isStarred(uid) ? 'on' : ''}" data-star="${uid}" title="${isStarred(uid) ? 'Unstar' : 'Star helpful principle'}" aria-label="${isStarred(uid) ? 'Unstar' : 'Star helpful principle'}" aria-pressed="${isStarred(uid)}">${buttonContent('Star', isStarred(uid) ? 'Starred' : 'Star')}</button>
+        <button class="hide-btn ${isHidden(uid) ? 'restore' : ''}" data-hide="${uid}" title="${isHidden(uid) ? 'Restore principle' : 'Hide: not relevant'}" aria-label="${isHidden(uid) ? 'Restore principle' : 'Hide: not relevant'}">${buttonContent(isHidden(uid) ? 'Undo2' : 'X', isHidden(uid) ? 'Restore' : 'Not for me')}</button>
         </div>
       </div>` : ''}`;
 }
@@ -1860,7 +1918,7 @@ function bodyHtml(rule, uid) {
 // Bottom-of-card tick: after reading a rule you shouldn't have to scroll back up to mark it.
 function livedBtnHtml(uid) {
   const on = isDone(uid);
-  return `<button class="lived-btn card-lived ${on ? 'on' : ''}" data-tick="${uid}">${on ? '✓ Lived it today' : '✓ I lived it'}</button>`;
+  return `<button class="lived-btn card-lived ${on ? 'on' : ''}" data-tick="${uid}" aria-pressed="${on}">${buttonContent('Check', on ? 'Lived it today' : 'I lived it')}</button>`;
 }
 
 // The heavy detail body is built lazily — only for cards that are open.
@@ -1881,10 +1939,10 @@ function cardHtml(book, rule, uid, showTag) {
         <span class="lvl-slot">${lvlBadge(uid)}</span>
       </div>
       <div class="card-top-right">
-        ${isHidden(uid) ? '' : `<button class="tick ${done ? 'on' : ''}" data-tick="${uid}" title="Lived it today" aria-label="Lived rule ${rule.n} today" aria-pressed="${done}">✓</button>`}
+        ${isHidden(uid) ? '' : `<button class="tick ${done ? 'on' : ''}" data-tick="${uid}" title="Lived it today" aria-label="Lived rule ${rule.n} today" aria-pressed="${done}">${uiIcon('Check')}</button>`}
       </div>
     </div>
-    <button class="card-expand" aria-expanded="${open}" aria-controls="body-${cssId(uid)}"><span class="card-title">${esc(rule.title)}</span><span class="card-chevron" aria-hidden="true">⌄</span></button>
+    <button class="card-expand" aria-expanded="${open}" aria-controls="body-${cssId(uid)}"><span class="card-title">${esc(rule.title)}</span><span class="card-chevron" aria-hidden="true">${uiIcon('ChevronDown')}</span></button>
     <div class="card-body" id="body-${cssId(uid)}">${open ? bodyHtml(rule, uid) : ''}</div>
   </div>`;
 }
@@ -1899,7 +1957,7 @@ function renderGrid() {
       <div class="empty">
         <strong>Your library is empty</strong>
         <p>Drop a rules PDF anywhere on this page, or pick a file to import your first book.</p>
-        <button onclick="document.getElementById('file-input').click()">＋ Import a PDF</button>
+        <button onclick="document.getElementById('file-input').click()">${buttonContent('Upload', 'Import a PDF')}</button>
       </div>`;
     $('count-note').textContent = '';
     return;
@@ -1930,7 +1988,7 @@ function renderGrid() {
         <span class="book-tag" style="background:${book.color}">${esc(prettyName(book.name))}</span>
         <span class="section-count">${done ? `${done}/${items.length}` : items.length}${done === items.length && done ? ' ✓' : ''}</span>
         <span class="sec-bar"><span class="sec-bar-fill" style="width:${pct}%;background:${book.color}"></span></span>
-        <button class="collapse-arrow" aria-expanded="${isOpen}" aria-label="${isOpen ? 'Collapse' : 'Expand'} ${esc(prettyName(book.name))}">${isOpen ? '▲' : '▼'}</button>
+        <button class="collapse-arrow" aria-expanded="${isOpen}" aria-label="${isOpen ? 'Collapse' : 'Expand'} ${esc(prettyName(book.name))}">${uiIcon(isOpen ? 'ChevronUp' : 'ChevronDown')}</button>
       </div>`;
       if (isOpen) {
         for (const { book: b, rule, uid } of items) html += cardHtml(b, rule, uid, false);
@@ -2052,19 +2110,19 @@ function renderLibrary() {
   list.innerHTML = data.books.map((b, i) => `
     <div class="book-row">
       <div class="reorder">
-        <button class="reorder-btn" data-up="${b.id}" ${i === 0 ? 'disabled' : ''} title="Move up">▲</button>
-        <button class="reorder-btn" data-down="${b.id}" ${i === nBooks - 1 ? 'disabled' : ''} title="Move down">▼</button>
+        <button class="reorder-btn" data-up="${b.id}" ${i === 0 ? 'disabled' : ''} title="Move up" aria-label="Move book up">${uiIcon('ChevronUp')}</button>
+        <button class="reorder-btn" data-down="${b.id}" ${i === nBooks - 1 ? 'disabled' : ''} title="Move down" aria-label="Move book down">${uiIcon('ChevronDown')}</button>
       </div>
       <div class="book-row-left">
         <span class="book-dot" style="background:${b.color}"></span>
         <div>
           <div class="book-row-name">
-            <span class="book-name-text" data-id="${b.id}" title="${esc(b.name)}">${esc(prettyName(b.name))}</span><button class="rename-btn" data-rename="${b.id}" title="Rename" aria-label="Rename">✏️</button>
+            <span class="book-name-text" data-id="${b.id}" title="${esc(b.name)}">${esc(prettyName(b.name))}</span><button class="rename-btn" data-rename="${b.id}" title="Rename" aria-label="Rename">${uiIcon('Pencil')}</button>
           </div>
           <div class="book-row-meta">${b.rules.length} rules · imported ${esc(b.importedAt)}</div>
         </div>
       </div>
-      <button class="danger" data-remove="${b.id}">Remove</button>
+      <button class="danger" data-remove="${b.id}">${buttonContent('Trash2', 'Remove')}</button>
     </div>`).join('');
   for (const btn of list.querySelectorAll('[data-remove]')) btn.onclick = () => removeBook(btn.dataset.remove);
   for (const btn of list.querySelectorAll('[data-rename]')) btn.onclick = () => startRename(btn.dataset.rename);
@@ -2184,7 +2242,7 @@ function toggleTick(uid) {
     const tb = card.querySelector('.tick[data-tick]');
     if (tb) { tb.classList.toggle('on', done); tb.setAttribute('aria-pressed', String(done)); if (done) popTick(tb); }
     const lb = card.querySelector('.card-lived');
-    if (lb) { lb.classList.toggle('on', done); lb.textContent = done ? '✓ Lived it today' : '✓ I lived it'; if (done) popTick(lb); }
+    if (lb) { lb.classList.toggle('on', done); lb.innerHTML = buttonContent('Check', done ? 'Lived it today' : 'I lived it'); lb.setAttribute('aria-pressed', String(done)); if (done) popTick(lb); }
     const slot = card.querySelector('.lvl-slot');
     if (slot) slot.innerHTML = lvlBadge(uid);   // living it moves the mastery level
   }
@@ -3401,7 +3459,7 @@ function renderSyncUI() {
     box.innerHTML = `
       <p class="sync-note">${line}</p>
       <div class="sync-row">
-        <button id="btn-signout" class="danger">Sign out</button>
+        <button id="btn-signout" class="danger">${buttonContent('LogOut', 'Sign out')}</button>
       </div>`;
     $('btn-signout').onclick = signOutSync;
   }
@@ -3460,6 +3518,10 @@ function showImportDiag(title, why, d) {
 }
 
 /* ================= Wiring ================= */
+
+for (const button of document.querySelectorAll('button[data-icon]')) {
+  button.innerHTML = buttonContent(button.dataset.icon, button.textContent.trim());
+}
 
 let searchTimer = null;
 $('search').addEventListener('input', (e) => {

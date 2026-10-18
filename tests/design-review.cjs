@@ -55,6 +55,11 @@ const books = ['Personal Growth & Everyday Courage', 'Health & Energy', 'Trading
             const rects = [...row.querySelectorAll('button')].map(el => el.getBoundingClientRect());
             if (rects.some((a, i) => rects.slice(i + 1).some(b => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top))) bad.push('overlapping actions');
           }
+          for (const el of document.querySelectorAll('button .ui-icon')) {
+            if (!el.getClientRects().length) continue;
+            const ref = el.querySelector('use').getAttribute('href');
+            if (!document.querySelector(ref) || el.getBBox().width === 0) bad.push('missing icon: ' + ref);
+          }
           return bad;
         });
         assert.deepEqual(issues, [], `Layout at ${width}px`);
@@ -80,6 +85,8 @@ const books = ['Personal Growth & Everyday Courage', 'Health & Energy', 'Trading
       await page.locator('[data-uid="book0:1"] .tick').click();
       assert.equal(await page.locator('[data-uid="book0:1"] .tick').getAttribute('aria-pressed'), 'true');
       assert.equal(await page.locator('.ring-box').getAttribute('aria-valuenow'), '17');
+      assert.equal(await page.locator('[data-uid="book0:1"] .card-lived .ui-icon').count(), 1, 'Completion preserves the button icon');
+      assert.equal(await page.locator('[data-uid="book0:1"] .card-lived').getAttribute('aria-pressed'), 'true');
       await page.locator('#btn-mix').click();
       assert.equal(await page.locator('#btn-order').isVisible(), true);
       await page.locator('#btn-order').click();
