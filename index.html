@@ -152,6 +152,12 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .filter-count { font-size: 0.72rem; font-variant-numeric: tabular-nums; padding: 2px 5px; border-radius: 4px; background: #ffffff0c; }
 
   /* ---------- Toolbar ---------- */
+  .book-navigation { margin: 0 0 24px; padding: 0 0 16px; border-bottom: 1px solid var(--border); }
+  #btn-browse { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 12px 16px; text-align: left; border-color: #395a62; background: #152227; }
+  #btn-browse > .ui-icon:first-child { color: #7cd4df; width: 22px; height: 22px; }
+  #btn-browse > .ui-icon:last-child { margin-left: auto; }
+  #btn-browse:hover { background: #203239; border-color: #68bac9; }
+  #btn-browse .filter-count { color: var(--text-dim); }
   .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
   .toolbar-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
   .toolbar input[type="search"] {
@@ -167,6 +173,61 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     outline: none;
   }
   .toolbar input[type="search"]:focus { border-color: var(--cyan); }
+  .toolbar { flex-wrap: nowrap; align-items: stretch; }
+  #btn-more { flex-shrink: 0; min-height: 44px; }
+
+  /* ---------- More sheet ---------- */
+  .menu-group { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
+  .menu-row {
+    display: flex; width: 100%; min-height: 50px; padding: 12px 14px; text-align: left; justify-content: flex-start;
+    border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: var(--surface);
+  }
+  .menu-row:last-child { border-bottom: none; }
+  .menu-row:hover { background: var(--surface-2); }
+  .menu-row .btn-content { gap: 12px; }
+  .menu-row[hidden] { display: none; }
+  .menu-note { font-size: 0.78rem; color: var(--text-dim); padding: 8px 14px; margin: 0; }
+  .menu-note.due { color: var(--amber); }
+  .streak-badge { cursor: pointer; }
+  .streak-badge:hover { border-color: #6b5220; }
+
+  /* ---------- When–then plan on the mission ---------- */
+  .mission-plan { margin: 2px 0 14px; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); font-size: 0.9rem; line-height: 1.45; }
+  .mission-plan b { color: var(--text); }
+  .mission-plan .link-btn { padding: 2px 4px; margin-left: 4px; }
+  .plan-form { margin: 2px 0 14px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; display: grid; gap: 8px; }
+  .plan-form label { font-size: 0.78rem; color: var(--text-dim); font-weight: 600; }
+  .plan-form input { margin: 0; font-size: 0.95rem; }
+  .plan-form .plan-hint { font-size: 0.76rem; color: var(--text-dim); }
+  .plan-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* ---------- History calendar ---------- */
+  .hist-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+  .hist-stat { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; }
+  .hist-stat b { display: block; font-size: 1.25rem; }
+  .hist-stat span { font-size: 0.74rem; color: var(--text-dim); }
+  .hist-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .hist-nav button { width: 44px; padding: 0; }
+  .hist-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+  .hist-dow { text-align: center; font-size: 0.68rem; color: var(--text-faint); padding-bottom: 2px; }
+  .hist-day {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 8px;
+    font-size: 0.8rem; color: var(--text-dim); background: var(--surface-2); font-variant-numeric: tabular-nums;
+  }
+  .hist-day.lv1 { background: #16301f; color: #9fe0b9; }
+  .hist-day.lv2 { background: var(--green-dim); color: #e8fff1; }
+  .hist-day.lv3 { background: var(--green); color: var(--bg); font-weight: 700; }
+  .hist-day.today { outline: 2px solid var(--amber); outline-offset: -2px; }
+  .hist-day.future, .hist-day.blank { background: transparent; color: var(--text-faint); }
+  .hist-legend { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; font-size: 0.76rem; color: var(--text-dim); }
+  .hist-legend span { display: flex; align-items: center; gap: 8px; }
+  .hl { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+  .hl.lv1 { background: #16301f; } .hl.lv2 { background: var(--green-dim); } .hl.lv3 { background: var(--green); }
+
+  /* ---------- Reminders ---------- */
+  .rem-row { display: grid; gap: 6px; margin: 12px 0; }
+  .rem-row label { font-size: 0.86rem; color: var(--text-dim); }
+  .rem-row input { margin: 0; max-width: 180px; font-size: 1rem; }
   input::placeholder { color: var(--text-faint); opacity: 1; }
 
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
@@ -191,17 +252,28 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   /* ---------- Book picker ---------- */
   .picker-modal { padding-top: 0; }
   .picker-head { position: sticky; top: 0; z-index: 1; background: var(--surface); padding: 20px 0 10px; }
-  .picker-head h3 { margin-bottom: 10px; }
+  .picker-head .modal-heading { position: static; margin-bottom: 4px; }
+  .book-search { position: relative; }
+  .book-search > .ui-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--text-dim); pointer-events: none; }
+  .book-search input { padding-left: 42px; font-size: 1rem; margin: 0; }
+  .picker-options { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .book-results { font-size: 0.78rem; color: var(--text-dim); }
+  .picker-sort-label { display: flex; align-items: center; gap: 8px; color: var(--text-dim); font-size: 0.78rem; }
+  .picker-sort-label select { font: inherit; font-size: 0.85rem; color: var(--text); background: var(--surface-2); border: 1px solid var(--button-border); border-radius: 6px; padding: 8px; min-height: 44px; }
+  .picker-sort-label select:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
   .picker-row {
     display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
-    padding: 11px 6px; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent;
+    padding: 14px 6px; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent;
   }
   .picker-row:hover { background: var(--surface-2); }
-  .picker-row.active { background: var(--surface-2); }
+  .picker-row.active { background: #1b3036; }
   .picker-row .book-dot { width: 10px; height: 10px; }
-  .picker-name { flex: 1; min-width: 0; font-size: 0.92rem; overflow-wrap: anywhere; }
+  .picker-copy { flex: 1; min-width: 0; }
+  .picker-name { display: block; min-width: 0; font-size: 0.94rem; overflow-wrap: anywhere; }
   .picker-row.active .picker-name { font-weight: 700; }
-  .picker-meta { font-size: 0.74rem; color: var(--text-faint); white-space: nowrap; }
+  .picker-meta { display: block; margin-top: 4px; font-size: 0.76rem; font-weight: 400; color: var(--text-dim); overflow-wrap: anywhere; }
+  .picker-row > .ui-icon { color: var(--text-dim); }
+  .picker-row.active > .ui-icon { color: var(--cyan); }
   .picker-meta .dup { color: var(--amber); }
   .picker-empty { padding: 18px 6px; color: var(--text-dim); font-size: 0.85rem; }
 
@@ -530,9 +602,12 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .modal-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; z-index: 2; padding: 8px 0; margin-bottom: 12px; background: var(--surface); }
   .modal-heading h3 { margin: 0; }
   .modal-heading button { width: 44px; flex-shrink: 0; padding: 0; font-size: 1.3rem; }
+  .library-head { position: sticky; top: 0; z-index: 2; background: var(--surface); padding-bottom: 12px; }
+  .library-head .modal-heading { position: static; margin-bottom: 4px; }
+  .library-head .book-results { margin-top: 8px; }
   .book-row {
     display: grid;
-    grid-template-columns: 34px minmax(0, 1fr) auto;
+    grid-template-columns: 34px minmax(0, 1fr);
     align-items: center;
     justify-content: space-between;
     gap: 10px;
@@ -540,6 +615,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     border-bottom: 1px solid var(--border);
   }
   .book-row:last-of-type { border-bottom: none; }
+  .book-row-actions { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; }
+  .book-row-actions button { min-height: 44px; }
   .reorder { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
   .reorder-btn {
     padding: 0; width: 34px; height: 34px; min-height: 34px; line-height: 1; font-size: 0.7rem;
@@ -706,7 +783,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   /* ---------- Rename in library ---------- */
   .rename-btn { padding: 4px 8px; font-size: 0.95rem; line-height: 1; border: none; background: transparent; vertical-align: middle; margin-left: 2px; opacity: 0.75; }
   .rename-btn:hover { background: transparent; opacity: 1; }
-  .book-name-text { cursor: pointer; }
+  .book-name-text { display: block; min-height: 44px; width: 100%; padding: 4px 0; border: 0; border-radius: 0; background: transparent; text-align: left; font: inherit; overflow-wrap: anywhere; }
+  .book-name-text:hover { background: transparent; color: var(--cyan); text-decoration: underline; }
 
   /* ---------- Rename modal ---------- */
   .rename-modal { max-width: 400px; border-radius: 16px; }
@@ -732,25 +810,23 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     .card.open .card-body { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 40px; }
   }
   @media (max-width: 700px) {
-    .toolbar input[type="search"] { flex-basis: 100%; font-size: 1rem; }
-    .toolbar-actions { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .toolbar-actions button { padding: 10px 6px; }
-    .toolbar-actions #btn-library { grid-column: span 2; }
-    .toolbar-actions:has(#btn-order:not([hidden])) #btn-library { grid-column: auto; }
-    .toolbar-actions .btn-content { gap: 6px; }
+    .toolbar input[type="search"] { font-size: 1rem; }
     .sec-bar { display: none; }
+    /* filters: one swipeable row instead of three wrapped rows */
+    .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+             margin-left: -16px; margin-right: -16px; padding: 0 16px 2px; scroll-padding: 0 16px; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chips .chip { flex-shrink: 0; }
   }
   @media (max-width: 480px) {
     .wrap { padding: 16px; }
     header { padding-top: 4px; }
     .brand-icon { width: 34px; height: 34px; }
-    .day-left { max-width: 22ch; }
     .ring-box { gap: 6px; }
     .spotlight { padding-left: 14px; }
     .card { padding: 16px; }
     .card-actions { margin-right: -16px; margin-left: -16px; margin-bottom: -16px; padding: 20px 16px; }
     .book-row { grid-template-columns: 34px minmax(0, 1fr); }
-    .book-row > [data-remove] { grid-column: 2; justify-self: start; min-height: 36px; padding: 6px 12px; }
     .modal { padding: 18px; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -777,6 +853,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 <symbol id="ui-Shuffle" viewBox="0 0 24 24"><path d="m18 14 4 4-4 4"></path><path d="m18 2 4 4-4 4"></path><path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22"></path><path d="M2 6h1.972a4 4 0 0 1 3.6 2.2"></path><path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"></path></symbol>
 <symbol id="ui-Upload" viewBox="0 0 24 24"><path d="M12 3v12"></path><path d="m17 8-5-5-5 5"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path></symbol>
 <symbol id="ui-Library" viewBox="0 0 24 24"><path d="m16 6 4 14"></path><path d="M12 6v14"></path><path d="M8 8v12"></path><path d="M4 4v16"></path></symbol>
+<symbol id="ui-Search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></symbol>
+<symbol id="ui-ChevronRight" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></symbol>
 <symbol id="ui-RotateCcw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></symbol>
 <symbol id="ui-ListOrdered" viewBox="0 0 24 24"><path d="M11 5h10"></path><path d="M11 12h10"></path><path d="M11 19h10"></path><path d="M4 4h1v5"></path><path d="M4 9h2"></path><path d="M6.5 20H3.4c0-1 2.6-1.925 2.6-3.5a1.5 1.5 0 0 0-2.6-1.02"></path></symbol>
 <symbol id="ui-BookOpen" viewBox="0 0 24 24"><path d="M12 7v14"></path><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"></path></symbol>
@@ -788,6 +866,11 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 <symbol id="ui-Pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path><path d="m15 5 4 4"></path></symbol>
 <symbol id="ui-Trash2" viewBox="0 0 24 24"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></symbol>
 <symbol id="ui-LogOut" viewBox="0 0 24 24"><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path></symbol>
+<symbol id="ui-Ellipsis" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></symbol>
+<symbol id="ui-Download" viewBox="0 0 24 24"><path d="M12 15V3"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m7 10 5 5 5-5"></path></symbol>
+<symbol id="ui-Bell" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0"></path><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"></path></symbol>
+<symbol id="ui-History" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></symbol>
+<symbol id="ui-ChevronLeft" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></symbol>
 </svg>
 
 <div class="drop-overlay">Drop PDF to add to library</div>
@@ -802,7 +885,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
       </div>
     </div>
     <div class="header-right">
-      <span class="streak-badge" id="streak" hidden></span>
+      <button class="streak-badge" id="streak" hidden aria-haspopup="dialog" aria-controls="history-modal"></button>
       <div class="ring-box" role="progressbar" aria-label="Today's focus" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <svg class="ring" viewBox="0 0 48 48">
           <circle class="track" cx="24" cy="24" r="20"></circle>
@@ -814,19 +897,16 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     </div>
   </header>
 
+  <nav class="book-navigation" aria-label="Book navigation">
+    <button id="btn-browse" aria-haspopup="dialog" aria-controls="book-picker"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#ui-Library"></use></svg><span>Browse books</span><span class="filter-count" id="browse-count">0</span><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#ui-ChevronRight"></use></svg></button>
+  </nav>
+
   <div id="spotlight-box"></div>
   <div id="challenge-box"></div>
 
   <div class="toolbar">
     <input type="search" id="search" placeholder="Search principles…" aria-label="Search principles" autocomplete="off">
-    <div class="toolbar-actions">
-    <button id="btn-random" data-icon="Dice5" title="Pick a random undone rule">Random</button>
-    <button id="btn-mix" data-icon="Shuffle" title="Shuffle the order of the cards">Mix</button>
-    <button id="btn-import" data-icon="Upload">Add PDF</button>
-    <button id="btn-library" data-icon="Library" title="Library">Library</button>
-    <button id="btn-order" data-icon="ListOrdered" title="Back to rule-number order" hidden>Order</button>
-    <button id="btn-reset" class="danger" data-icon="RotateCcw" title="Reset today's ticks">Reset</button>
-    </div>
+    <button id="btn-more" data-icon="Ellipsis" aria-haspopup="dialog" aria-controls="more-modal" title="Add PDF, library, history, reminders, backup…">More</button>
   </div>
 
   <div class="chips" id="chips"></div>
@@ -839,10 +919,19 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 </div>
 
 <div class="modal-backdrop" id="library-modal">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="library-title">
+    <div class="library-head">
     <div class="modal-heading">
       <h3 id="library-title">📚 Library</h3>
       <button id="btn-modal-close" data-icon="X" title="Close library" aria-label="Close library"></button>
+    </div>
+    <div class="book-search"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#ui-Search"></use></svg><input type="search" id="library-search" class="rename-field" autocomplete="off" placeholder="Find a book by name" aria-label="Search library books"></div>
+    <p class="book-results" id="library-results" role="status"></p>
+    </div>
+
+    <div id="book-list"></div>
+    <div id="remove-all-row" style="text-align:right;margin-top:10px" hidden>
+      <button id="btn-remove-all" class="danger" data-icon="Trash2">Remove all books</button>
     </div>
 
     <div class="focus-setting">
@@ -857,10 +946,6 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
       </div>
     </div>
 
-    <div id="book-list"></div>
-    <div id="remove-all-row" style="text-align:right;margin-top:10px" hidden>
-      <button id="btn-remove-all" class="danger" data-icon="Trash2">Remove all books</button>
-    </div>
     <h3 class="sync-title">☁ Sync across devices</h3>
     <div id="sync-box"></div>
     <div class="modal-footer">
@@ -896,17 +981,74 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 </div>
 
 <div class="modal-backdrop" id="book-picker">
-  <div class="modal picker-modal">
+  <div class="modal picker-modal" role="dialog" aria-modal="true" aria-labelledby="picker-title">
     <div class="picker-head">
-      <h3>📚 Choose a book</h3>
-      <input type="search" id="picker-search" class="rename-field" autocomplete="off" placeholder="Search books…">
+      <div class="modal-heading"><h3 id="picker-title">Browse books</h3><button id="picker-close" data-icon="X" title="Close book browser" aria-label="Close book browser"></button></div>
+      <div class="book-search"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#ui-Search"></use></svg><input type="search" id="picker-search" class="rename-field" autocomplete="off" placeholder="Find a book by name" aria-label="Search books"></div>
+      <div class="picker-options"><span class="book-results" id="picker-results" role="status"></span><label class="picker-sort-label">Sort<select id="picker-sort"><option value="name">A-Z</option><option value="newest">Recently added</option></select></label></div>
     </div>
     <div id="picker-list"></div>
-    <div class="modal-footer"><button id="picker-close">Close</button></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="more-modal">
+  <div class="modal more-modal" role="dialog" aria-modal="true" aria-labelledby="more-title">
+    <div class="modal-heading"><h3 id="more-title">More</h3><button id="more-close" data-icon="X" title="Close" aria-label="Close"></button></div>
+    <div class="menu-group">
+      <button id="btn-import" class="menu-row" data-icon="Upload">Add PDF</button>
+      <button id="btn-library" class="menu-row" data-icon="Library" title="Manage books and sync settings">Manage library</button>
+      <button id="btn-history" class="menu-row" data-icon="History">History calendar</button>
+      <button id="btn-reminders" class="menu-row" data-icon="Bell">Daily reminders</button>
+    </div>
+    <div class="menu-group">
+      <button id="btn-backup" class="menu-row" data-icon="Download">Back up to a file</button>
+      <button id="btn-restore" class="menu-row" data-icon="Upload">Restore from a backup</button>
+      <p class="menu-note" id="backup-note"></p>
+    </div>
+    <div class="menu-group">
+      <button id="btn-random" class="menu-row" data-icon="Dice5" title="Pick a random undone rule">Random rule</button>
+      <button id="btn-mix" class="menu-row" data-icon="Shuffle" title="Shuffle the order of the cards">Mix order</button>
+      <button id="btn-order" class="menu-row" data-icon="ListOrdered" title="Back to rule-number order" hidden>Back to rule order</button>
+    </div>
+    <div class="menu-group">
+      <button id="btn-reset" class="menu-row danger" data-icon="RotateCcw" title="Untick everything you ticked today">Reset today's ticks</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="history-modal">
+  <div class="modal history-modal" role="dialog" aria-modal="true" aria-labelledby="history-title">
+    <div class="modal-heading"><h3 id="history-title">History</h3><button id="history-close" data-icon="X" title="Close" aria-label="Close"></button></div>
+    <div class="hist-stats" id="hist-stats"></div>
+    <div class="hist-nav">
+      <button id="hist-prev" data-icon="ChevronLeft" aria-label="Previous month" title="Previous month"></button>
+      <strong id="hist-month"></strong>
+      <button id="hist-next" data-icon="ChevronRight" aria-label="Next month" title="Next month"></button>
+    </div>
+    <div class="hist-grid" id="hist-grid"></div>
+    <div class="hist-legend">
+      <span><i class="hl lv3"></i>Mission lived + Focus done</span>
+      <span><i class="hl lv2"></i>Mission lived or Focus done</span>
+      <span><i class="hl lv1"></i>Lived some rules</span>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="reminders-modal">
+  <div class="modal reminders-modal" role="dialog" aria-modal="true" aria-labelledby="reminders-title">
+    <div class="modal-heading"><h3 id="reminders-title">Daily reminders</h3><button id="reminders-close" data-icon="X" title="Close" aria-label="Close"></button></div>
+    <p class="menu-note">Adds two repeating events to your phone's calendar, so you get a real alert every day — each links back to this app:</p>
+    <div class="rem-row"><span>☀️ <b>7:30 am</b> — Pick today's mission</span></div>
+    <div class="rem-row"><span>🌙 <b>9:00 pm</b> — Did you live it?</span></div>
+    <div class="modal-footer">
+      <button id="rem-add" class="primary-btn" data-icon="Bell">Add to my calendar</button>
+    </div>
+    <p class="menu-note">To change a time, open the event in your Calendar app → Edit → choose "All future events".</p>
   </div>
 </div>
 
 <input type="file" id="file-input" accept="application/pdf,.pdf" multiple hidden>
+<input type="file" id="restore-input" accept="application/json,.json" hidden>
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -918,7 +1060,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v36 · 2026-10-18 (mission and challenge clarity)';
+const APP_VERSION = 'v38 · 2026-10-18 (backup, history, reminders)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -999,8 +1141,57 @@ function ticksSlice() {
 }
 
 function writeTicks() {
+  refreshDaylog();   // keep the permanent day record in step with every tick save
   try { localStorage.setItem(TICKS_KEY, JSON.stringify(ticksSlice())); return true; }
   catch (e) { return false; }
+}
+
+/* ================= Day log (kept forever) =================
+   Detailed ticks are pruned after HISTORY_DAYS (mastery levels are a rolling
+   window on purpose), but your streak and History must not be — otherwise the
+   streak stalled at 61 days. data.daylog keeps one tiny record per day, forever:
+     { 'YYYY-MM-DD': { t: rules lived that day, m: 1 if you lived your mission } }
+   ~20 bytes a day. Synced with the ticks (merge = max per day). */
+function refreshDaylog() {
+  const log = data.daylog || (data.daylog = {});
+  const missions = (data.plan && data.plan.missions) || {};
+  for (const k of Object.keys(data)) {
+    if (!k.startsWith('ticks_') || !Array.isArray(data[k])) continue;
+    const day = k.slice(6), ticks = data[k], ms = missions[day], cur = log[day];
+    const rec = { t: ticks.length };
+    if (ms ? (ms.uid && ticks.includes(ms.uid)) : (cur && cur.m)) rec.m = 1;
+    if (!rec.t && !rec.m) { if (cur) delete log[day]; continue; }
+    if (!cur || cur.t !== rec.t || (cur.m || 0) !== (rec.m || 0)) log[day] = rec;
+  }
+}
+
+function mergeDaylog(remoteLog) {
+  if (!remoteLog) return false;
+  const log = data.daylog || (data.daylog = {});
+  let changed = false;
+  for (const [day, r] of Object.entries(remoteLog)) {
+    if (!r || !/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+    const cur = log[day] || { t: 0 };
+    const next = { t: Math.max(cur.t || 0, r.t || 0) };
+    if (cur.m || r.m) next.m = 1;
+    if (next.t !== (cur.t || 0) || (next.m || 0) !== (cur.m || 0)) { log[day] = next; changed = true; }
+  }
+  return changed;
+}
+
+function remoteMissingOurLog(remoteLog) {
+  remoteLog = remoteLog || {};
+  for (const [day, r] of Object.entries(data.daylog || {})) {
+    const o = remoteLog[day];
+    if (!o || (r.t || 0) > (o.t || 0) || (r.m && !o.m)) return true;
+  }
+  return false;
+}
+
+// Does this day count toward the streak? Lived your mission, or finished Focus.
+function dayCounts(day) {
+  const r = data.daylog && data.daylog[day];
+  return !!r && (r.m === 1 || (r.t || 0) >= focusSize);
 }
 
 // Which books need their local record rewritten / removed. Migrating from a
@@ -1448,22 +1639,23 @@ function setMission(uid) {
   for (const k of Object.keys(p.missions)) if (k < cutoff) delete p.missions[k];
   save();
   todayOpenUid = null;
+  planEditing = true;          // straight into "When ___, I will ___"
   renderToday();
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  toast('⚔️ Mission set — live this one today');
+  toast('⚔️ Mission set — now decide when you\'ll do it');
 }
 
 function clearMission() {
+  planEditing = false;
   plan().missions[currentDay] = { uid: null, at: Date.now() };
   save();
   renderToday();
 }
 
 // missions you actually lived (set AND ticked that day) within kept history
-function missionsLived() {
-  let n = 0;
-  for (const [day, m] of Object.entries(plan().missions)) if (m && m.uid && livedOn(m.uid, day)) n++;
-  return n;
+function missionsLived() {   // all time, from the permanent day log
+  refreshDaylog();
+  return Object.values(data.daylog || {}).filter(r => r && r.m).length;
 }
 
 // Resolved view of the current challenge, or null when there isn't one.
@@ -1638,6 +1830,43 @@ function renderProgress() {
 }
 
 let todayOpenUid = null;   // mission/suggestion card whose full rule text is expanded
+let planEditing = false;   // when–then form open on today's mission
+
+// "When ___, I will ___": tie the mission to a concrete moment in your day.
+// Stored on the mission entry (plan().missions[day].when / .will) so it syncs.
+function missionPlanHtml(m) {
+  if (planEditing) {
+    return `<form class="plan-form" id="plan-form">
+      <label for="plan-when">When…</label>
+      <input id="plan-when" class="rename-field" maxlength="140" autocomplete="off" placeholder="I sit down at my desk at 9" value="${esc(m.when || '')}">
+      <label for="plan-will">I will…</label>
+      <input id="plan-will" class="rename-field" maxlength="140" autocomplete="off" placeholder="write my top 3 tasks before opening my phone" value="${esc(m.will || '')}">
+      <div class="plan-hint">Pick a real moment in today. A specific "when" is what makes it happen.</div>
+      <div class="plan-actions">
+        <button type="button" id="plan-skip">${m.when || m.will ? 'Cancel' : 'Skip'}</button>
+        <button type="submit" class="primary-btn">${buttonContent('Check', 'Save plan')}</button>
+      </div>
+    </form>`;
+  }
+  if (m.when || m.will) {
+    const text = m.when && m.will ? `When <b>${esc(m.when)}</b>, I will <b>${esc(m.will)}</b>.`
+      : m.when ? `When <b>${esc(m.when)}</b>.` : `I will <b>${esc(m.will)}</b>.`;
+    return `<div class="mission-plan">📌 ${text}<button class="link-btn" id="plan-edit">Edit</button></div>`;
+  }
+  return `<button class="link-btn" id="plan-edit" style="margin:0 0 10px -6px">${buttonContent('Plus', 'Add a when–then plan')}</button>`;
+}
+
+function saveMissionPlan() {
+  const m = plan().missions[currentDay];
+  if (!m || !m.uid) return;
+  const when = $('plan-when').value.trim().replace(/^when\s+/i, '').replace(/[,.]\s*$/, '');
+  const will = $('plan-will').value.trim().replace(/^i\s*(will|'ll|’ll)\s+/i, '').replace(/\.\s*$/, '');
+  m.when = when; m.will = will; m.at = Date.now();
+  planEditing = false;
+  save();
+  renderSpotlight();
+  if (when || will) toast('📌 Plan saved — when the moment comes, you already know what to do');
+}
 
 // Top of the page: today's mission if you've set one, otherwise a suggested
 // mission (the rule you've neglected longest) you can accept with one tap.
@@ -1653,12 +1882,17 @@ function renderSpotlight() {
     const ch = plan().challenge;
     const isChallenge = ch && ch.uid === uid;
     const lived = missionsLived();
+    const mEntry = plan().missions[currentDay];
+    // keep a half-typed plan if the card redraws (tick elsewhere, sync arriving…)
+    const draft = planEditing && $('plan-when')
+      ? { when: $('plan-when').value, will: $('plan-will').value, focus: document.activeElement && document.activeElement.id } : null;
     box.innerHTML = `
       <div class="spotlight mission ${done ? 'accomplished' : ''}" style="border-left-color:${done ? 'var(--green)' : book.color}">
         <div class="kicker">⚔️ Today's mission · ${done ? '✓ accomplished' : 'live this one rule today'}</div>
         <div class="mission-meta">${bookTag(book)}${lvlBadge(uid)}</div>
         <h2>Rule ${rule.n} — ${esc(rule.title)}</h2>
         ${rule.standard ? `<div class="std">${esc(rule.standard)}</div>` : ''}
+        ${missionPlanHtml(mEntry)}
         ${body(uid, rule)}
         <div class="spot-actions">
           <button class="lived-btn ${done ? 'on' : ''}" id="mission-lived" aria-pressed="${done}">${buttonContent('Check', done ? 'Lived it' : 'I lived it')}</button>
@@ -1666,8 +1900,19 @@ function renderSpotlight() {
           ${isChallenge ? '' : `<button id="mission-challenge" title="Practise this rule each day for a duration you choose">${buttonContent('CalendarDays', 'Start daily challenge')}</button>`}
           <button class="link-btn" id="mission-change">Change</button>
         </div>
-        ${done && lived ? `<div class="mission-stat">⚔️ ${lived} mission${lived === 1 ? '' : 's'} lived in the last ${HISTORY_DAYS} days</div>` : ''}
+        ${done && lived ? `<div class="mission-stat">⚔️ ${lived} mission${lived === 1 ? '' : 's'} lived so far</div>` : ''}
       </div>`;
+    if (draft) {
+      $('plan-when').value = draft.when; $('plan-will').value = draft.will;
+      if (draft.focus && $(draft.focus)) $(draft.focus).focus();
+    }
+    const pe = $('plan-edit');
+    if (pe) pe.onclick = () => { planEditing = true; renderSpotlight(); };
+    const pf = $('plan-form');
+    if (pf) {
+      pf.onsubmit = (e) => { e.preventDefault(); saveMissionPlan(); };
+      $('plan-skip').onclick = () => { planEditing = false; renderSpotlight(); };
+    }
     $('mission-lived').onclick = () => toggleTick(uid);
     $('today-read').onclick = () => { todayOpenUid = todayOpenUid === uid ? null : uid; renderSpotlight(); };
     if (!isChallenge) $('mission-challenge').onclick = () => startChallenge(uid);
@@ -1744,7 +1989,7 @@ function renderChallenge() {
         <button class="link-btn" id="ch-end">End</button>
       </div>
       <div class="ch-rule">${bookTag(c.book)}${title}</div>
-      <div class="ch-range">Ends ${addDays(c.start, c.duration - 1)}${c.duration > 7 ? ` · Days ${rangeStart + 1}–${rangeStart + visibleDays.length}` : ''}</div>
+      <div class="ch-range">Ends ${friendlyDate(addDays(c.start, c.duration - 1))}${c.duration > 7 ? ` · Days ${rangeStart + 1}–${rangeStart + visibleDays.length}` : ''}</div>
       <progress class="ch-progress" value="${c.doneCount}" max="${c.duration}" aria-label="Challenge days completed"></progress>
       <div class="ch-dots">${dots}</div>
       <div class="ch-actions">
@@ -1769,6 +2014,7 @@ function chipHtml(c) {
 }
 
 function renderChips() {
+  $('browse-count').textContent = data.books.length;
   const fp = focusProgress();
   let growing = 0;
   for (const [uid, n] of livedCounts()) if (n > 0 && ruleByUid(uid)) growing++;
@@ -1780,7 +2026,7 @@ function renderChips() {
     { id: 'starred', label: 'Starred', icon: 'Star', count: markCount('star') },
     { id: 'hidden', label: 'Hidden', count: markCount('hide') },
     { id: 'mastery', label: 'Mastery', count: growing || null }
-  ];
+  ].filter(c => c.id !== 'hidden' || c.count > 0 || filter === 'hidden');
   let parts = base.map(chipHtml);
 
   // All books sit behind ONE chip (a wall of 60+ book chips was unreadable).
@@ -1788,13 +2034,12 @@ function renderChips() {
   if (data.books.length) {
     const active = data.books.find(b => b.id === filter);
     if (active) {
-      parts.push(`<button class="chip chip-book active" data-open-picker="1"
+      parts.push(`<button class="chip chip-book active" data-open-picker="1" aria-haspopup="dialog" aria-controls="book-picker"
         style="background:${active.color};border-color:${active.color};color:var(--bg)">
         ${uiIcon('Library')}<span class="chip-book-label">${esc(prettyName(active.name))}</span>${uiIcon('ChevronDown')}</button>`);
       parts.push(`<button class="chip chip-clear neutral" data-filter="all" title="Show all books" aria-label="Show all books">${uiIcon('X')}</button>`);
-    } else {
-      parts.push(`<button class="chip chip-book" data-open-picker="1">${uiIcon('Library')}<span>Books</span><span class="filter-count">${data.books.length}</span>${uiIcon('ChevronDown')}</button>`);
     }
+    // (no "Books" chip otherwise — the "Browse books" button at the top does that job)
   }
   $('chips').innerHTML = parts.join('');
 
@@ -1813,46 +2058,104 @@ function sortedBooks() {
     prettyName(a.name).localeCompare(prettyName(b.name), undefined, { numeric: true, sensitivity: 'base' }));
 }
 
+function bookMatches(book, term) {
+  const normalize = value => String(value).normalize('NFKD').replace(/\p{M}/gu, '').replace(/[_-]+/g, ' ').toLowerCase();
+  const name = normalize(prettyName(book.name) + ' ' + book.name);
+  return normalize(term).trim().split(/\s+/).every(word => name.includes(word));
+}
+
 function renderPickerList() {
-  const term = $('picker-search').value.trim().toLowerCase();
+  const term = $('picker-search').value.trim();
   const ds = doneSet();
   const nameCount = new Map();
   for (const b of data.books) {
     const k = prettyName(b.name).toLowerCase();
     nameCount.set(k, (nameCount.get(k) || 0) + 1);
   }
-  const books = sortedBooks().filter(b =>
-    !term || prettyName(b.name).toLowerCase().includes(term) || b.name.toLowerCase().includes(term));
+  const books = sortedBooks().filter(b => bookMatches(b, term));
+  if ($('picker-sort').value === 'newest') books.sort((a, b) => String(b.importedAt || '').localeCompare(String(a.importedAt || '')));
+  $('picker-results').textContent = `${books.length} of ${data.books.length} books`;
 
   let html = term ? '' : `
-    <button class="picker-row ${data.books.some(b => b.id === filter) ? '' : 'active'}" data-pick="all">
+    <button class="picker-row ${filter === 'all' ? 'active' : ''}" data-pick="all" aria-current="${filter === 'all' ? 'true' : 'false'}">
       <span class="book-dot" style="background:var(--text-faint)"></span>
-      <span class="picker-name">All books</span>
-      <span class="picker-meta">${data.books.length} books</span>
+      <span class="picker-copy"><span class="picker-name">All books</span><span class="picker-meta">${data.books.length} books in your library</span></span>
+      ${uiIcon(filter === 'all' ? 'Check' : 'ChevronRight')}
     </button>`;
   html += books.map(b => {
     const done = b.rules.reduce((n, r) => n + (ds.has(ruleUid(b, r)) ? 1 : 0), 0);
+    const hidden = b.rules.reduce((n, r) => n + (isHidden(ruleUid(b, r)) ? 1 : 0), 0);
     const dup = nameCount.get(prettyName(b.name).toLowerCase()) > 1;
-    return `<button class="picker-row ${filter === b.id ? 'active' : ''}" data-pick="${b.id}">
+    return `<button class="picker-row ${filter === b.id ? 'active' : ''}" data-pick="${b.id}" aria-current="${filter === b.id ? 'true' : 'false'}">
       <span class="book-dot" style="background:${b.color}"></span>
-      <span class="picker-name">${esc(prettyName(b.name))}</span>
-      <span class="picker-meta">${dup ? '<span class="dup" title="Different content, same name — rename one to tell them apart">same name · </span>' : ''}${done ? `${done}/` : ''}${b.rules.length}</span>
+      <span class="picker-copy"><span class="picker-name">${esc(prettyName(b.name))}</span>
+      <span class="picker-meta">${b.rules.length} rules · ${done} done today${hidden ? ` · ${hidden} hidden` : ''}</span>
+      ${dup || $('picker-sort').value === 'newest' ? `<span class="picker-meta">Added ${esc(b.importedAt || 'date unknown')}${dup ? ' · same title' : ''}</span>` : ''}</span>
+      ${uiIcon(filter === b.id ? 'Check' : 'ChevronRight')}
     </button>`;
   }).join('');
   if (term && !books.length) html = `<div class="picker-empty">No book matches “${esc(term)}”.</div>`;
+  if (!data.books.length) html = `<div class="picker-empty">No books imported yet.</div>`;
   $('picker-list').innerHTML = html;
 }
 
+let bookPickerReturnFocus = null;
+let libraryReturnFocus = null;
+
 function openBookPicker() {
+  bookPickerReturnFocus = document.activeElement;
   $('picker-search').value = '';
   renderPickerList();
   $('book-picker').classList.add('show');
   $('book-picker').querySelector('.modal').scrollTop = 0;
   // auto-focus only with a real keyboard — on a phone it would pop the keyboard over the list
-  if (window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches) $('picker-search').focus();
+  const desktop = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  $(desktop ? 'picker-search' : 'picker-close').focus({ preventScroll: true });
 }
 
-function closeBookPicker() { $('book-picker').classList.remove('show'); }
+function closeBookPicker(restoreFocus = true) {
+  $('book-picker').classList.remove('show');
+  if (restoreFocus && bookPickerReturnFocus?.isConnected) bookPickerReturnFocus.focus({ preventScroll: true });
+}
+
+function openLibrary() {
+  libraryReturnFocus = document.activeElement;
+  $('library-search').value = '';
+  renderLibrary();
+  $('library-modal').classList.add('show');
+  $('library-modal').querySelector('.modal').scrollTop = 0;
+  const desktop = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  $(desktop ? 'library-search' : 'btn-modal-close').focus({ preventScroll: true });
+}
+
+function closeLibrary(restoreFocus = true) {
+  $('library-modal').classList.remove('show');
+  if (restoreFocus && libraryReturnFocus?.isConnected) libraryReturnFocus.focus({ preventScroll: true });
+}
+
+function selectBook(id) {
+  if (id !== 'all' && !data.books.some(b => b.id === id)) return;
+  clearTimeout(searchTimer);
+  searchTerm = '';
+  $('search').value = '';
+  filter = id;
+  if (id !== 'all') { openBooks.add(id); saveOpenBooks(); }
+  closeBookPicker(false);
+  closeLibrary(false);
+  renderAll();
+  $('chips').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  const destination = $('grid').querySelector('.collapse-arrow, .card-expand') || $('chips').querySelector('[data-filter="all"]');
+  destination?.focus({ preventScroll: true });
+}
+
+function bookDialogKeydown(event, root, close) {
+  if (event.key === 'Escape') { event.preventDefault(); close(); return; }
+  if (event.key !== 'Tab') return;
+  const controls = [...root.querySelectorAll('button:not(:disabled), input, select, a[href]')].filter(el => el.getClientRects().length);
+  const first = controls[0], last = controls[controls.length - 1];
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+}
 
 // Optional shuffled card order — per device, persists until "Order" is pressed
 const MIX_KEY = 'mastery_mix_order';
@@ -1870,7 +2173,7 @@ function applyMix(rules) {
 function updateMixButtons() {
   const mixed = Array.isArray(mixOrder);
   $('btn-order').hidden = !mixed;
-  $('btn-mix').innerHTML = buttonContent('Shuffle', mixed ? 'Re-mix' : 'Mix');
+  $('btn-mix').innerHTML = buttonContent('Shuffle', mixed ? 'Re-mix card order' : 'Mix card order');
 }
 
 function mixCards() {
@@ -2039,8 +2342,7 @@ function renderGrid() {
     }
     const ds = doneSet();
     for (const { book, items } of byBook.values()) {
-      // filtering to one book auto-opens it — tapping its chip means "show it"
-      const isOpen = openBooks.has(book.id) || filter === book.id;
+      const isOpen = openBooks.has(book.id);
       const done = items.reduce((n, r) => n + (ds.has(r.uid) ? 1 : 0), 0);
       const pct = items.length ? Math.round(done / items.length * 100) : 0;
       html += `<div class="section-header ${isOpen ? 'sec-open' : ''}" data-collapse="${book.id}" style="border-left-color:${book.color}">
@@ -2154,20 +2456,27 @@ function renderLibrary() {
   const title = $('library-title');
   const nBooks = data.books.length;
   const nRules = allRules().length;
+  const term = $('library-search').value.trim();
+  const books = data.books.filter(book => bookMatches(book, term));
+  $('library-results').textContent = `${books.length} of ${nBooks} books · ${nRules} total rules`;
   if (title) {
-    title.textContent = nBooks
-      ? `📚 Library · ${nBooks} book${nBooks === 1 ? '' : 's'} · ${nRules} rule${nRules === 1 ? '' : 's'}`
-      : '📚 Library';
+    title.textContent = 'Manage library';
   }
   const removeRow = $('remove-all-row');
-  if (removeRow) removeRow.hidden = !nBooks;
+  if (removeRow) removeRow.hidden = !nBooks || !!term;
   const fv = $('focus-size-val');
   if (fv) fv.textContent = focusSize;
   if (!nBooks) {
     list.innerHTML = `<p style="color:var(--text-dim);font-size:0.85rem">No books imported yet.</p>`;
     return;
   }
-  list.innerHTML = data.books.map((b, i) => `
+  if (!books.length) {
+    list.innerHTML = `<p class="picker-empty">No book matches “${esc(term)}”.</p>`;
+    return;
+  }
+  list.innerHTML = books.map(b => {
+    const i = data.books.findIndex(book => book.id === b.id);
+    return `
     <div class="book-row">
       <div class="reorder">
         <button class="reorder-btn" data-up="${b.id}" ${i === 0 ? 'disabled' : ''} title="Move up" aria-label="Move book up">${uiIcon('ChevronUp')}</button>
@@ -2177,16 +2486,21 @@ function renderLibrary() {
         <span class="book-dot" style="background:${b.color}"></span>
         <div>
           <div class="book-row-name">
-            <span class="book-name-text" data-id="${b.id}" title="${esc(b.name)}">${esc(prettyName(b.name))}</span><button class="rename-btn" data-rename="${b.id}" title="Rename" aria-label="Rename">${uiIcon('Pencil')}</button>
+            <button class="book-name-text" data-open-book="${b.id}" title="Open ${esc(prettyName(b.name))}">${esc(prettyName(b.name))}</button>
           </div>
           <div class="book-row-meta">${b.rules.length} rules · imported ${esc(b.importedAt)}</div>
         </div>
       </div>
-      <button class="danger" data-remove="${b.id}">${buttonContent('Trash2', 'Remove')}</button>
-    </div>`).join('');
+      <div class="book-row-actions">
+        <button data-open-book="${b.id}">${buttonContent('BookOpen', 'Open')}</button>
+        <button data-rename="${b.id}" title="Rename ${esc(prettyName(b.name))}">${buttonContent('Pencil', 'Rename')}</button>
+        <button class="danger" data-remove="${b.id}">${buttonContent('Trash2', 'Remove')}</button>
+      </div>
+    </div>`;
+  }).join('');
   for (const btn of list.querySelectorAll('[data-remove]')) btn.onclick = () => removeBook(btn.dataset.remove);
   for (const btn of list.querySelectorAll('[data-rename]')) btn.onclick = () => startRename(btn.dataset.rename);
-  for (const nm of list.querySelectorAll('.book-name-text')) nm.onclick = () => startRename(nm.dataset.id);
+  for (const btn of list.querySelectorAll('[data-open-book]')) btn.onclick = () => selectBook(btn.dataset.openBook);
   for (const btn of list.querySelectorAll('[data-up]'))   btn.onclick = () => moveBook(btn.dataset.up, -1);
   for (const btn of list.querySelectorAll('[data-down]')) btn.onclick = () => moveBook(btn.dataset.down, 1);
 }
@@ -2240,36 +2554,115 @@ function renderCountdown() {
   const left = total - done;
   const [y, mo, d] = currentDay.split('-').map(Number);
   const dayLabel = new Date(y, mo - 1, d).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
-  el.textContent = `${dayLabel} · ` + (h ? `${h}h ${m}m` : `${m}m`) + ' left' +
+  el.textContent = `${dayLabel} · ` + (h ? `${h}h` : `${m}m`) + ' left' +
     (left > 0 ? ` · ${left} to go` : ' · focus done 🎉');
   el.title = left > 0 ? `${left} of today's ${total} focus rules still to live` : 'Today\'s focus is done';
   el.classList.toggle('urgent', h < 2 && left > 0);
 }
 
 /* ================= Streak ================= */
-// A day "counts" when you complete that day's focus goal (>= focusSize ticks).
-// Computed from tick history alone — no extra stored state to sync.
+// A day counts when you LIVED YOUR MISSION or finished your Focus (see dayCounts).
+// Read from the permanent day log, so the streak can grow past the 60 days of
+// detailed tick history. Today only adds once achieved — it never breaks it early.
 function computeStreak() {
-  const need = focusSize;
-  let streak = 0;
-  const d = new Date();
-  // today only extends the streak once the goal is hit; it never breaks it yet
-  if ((data['ticks_' + dateKey(d)] || []).length >= need) streak++;
-  d.setDate(d.getDate() - 1);
-  for (let i = 0; i < HISTORY_DAYS; i++) {
-    if ((data['ticks_' + dateKey(d)] || []).length >= need) streak++;
-    else break;
-    d.setDate(d.getDate() - 1);
-  }
+  refreshDaylog();
+  let streak = dayCounts(currentDay) ? 1 : 0;
+  for (let day = addDays(currentDay, -1); dayCounts(day); day = addDays(day, -1)) streak++;
   return streak;
+}
+
+function bestStreak() {
+  const days = Object.keys(data.daylog || {}).filter(dayCounts).sort();
+  let best = 0, run = 0, prev = null;
+  for (const d of days) {
+    run = (prev && addDays(prev, 1) === d) ? run + 1 : 1;
+    best = Math.max(best, run);
+    prev = d;
+  }
+  return best;
 }
 
 function renderStreak() {
   const el = $('streak');
   if (!el) return;
   const s = computeStreak();
-  if (s > 0) { el.hidden = false; el.textContent = `🔥 ${s}`; el.title = `${s}-day streak — days you hit your focus goal`; }
-  else el.hidden = true;
+  if (s > 0) {
+    el.hidden = false; el.textContent = `🔥 ${s}`;
+    el.title = `${s}-day streak — days you lived your mission or finished Focus. Tap for History.`;
+    el.setAttribute('aria-label', `${s}-day streak. Open history`);
+  } else el.hidden = true;
+}
+
+/* ================= History calendar ================= */
+let histMonth = null;   // 'YYYY-MM' being shown
+
+function friendlyDate(key, opts) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, opts || { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function dayLevel(day) {
+  const r = data.daylog && data.daylog[day];
+  if (!r) return 0;
+  const goal = (r.t || 0) >= focusSize;
+  if (r.m && goal) return 3;
+  if (r.m || goal) return 2;
+  return r.t > 0 ? 1 : 0;
+}
+
+function openHistory() {
+  refreshDaylog();
+  histMonth = currentDay.slice(0, 7);
+  renderHistory();
+  $('history-modal').classList.add('show');
+}
+
+function shiftMonth(ym, n) {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function renderHistory() {
+  const log = data.daylog || {};
+  const allDays = Object.keys(log).sort();
+  const firstMonth = allDays.length ? allDays[0].slice(0, 7) : currentDay.slice(0, 7);
+  const thisMonth = currentDay.slice(0, 7);
+  const [y, m] = histMonth.split('-').map(Number);
+
+  // stats
+  const missions = allDays.filter(d => log[d].m).length;
+  const activeThisMonth = allDays.filter(d => d.startsWith(histMonth) && (log[d].t || 0) > 0).length;
+  $('hist-stats').innerHTML = [
+    [`🔥 ${computeStreak()}`, 'current streak'],
+    [`🏅 ${bestStreak()}`, 'best streak'],
+    [`⚔️ ${missions}`, 'missions lived, all time'],
+    [`📅 ${activeThisMonth}`, `active days in ${new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long' })}`]
+  ].map(([v, l]) => `<div class="hist-stat"><b>${v}</b><span>${esc(l)}</span></div>`).join('');
+
+  $('hist-month').textContent = new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  $('hist-prev').disabled = histMonth <= firstMonth;
+  $('hist-next').disabled = histMonth >= thisMonth;
+
+  // Monday-first month grid
+  const first = new Date(y, m - 1, 1);
+  const lead = (first.getDay() + 6) % 7;
+  const daysInMonth = new Date(y, m, 0).getDate();
+  let html = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(d => `<div class="hist-dow" aria-hidden="true">${d}</div>`).join('');
+  for (let i = 0; i < lead; i++) html += '<div class="hist-day blank"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = `${histMonth}-${String(d).padStart(2, '0')}`;
+    const r = log[key];
+    const lv = dayLevel(key);
+    const future = key > currentDay;
+    const parts = [];
+    if (r && r.t) parts.push(`${r.t} rule${r.t === 1 ? '' : 's'} lived`);
+    if (r && r.m) parts.push('mission lived');
+    if (!future && !parts.length) parts.push('nothing lived');
+    const label = `${friendlyDate(key)}${parts.length ? ': ' + parts.join(', ') : ''}`;
+    html += `<div class="hist-day ${future ? 'future' : 'lv' + lv} ${key === currentDay ? 'today' : ''}" title="${esc(label)}" aria-label="${esc(label)}">${d}</div>`;
+  }
+  $('hist-grid').innerHTML = html;
 }
 
 function renderAll() {
@@ -2426,6 +2819,7 @@ function checkDayRollover() {
   if (now !== currentDay) {
     currentDay = now; // ticks key changes → fresh day, old keys pruned on next tick
     _doneSet = null;
+    planEditing = false;
   }
 }
 
@@ -3149,6 +3543,7 @@ function tickPayload() {
   for (const k of Object.keys(data)) if (k.startsWith('ticks_')) t[k] = data[k];
   if (data.plan) t.plan = data.plan;   // today's mission + challenge
   if (data.bookAlias) t.alias = data.bookAlias;   // merged duplicate copies → their keeper
+  if (data.daylog) t.log = data.daylog;           // permanent per-day record (streak + History)
   return JSON.stringify(t);
 }
 
@@ -3257,7 +3652,8 @@ function onMetaSnapshot(snap) {
   const cloudLacksMerges =
     Object.keys(data.deletedBooks || {}).some(id => !(id in remoteTomb)) ||
     Object.keys(data.bookAlias || {}).some(id => !(remoteTicks.alias || {})[id]);
-  if (remoteMissingOurTicks(remoteTicks) || remoteMissingOurPlan(remoteTicks.plan) || cloudLacksMerges) pushMeta().catch(onRemoteError);
+  if (remoteMissingOurTicks(remoteTicks) || remoteMissingOurPlan(remoteTicks.plan) || cloudLacksMerges ||
+      remoteMissingOurLog(remoteTicks.log)) pushMeta().catch(onRemoteError);
   syncOk();
 }
 
@@ -3355,6 +3751,7 @@ function mergeTicks(remote) {
   if (mergePlan(remote.plan)) changed = true;   // missions + challenges ride in the same payload
   if (mergeAliases(remote.alias)) changed = true;
   if (applyAliases()) changed = true;           // ticks for a merged-away copy → its keeper
+  if (mergeDaylog(remote.log)) changed = true;  // days older than the kept tick history
   return changed;
 }
 
@@ -3583,11 +3980,142 @@ function showImportDiag(title, why, d) {
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+/* ================= Backup & restore =================
+   Your library lives in this app (+ Google sync). iPhones can clear website
+   data, so a backup file is the safety net. Restore only ADDS what's missing —
+   it never deletes or overwrites anything you have now. */
+const LAST_BACKUP_KEY = 'mastery_last_backup';
+
+function renderBackupNote() {
+  const el = $('backup-note');
+  if (!el) return;
+  let last = 0;
+  try { last = parseInt(localStorage.getItem(LAST_BACKUP_KEY), 10) || 0; } catch (e) { /* ignore */ }
+  const days = last ? Math.floor((Date.now() - last) / 86400000) : null;
+  el.textContent = last == null || !last ? 'No backup yet on this device — worth making one.'
+    : days === 0 ? 'Last backup: today.' : `Last backup: ${days} day${days === 1 ? '' : 's'} ago.`;
+  el.classList.toggle('due', !last || days >= 14);
+}
+
+async function exportBackup() {
+  refreshDaylog();
+  const payload = { app: 'daily-mastery', format: 1, exportedAt: new Date().toISOString(), appVersion: APP_VERSION, focusSize, data };
+  const name = `daily-mastery-backup-${currentDay}.json`;
+  const file = new File([JSON.stringify(payload)], name, { type: 'application/json' });
+  const rules = allRules().length;
+  let saved = false;
+  // Phones: the share sheet ("Save to Files"). Computers: a normal download.
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] }) && window.matchMedia('(pointer: coarse)').matches) {
+      await navigator.share({ files: [file], title: 'Daily Mastery backup' });
+      saved = true;
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;   // you closed the share sheet
+  }
+  if (!saved) {
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
+  }
+  try { localStorage.setItem(LAST_BACKUP_KEY, String(Date.now())); } catch (e) { /* ignore */ }
+  renderBackupNote();
+  toast(`💾 Backup saved — ${data.books.length} books, ${rules} rules, all your history`);
+}
+
+async function restoreBackup(file) {
+  let payload;
+  try { payload = JSON.parse(await file.text()); } catch (e) { payload = null; }
+  const src = payload && payload.app === 'daily-mastery' && payload.data;
+  if (!src || !Array.isArray(src.books)) { toast('That file isn\'t a Daily Mastery backup.'); return; }
+  const when = payload.exportedAt ? new Date(payload.exportedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'an unknown date';
+  if (!confirm(`Restore from the backup made ${when}?\n\nIt has ${src.books.length} books. Anything missing from the app is added back — nothing you have now is removed or overwritten.`)) return;
+
+  const have = new Set(data.books.map(b => b.id));
+  const removed = data.deletedBooks || {};
+  const merged = data.bookAlias || {};
+  let addedBooks = 0, addedTicks = 0;
+  for (const b of src.books) {
+    if (!b || !b.id || !Array.isArray(b.rules) || have.has(b.id)) continue;
+    if (removed[b.id] || merged[b.id]) continue;   // you removed it, or it was merged into another copy
+    const book = JSON.parse(JSON.stringify(b));
+    assignRuleIds(book);
+    data.books.push(book);
+    booksChanged(book.id);
+    have.add(book.id);
+    addedBooks++;
+  }
+  for (const k of Object.keys(src)) {
+    if (!k.startsWith('ticks_') || !Array.isArray(src[k])) continue;
+    const before = (data[k] || []).length;
+    data[k] = [...new Set([...(data[k] || []), ...src[k]])];
+    addedTicks += data[k].length - before;
+  }
+  mergePlan(src.plan);
+  mergeAliases(src.bookAlias);
+  mergeDaylog(src.daylog);
+  applyAliases();
+  invalidateRules();
+  _doneSet = null; _livedCache = null; _focusCache = null;
+  const dupes = dedupeBooks();
+  save(); flushSave();
+  renderAll();
+  toast(addedBooks || addedTicks
+    ? `↩ Restored ${addedBooks} book${addedBooks === 1 ? '' : 's'} and ${addedTicks} tick${addedTicks === 1 ? '' : 's'}${dupes ? ` (merged ${dupes} duplicate${dupes === 1 ? '' : 's'})` : ''}`
+    : 'Nothing to restore — everything in the backup is already here.');
+}
+
+/* ================= Daily reminders =================
+   Web apps can't reliably notify on iPhone, but the Calendar can. This opens a
+   calendar file hosted with the app (two repeating daily events, each linking
+   back here); iPhone shows "Add All". Times can be changed in Calendar after. */
+function addReminders() {
+  window.open('reminders.ics', '_blank');
+  $('reminders-modal').classList.remove('show');
+  toast('📅 Opening your calendar — choose "Add All"');
+}
+
 /* ================= Wiring ================= */
 
 for (const button of document.querySelectorAll('button[data-icon]')) {
   button.innerHTML = buttonContent(button.dataset.icon, button.textContent.trim());
 }
+
+// ⋯ More sheet: every row closes the sheet first, then does its own job
+// (the rows keep their original ids, so their existing handlers still apply).
+function closeModal(id) { $(id).classList.remove('show'); }
+$('btn-more').onclick = () => { renderBackupNote(); $('more-modal').classList.add('show'); };
+$('more-close').onclick = () => closeModal('more-modal');
+$('more-modal').addEventListener('click', (e) => {
+  if (e.target === $('more-modal') || e.target.closest('.menu-row')) closeModal('more-modal');
+}, true);
+
+$('btn-history').onclick = openHistory;
+$('streak').onclick = openHistory;
+$('history-close').onclick = () => closeModal('history-modal');
+$('history-modal').addEventListener('click', (e) => { if (e.target === $('history-modal')) closeModal('history-modal'); });
+$('hist-prev').onclick = () => { histMonth = shiftMonth(histMonth, -1); renderHistory(); };
+$('hist-next').onclick = () => { histMonth = shiftMonth(histMonth, 1); renderHistory(); };
+
+$('btn-reminders').onclick = () => $('reminders-modal').classList.add('show');
+$('reminders-close').onclick = () => closeModal('reminders-modal');
+$('reminders-modal').addEventListener('click', (e) => { if (e.target === $('reminders-modal')) closeModal('reminders-modal'); });
+$('rem-add').onclick = addReminders;
+
+$('btn-backup').onclick = exportBackup;
+$('btn-restore').onclick = () => $('restore-input').click();
+$('restore-input').addEventListener('change', (e) => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (f) restoreBackup(f);
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  for (const id of ['more-modal', 'history-modal', 'reminders-modal']) if ($(id).classList.contains('show')) closeModal(id);
+});
 
 let searchTimer = null;
 $('search').addEventListener('input', (e) => {
@@ -3609,11 +4137,14 @@ $('file-input').addEventListener('change', (e) => {
   e.target.value = '';
 });
 
-$('btn-library').onclick = () => $('library-modal').classList.add('show');
-$('btn-modal-close').onclick = () => $('library-modal').classList.remove('show');
+$('btn-browse').onclick = openBookPicker;
+$('btn-library').onclick = openLibrary;
+$('btn-modal-close').onclick = () => closeLibrary();
+$('library-search').addEventListener('input', renderLibrary);
 $('library-modal').addEventListener('click', (e) => {
-  if (e.target === $('library-modal')) $('library-modal').classList.remove('show');
+  if (e.target === $('library-modal')) closeLibrary();
 });
+$('library-modal').addEventListener('keydown', e => bookDialogKeydown(e, $('library-modal'), closeLibrary));
 
 $('rename-save').onclick = commitRename;
 $('rename-cancel').onclick = cancelRename;
@@ -3644,16 +4175,14 @@ $('challenge-modal').addEventListener('keydown', e => {
 });
 
 $('picker-search').addEventListener('input', renderPickerList);
-$('picker-search').addEventListener('keydown', (e) => { if (e.key === 'Escape') closeBookPicker(); });
-$('picker-close').onclick = closeBookPicker;
+$('picker-sort').addEventListener('change', renderPickerList);
+$('picker-close').onclick = () => closeBookPicker();
+$('book-picker').addEventListener('keydown', e => bookDialogKeydown(e, $('book-picker'), closeBookPicker));
 $('book-picker').addEventListener('click', (e) => {
   if (e.target === $('book-picker')) { closeBookPicker(); return; }
   const row = e.target.closest('[data-pick]');
   if (!row) return;
-  filter = row.dataset.pick;
-  closeBookPicker();
-  renderAll();
-  $('chips').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  selectBook(row.dataset.pick);
 });
 
 // Drag & drop anywhere on the page
@@ -3693,6 +4222,7 @@ $('ver-mark').title = APP_VERSION;
 // One library, no duplicate books: merge any copies now (keeps all their ticks).
 if (applyAliases()) save();
 const mergedAtStart = dedupeBooks();
+writeTicks();   // backfills the permanent day log from the tick history you already have
 
 renderAll();
 initFirebase();

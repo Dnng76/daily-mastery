@@ -1,0 +1,37 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Daily Mastery//Reminders//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Daily Mastery
+BEGIN:VEVENT
+UID:daily-mastery-morning@dnng76.github.io
+DTSTAMP:20261018T000000Z
+DTSTART:20261019T073000
+DURATION:PT10M
+RRULE:FREQ=DAILY
+SUMMARY:⚔️ Pick today's mission
+DESCRIPTION:Open Daily Mastery and choose the one rule you'll live today.\nhttps://dnng76.github.io/daily-mastery/
+URL:https://dnng76.github.io/daily-mastery/
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Pick today's mission
+TRIGGER:PT0M
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:daily-mastery-evening@dnng76.github.io
+DTSTAMP:20261018T000000Z
+DTSTART:20261019T210000
+DURATION:PT10M
+RRULE:FREQ=DAILY
+SUMMARY:✓ Did you live it today?
+DESCRIPTION:Tick your mission and the rules you actually lived today.\nhttps://dnng76.github.io/daily-mastery/
+URL:https://dnng76.github.io/daily-mastery/
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Did you live it today?
+TRIGGER:PT0M
+END:VALARM
+END:VEVENT
+END:VCALENDAR
