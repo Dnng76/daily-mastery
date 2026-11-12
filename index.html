@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Daily Mastery</title>
 <meta name="theme-color" content="#0a0a0c">
+<meta name="color-scheme" content="dark">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Mastery">
@@ -21,6 +22,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 </script>
 <style>
   :root {
+    color-scheme: dark;   /* the browser's own parts (scrollbars, drop-down lists, number steppers) match the dark app */
     --bg: #0a0a0c;
     --surface: #131316;
     --surface-2: #1b1b20;
@@ -217,6 +219,29 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .hist-day.lv3 { background: var(--green); color: var(--bg); font-weight: 700; }
   .hist-day.today { outline: 2px solid var(--amber); outline-offset: -2px; }
   .hist-day.future, .hist-day.blank { background: transparent; color: var(--text-faint); }
+  /* past days are buttons: tap one to see what you lived (a tooltip is no use on a phone) */
+  button.hist-day { width: 100%; min-height: 0; padding: 0; border: 0; font-weight: 400; }
+  button.hist-day.lv3 { font-weight: 700; }
+  button.hist-day.sel { box-shadow: 0 0 0 2px var(--cyan); }
+  .hist-detail { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 0.86rem; line-height: 1.5; }
+  .hist-detail strong { display: block; font-size: 0.95rem; }
+  .hist-sum { color: var(--text-dim); margin: 2px 0 8px; }
+  .hist-mission { margin: 0 0 8px; overflow-wrap: anywhere; }
+  .hist-list { list-style: none; display: grid; gap: 6px; }
+  .hist-list li { display: flex; align-items: baseline; gap: 8px; color: var(--text-dim); overflow-wrap: anywhere; min-width: 0; }
+  .hist-list li.is-mission { color: var(--text); }
+  .hist-list .book-dot { width: 8px; height: 8px; transform: translateY(-1px); }
+  .hist-more { color: var(--text-faint); font-size: 0.8rem; margin-top: 6px; }
+
+  /* ---------- Sync trouble banner (only ever shown when sync has stopped) ---------- */
+  #sync-alert {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px;
+    margin: 0 0 16px; padding: 10px 12px; border: 1px solid #6b5220; border-radius: var(--radius);
+    background: #241d12; font-size: 0.84rem; line-height: 1.45;
+  }
+  #sync-alert[hidden] { display: none; }
+  .sync-alert-text { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+  .sync-alert-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
   .hist-legend { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; font-size: 0.76rem; color: var(--text-dim); }
   .hist-legend span { display: flex; align-items: center; gap: 8px; }
   .hl { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
@@ -910,6 +935,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     </div>
   </header>
 
+  <div id="sync-alert" role="status" hidden></div>
+
   <nav class="book-navigation" aria-label="Book navigation">
     <button id="btn-browse" aria-haspopup="dialog" aria-controls="book-picker"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#ui-Library"></use></svg><span>Browse books</span><span class="filter-count" id="browse-count">0</span><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#ui-ChevronRight"></use></svg></button>
   </nav>
@@ -1039,6 +1066,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
       <button id="hist-next" data-icon="ChevronRight" aria-label="Next month" title="Next month"></button>
     </div>
     <div class="hist-grid" id="hist-grid"></div>
+    <div class="hist-detail" id="hist-detail" aria-live="polite"></div>
     <div class="hist-legend">
       <span><i class="hl lv3"></i>Mission lived + Focus done</span>
       <span><i class="hl lv2"></i>Mission lived or Focus done</span>
@@ -1110,7 +1138,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v40 · 2026-11-12 (starred rules share Focus)';
+const APP_VERSION = 'v41 · 2026-11-12 (sync warning, day details, mission credit)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1213,7 +1241,7 @@ function refreshDaylog() {
     if (!k.startsWith('ticks_') || !Array.isArray(data[k])) continue;
     const day = k.slice(6), ticks = data[k], ms = missions[day], cur = log[day];
     const rec = { t: ticks.length };
-    if (ms ? (ms.uid && ticks.includes(ms.uid)) : (cur && cur.m)) rec.m = 1;
+    if (ms ? missionLivedOn(ms, ticks) : (cur && cur.m)) rec.m = 1;
     // today's goal is set when the day's record starts and can only come down
     // during the day; a past day keeps the goal it was lived under
     const g = day === currentDay ? Math.min((cur && cur.g) || focusSize, focusSize) : (cur && cur.g);
@@ -1803,7 +1831,7 @@ function setMission(uid) {
   const p = plan();
   const cur = p.missions[currentDay];
   if (cur && cur.uid === uid) { toast('Already today\'s mission'); return; }
-  p.missions[currentDay] = { uid, at: Date.now() };
+  p.missions[currentDay] = { uid, at: Math.max(Date.now(), ((cur && cur.at) || 0) + 1), ...missionCredit(cur) };
   const cutoff = dateKey(new Date(Date.now() - HISTORY_DAYS * 86400000));
   for (const k of Object.keys(p.missions)) if (k < cutoff) delete p.missions[k];
   save();
@@ -1817,9 +1845,26 @@ function setMission(uid) {
 function clearMission() {
   if (staleDay()) return;
   planEditing = false;
-  plan().missions[currentDay] = { uid: null, at: Date.now() };
+  const cur = plan().missions[currentDay], credit = missionCredit(cur);
+  plan().missions[currentDay] = { uid: null, at: Math.max(Date.now(), ((cur && cur.at) || 0) + 1), ...credit };
   save();
   renderToday();
+  if (credit.was) toast('✓ Today still counts — you already lived a mission', 3500);
+}
+
+// Changing today's mission AFTER living one used to throw the day's credit away
+// (the day log only looked at the current mission), which could quietly cost a
+// streak day. The rules already lived as today's mission now ride along on the
+// entry as `was`, and the day counts while any of them is still ticked.
+function missionWas(ms) { return ms && Array.isArray(ms.was) ? ms.was.filter(uid => typeof uid === 'string') : []; }
+function missionCredit(cur) {
+  if (!cur) return {};
+  const was = new Set(missionWas(cur));
+  if (cur.uid && isDone(cur.uid)) was.add(cur.uid);
+  return was.size ? { was: [...was] } : {};
+}
+function missionLivedOn(ms, ticks) {
+  return !!ms && ((!!ms.uid && ticks.includes(ms.uid)) || missionWas(ms).some(uid => ticks.includes(uid)));
 }
 
 // missions you actually lived (set AND ticked that day) within kept history
@@ -2865,6 +2910,7 @@ function renderStreak() {
 
 /* ================= History calendar ================= */
 let histMonth = null;   // 'YYYY-MM' being shown
+let histDay = null;     // day whose details are open under the calendar
 
 function friendlyDate(key, opts) {
   const [y, m, d] = key.split('-').map(Number);
@@ -2883,6 +2929,7 @@ function dayLevel(day) {
 function openHistory() {
   refreshDaylog();
   histMonth = currentDay.slice(0, 7);
+  histDay = currentDay;   // opens on today's details
   renderHistory();
   openSheet('history-modal');
 }
@@ -2930,9 +2977,61 @@ function renderHistory() {
     if (r && r.m) parts.push('mission lived');
     if (!future && !parts.length) parts.push('nothing lived');
     const label = `${friendlyDate(key)}${parts.length ? ': ' + parts.join(', ') : ''}`;
-    html += `<div class="hist-day ${future ? 'future' : 'lv' + lv} ${key === currentDay ? 'today' : ''}" title="${esc(label)}" aria-label="${esc(label)}">${d}</div>`;
+    html += future
+      ? `<div class="hist-day future" aria-label="${esc(label)}">${d}</div>`
+      : `<button class="hist-day lv${lv} ${key === currentDay ? 'today' : ''} ${key === histDay ? 'sel' : ''}" data-day="${key}" aria-pressed="${key === histDay}" title="${esc(label)}" aria-label="${esc(label)}">${d}</button>`;
   }
   $('hist-grid').innerHTML = html;
+  renderHistDetail();
+}
+
+// Under the calendar: what you lived on the day you tapped. The rule-by-rule
+// list exists for as long as the detailed ticks are kept (HISTORY_DAYS); older
+// days still have their totals from the permanent day log.
+function renderHistDetail() {
+  const box = $('hist-detail');
+  if (!box) return;
+  if (!histDay) { box.innerHTML = `<p class="hist-sum" style="margin:0">Tap a day to see what you lived.</p>`; return; }
+  const r = (data.daylog || {})[histDay] || {};
+  const ticks = Array.isArray(data['ticks_' + histDay]) ? data['ticks_' + histDay] : null;
+  const ms = plan().missions[histDay];
+  const sum = [];
+  if (r.t) sum.push(`${r.t} rule${r.t === 1 ? '' : 's'} lived`);
+  if (r.m) sum.push('⚔️ mission lived');
+  if (r.t && r.t >= dayGoal(r)) sum.push('🎯 Focus done');
+  let html = `<strong>${esc(friendlyDate(histDay, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</strong>
+    <p class="hist-sum">${sum.length ? sum.join(' · ') : histDay === currentDay ? 'Nothing lived yet today.' : 'Nothing lived on this day.'}</p>`;
+  // the day's mission(s): the current one, plus any lived earlier that day before it was changed
+  const missionUids = ms ? [...new Set([...missionWas(ms), ms.uid].filter(Boolean))] : [];
+  for (const uid of missionUids) {
+    const hit = ruleByUid(uid);
+    if (!hit) continue;
+    const lived = !!ticks && ticks.includes(uid);
+    html += `<p class="hist-mission">⚔️ Mission: Rule ${hit.rule.n} — ${esc(hit.rule.title)} ${lived ? '✓' : histDay === currentDay ? '(not lived yet)' : '(not lived)'}</p>`;
+  }
+  if (ticks && ticks.length) {
+    const known = ticks.map(uid => ruleByUid(uid)).filter(Boolean), gone = ticks.length - known.length;
+    const SHOW = 40;
+    html += `<ul class="hist-list">${known.slice(0, SHOW).map(({ book, rule, uid }) =>
+      `<li class="${missionUids.includes(uid) ? 'is-mission' : ''}"><span class="book-dot" style="background:${book.color}" title="${esc(prettyName(book.name))}"></span><span>Rule ${rule.n} — ${esc(rule.title)}</span></li>`).join('')}</ul>`;
+    const extra = [];
+    if (known.length > SHOW) extra.push(`${known.length - SHOW} more`);
+    if (gone) extra.push(`${gone} from a book that is no longer in your library`);
+    if (extra.length) html += `<p class="hist-more">+ ${extra.join(' · ')}</p>`;
+  } else if (r.t) {
+    html += `<p class="hist-more">The rule-by-rule list is kept for ${HISTORY_DAYS} days; older days keep their totals.</p>`;
+  }
+  box.innerHTML = html;
+}
+
+function selectHistDay(day) {
+  histDay = histDay === day ? null : day;   // tapping the open day closes it again
+  for (const b of $('hist-grid').querySelectorAll('[data-day]')) {
+    const on = b.dataset.day === histDay;
+    b.classList.toggle('sel', on);
+    b.setAttribute('aria-pressed', String(on));
+  }
+  renderHistDetail();
 }
 
 function renderAll() {
@@ -2943,7 +3042,10 @@ function renderAll() {
   renderToday();
   renderChips();
   renderGrid();
-  renderLibrary();
+  // The library list (a row + five buttons per book) and the History sheet are
+  // only rebuilt while they are open — both are redrawn whenever they open.
+  if ($('library-modal').classList.contains('show')) renderLibrary();
+  if ($('history-modal').classList.contains('show')) renderHistory();
   renderSyncUI();
 }
 
@@ -3139,9 +3241,15 @@ function resetToday() {
   if (staleDay()) return;
   if (!getTicks().length) { toast('Nothing ticked today yet'); return; }
   if (!confirm("Reset all of today's ticks?")) return;
+  const before = getTicks();
   setTicks([]);
   renderAll();
-  toast("Today's ticks reset");
+  toastAction("Today's ticks reset", 'Undo', () => {
+    if (staleDay()) return;
+    setTicks([...new Set([...getTicks(), ...before.filter(uid => ruleByUid(uid))])]);   // plus anything ticked since
+    renderAll();
+    toast(`↩ ${before.length} tick${before.length === 1 ? '' : 's'} restored`);
+  }, 9000);
 }
 
 function checkDayRollover() {
@@ -3730,7 +3838,10 @@ function rewriteUids(fn) {
   }
   const p = data.plan;
   if (p) {
-    for (const m of Object.values(p.missions || {})) if (m && m.uid) { const u = fn(m.uid); if (u !== m.uid) { m.uid = u; changed = true; } }
+    for (const m of Object.values(p.missions || {})) {
+      if (m && m.uid) { const u = fn(m.uid); if (u !== m.uid) { m.uid = u; changed = true; } }
+      if (m && Array.isArray(m.was)) { const w = [...new Set(missionWas(m).map(fn))]; if (w.join() !== m.was.join()) { m.was = w; changed = true; } }
+    }
     if (p.challenge && p.challenge.uid) { const u = fn(p.challenge.uid); if (u !== p.challenge.uid) { p.challenge.uid = u; changed = true; } }
     for (const c of p.challengeLog || []) { const u = fn(c.uid); if (u !== c.uid) { c.uid = u; changed = true; } }
   }
@@ -3892,8 +4003,10 @@ function initFirebase() {
 
 function onAuthChange(user) {
   fbUser = user;
+  authChecked = true;
   if (fbUnsub) { fbUnsub(); fbUnsub = null; }
   if (user) {
+    try { localStorage.setItem(SYNC_WAS_ON_KEY, '1'); } catch (e) { /* ignore */ }
     syncStatus = { state: 'syncing', lastSync: null, error: null };
     renderSyncUI();
     // live listeners: meta doc (ticks + tombstones) and per-book records
@@ -4262,10 +4375,48 @@ async function signIn() {
 }
 
 async function signOutSync() {
+  try { localStorage.removeItem(SYNC_WAS_ON_KEY); } catch (e) { /* ignore */ }   // your choice → no "sync is off" warning
   try { await fbAuth.signOut(); toast('Signed out on this device'); } catch (e) { /* ignore */ }
 }
 
+/* ================= Sync trouble banner =================
+   Sync state used to be visible only at the bottom of Manage library, so a
+   device could stop syncing (an error, or the phone silently dropping the
+   sign-in) and nothing on the main screen said so until phone and iPad
+   disagreed. The banner appears ONLY in those two cases; normally it isn't there. */
+const SYNC_WAS_ON_KEY = 'mastery_sync_was_on';   // this device was signed in (cleared by Sign out / "Not now")
+let authChecked = false;                          // Firebase has told us whether anyone is signed in
+let _syncAlertHtml = '';
+
+function renderSyncAlert() {
+  const el = $('sync-alert');
+  if (!el) return;
+  let wasOn = false;
+  try { wasOn = localStorage.getItem(SYNC_WAS_ON_KEY) === '1'; } catch (e) { /* ignore */ }
+  let html = '';
+  if (fbUser && syncStatus.state === 'error') {
+    html = `<span class="sync-alert-text">⚠ <b>Sync has stopped on this device.</b> What you do is still saved here, but it isn't reaching your other devices.</span>
+      <span class="sync-alert-actions"><button id="sync-alert-retry">${buttonContent('RotateCcw', 'Try again')}</button><button id="sync-alert-open" class="link-btn">See why</button></span>`;
+  } else if (!fbUser && authChecked && wasOn) {
+    html = `<span class="sync-alert-text">☁ <b>Sync is off on this device</b> — it was signed in before. Until you sign in again, this device and your others will drift apart.</span>
+      <span class="sync-alert-actions"><button id="sync-alert-signin" class="primary-btn">Sign in</button><button id="sync-alert-dismiss" class="link-btn">Not now</button></span>`;
+  }
+  if (html === _syncAlertHtml) return;   // unchanged → leave it alone (keeps keyboard focus)
+  _syncAlertHtml = html;
+  el.innerHTML = html;
+  el.hidden = !html;
+  const on = (id, fn) => { const b = $(id); if (b) b.onclick = fn; };
+  on('sync-alert-retry', () => { if (fbUser) onAuthChange(fbUser); });      // re-opens the live connection
+  on('sync-alert-open', () => { openLibrary(); $('sync-box').scrollIntoView({ block: 'center' }); });
+  on('sync-alert-signin', signIn);
+  on('sync-alert-dismiss', () => {
+    try { localStorage.removeItem(SYNC_WAS_ON_KEY); } catch (e) { /* ignore */ }
+    renderSyncAlert();
+  });
+}
+
 function renderSyncUI() {
+  renderSyncAlert();
   const box = $('sync-box');
   if (!box) return;
   if (!fbReady()) {
@@ -4563,8 +4714,12 @@ $('btn-history').onclick = openHistory;
 $('streak').onclick = openHistory;
 $('history-close').onclick = () => closeModal('history-modal');
 $('history-modal').addEventListener('click', (e) => { if (e.target === $('history-modal')) closeModal('history-modal'); });
-$('hist-prev').onclick = () => { histMonth = shiftMonth(histMonth, -1); renderHistory(); };
-$('hist-next').onclick = () => { histMonth = shiftMonth(histMonth, 1); renderHistory(); };
+$('hist-prev').onclick = () => { histMonth = shiftMonth(histMonth, -1); histDay = null; renderHistory(); };
+$('hist-next').onclick = () => { histMonth = shiftMonth(histMonth, 1); histDay = null; renderHistory(); };
+$('hist-grid').addEventListener('click', (e) => {
+  const cell = e.target.closest('[data-day]');
+  if (cell) selectHistDay(cell.dataset.day);
+});
 
 $('btn-reminders').onclick = () => openSheet('reminders-modal');
 $('reminders-close').onclick = () => closeModal('reminders-modal');
