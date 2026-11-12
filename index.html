@@ -1110,7 +1110,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v39 · 2026-11-12 (safer sync, offline start, full search)';
+const APP_VERSION = 'v40 · 2026-11-12 (starred rules share Focus)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1658,15 +1658,27 @@ function getDailyFocus() {
   // Most-neglected first. Ties (e.g. the hundreds of never-lived rules) break by a
   // per-day shuffle — the old alphabetical tie-break filled Focus with one book.
   // Same inputs on every device → same list on phone and iPad.
-  scored.sort((a, b) => Number(isStarred(b.uid)) - Number(isStarred(a.uid)) || b.score - a.score || a.shuffle - b.shuffle);
+  scored.sort((a, b) => b.score - a.score || a.shuffle - b.shuffle);
   // At most `cap` rules per book so the day draws from several books;
   // top up from the rest if the library is too small to fill the set that way.
   const cap = Math.max(2, Math.ceil(focusSize / Math.max(1, data.books.length)));
-  const picked = [], perBook = new Map(), skipped = [];
+  const picked = [], taken = new Set(), perBook = new Map(), skipped = [];
+  const room = (s) => (perBook.get(s.book) || 0) < cap;
+  const take = (s) => { picked.push(s.uid); taken.add(s.uid); perBook.set(s.book, (perBook.get(s.book) || 0) + 1); };
+  // ⭐ Starred rules get first call on up to HALF of today's slots (the most
+  // neglected star first), so they still come up far more often than anything
+  // else. The other half is always drawn from the whole library. Before, every
+  // starred rule went in first — star a Focus-ful of rules and nothing else in
+  // the library ever surfaced again. (A Focus of 1 alternates: star day, library day.)
+  const starSlots = focusSize === 1 ? dayN % 2 : Math.floor(focusSize / 2);
+  for (const s of scored) {
+    if (picked.length >= starSlots) break;
+    if (isStarred(s.uid) && room(s)) take(s);
+  }
   for (const s of scored) {
     if (picked.length >= focusSize) break;
-    const n = perBook.get(s.book) || 0;
-    if (n < cap) { picked.push(s.uid); perBook.set(s.book, n + 1); } else skipped.push(s.uid);
+    if (taken.has(s.uid)) continue;
+    if (room(s)) take(s); else skipped.push(s.uid);
   }
   for (const uid of skipped) { if (picked.length >= focusSize) break; picked.push(uid); }
   _focusCache = new Set(picked);
@@ -1733,7 +1745,8 @@ function plan() {
 /* ================= Your marks: ⭐ star / ✕ not for me =================
    Not every principle fits you. plan().marks = { uid: { v: 'star'|'hide'|null, at } }
    (v null = cleared, kept so the clearing syncs; newest `at` wins on merge).
-   ⭐ starred rules come up more often (reserved Focus slots, preferred mission).
+   ⭐ starred rules come up more often (up to half of each day's Focus is reserved
+   for them — see getDailyFocus — and they are preferred as the suggested mission).
    ✕ hidden rules drop out of Focus, suggestions, Random, search and book lists —
    nothing is deleted, they can be restored from the Hidden view. */
 function markOf(uid) { const m = data.plan && data.plan.marks && data.plan.marks[uid]; return m ? m.v : null; }
