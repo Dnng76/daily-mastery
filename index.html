@@ -299,6 +299,15 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .picker-row.active > .ui-icon { color: var(--cyan); }
   .picker-meta .dup { color: var(--amber); }
   .picker-empty { padding: 18px 6px; color: var(--text-dim); font-size: 0.85rem; }
+  /* group headings in the book list: "Recently opened", then A, B, C… */
+  .picker-group { padding: 16px 6px 4px; font-size: 0.75rem; font-weight: 700; color: var(--text-faint); }
+  .picker-meta.inside { color: var(--cyan); }   /* found by what the book says, not by its name */
+  /* a rule's book tag doubles as a way into that book */
+  .book-link { cursor: pointer; }
+  .book-link:hover { filter: brightness(1.12); }
+  .book-link:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  .library-head .picker-options { margin-top: 8px; }
+  .library-head .picker-options .book-results { margin-top: 0; }
 
   /* ---------- Spotlight ---------- */
   .spotlight {
@@ -966,7 +975,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
       <button id="btn-modal-close" data-icon="X" title="Close library" aria-label="Close library"></button>
     </div>
     <div class="book-search"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#ui-Search"></use></svg><input type="search" id="library-search" class="rename-field" autocomplete="off" placeholder="Find a book by name" aria-label="Search library books"></div>
-    <p class="book-results" id="library-results" role="status"></p>
+    <div class="picker-options"><span class="book-results" id="library-results" role="status"></span><button id="btn-sort-books" class="link-btn" data-icon="ListOrdered" title="Put the whole library in A–Z order (numbered books first)">Sort A–Z</button></div>
     </div>
 
     <div id="book-list"></div>
@@ -1138,7 +1147,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v41 · 2026-11-12 (sync warning, day details, mission credit)';
+const APP_VERSION = 'v42 · 2026-11-12 (easier to find books)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -2026,8 +2035,13 @@ function prettyName(name) {
   return ((m[1] || '') + word).replace(/\s+/g, ' ').trim();
 }
 
-function bookTag(book) {
-  return `<span class="book-tag" style="background:${book.color}">${esc(prettyName(book.name))}</span>`;
+// With a uid the tag is also a way into the book: tapping it opens that book
+// at that rule (see gotoRule). Used wherever a rule is shown away from its book.
+function bookTag(book, uid) {
+  const name = esc(prettyName(book.name));
+  return uid
+    ? `<span class="book-tag book-link" role="link" tabindex="0" data-goto="${uid}" title="Open ${name}" style="background:${book.color}">${name}<span aria-hidden="true"> ›</span></span>`
+    : `<span class="book-tag" style="background:${book.color}">${name}</span>`;
 }
 
 function renderProgress() {
@@ -2110,7 +2124,7 @@ function renderSpotlight() {
     box.innerHTML = `
       <div class="spotlight mission ${done ? 'accomplished' : ''}" style="border-left-color:${done ? 'var(--green)' : book.color}">
         <div class="kicker">⚔️ Today's mission · ${done ? '✓ accomplished' : 'live this one rule today'}</div>
-        <div class="mission-meta">${bookTag(book)}${lvlBadge(uid)}</div>
+        <div class="mission-meta">${bookTag(book, uid)}${lvlBadge(uid)}</div>
         <h2>Rule ${rule.n} — ${esc(rule.title)}</h2>
         ${rule.standard ? `<div class="std">${esc(rule.standard)}</div>` : ''}
         ${missionPlanHtml(mEntry)}
@@ -2150,7 +2164,7 @@ function renderSpotlight() {
   box.innerHTML = `
     <div class="spotlight mission" style="border-left-color:${spot.book.color}">
       <div class="kicker">⚔️ Today's suggested mission</div>
-      <div class="mission-meta">${bookTag(spot.book)}${lvlBadge(spot.uid)}<span class="rule-n">Suggested · ${why}</span></div>
+      <div class="mission-meta">${bookTag(spot.book, spot.uid)}${lvlBadge(spot.uid)}<span class="rule-n">Suggested · ${why}</span></div>
       <h2>Rule ${spot.rule.n} — ${esc(spot.rule.title)}</h2>
       ${spot.rule.standard ? `<div class="std">${esc(spot.rule.standard)}</div>` : ''}
       ${body(spot.uid, spot.rule)}
@@ -2209,7 +2223,7 @@ function renderChallenge() {
         <span class="kicker">🔥 ${c.duration}-day challenge · day ${c.dayIdx + 1} of ${c.duration}</span>
         <button class="link-btn" id="ch-end">End</button>
       </div>
-      <div class="ch-rule">${bookTag(c.book)}${title}</div>
+      <div class="ch-rule">${bookTag(c.book, c.uid)}${title}</div>
       <div class="ch-range">Ends ${friendlyDate(addDays(c.start, c.duration - 1))}${c.duration > 7 ? ` · Days ${rangeStart + 1}–${rangeStart + visibleDays.length}` : ''}</div>
       <progress class="ch-progress" value="${c.doneCount}" max="${c.duration}" aria-label="Challenge days completed"></progress>
       <div class="ch-dots">${dots}</div>
@@ -2287,39 +2301,118 @@ function bookMatches(book, term) {
   return normalize(term).trim().split(/\s+/).every(word => name.includes(word));
 }
 
+/* ================= Finding a book =================
+   With 60-odd books, a plain A–Z list means scrolling and reading. Four ways in:
+   - the books you opened last sit at the top of the Browse sheet (recentBooks);
+   - the A–Z list is broken up by letter headings;
+   - searching in the sheet finds a book by its NAME, and also by what its
+     rules say — so a half-remembered topic is enough ("caffeine");
+   - the main search box lists matching books above the matching rules, and the
+     coloured book tag on any rule opens that rule's book (gotoRule). */
+const RECENT_BOOKS_KEY = 'mastery_recent_books';   // per device, most recent first
+let recentBooks = [];
+try {
+  const saved = JSON.parse(localStorage.getItem(RECENT_BOOKS_KEY));
+  if (Array.isArray(saved)) recentBooks = saved.filter(id => typeof id === 'string');
+} catch (e) { /* ignore */ }
+function saveRecentBooks() {
+  try { localStorage.setItem(RECENT_BOOKS_KEY, JSON.stringify(recentBooks)); } catch (e) { /* ignore */ }
+}
+function noteBookOpened(id) {
+  recentBooks = [id, ...recentBooks.filter(x => x !== id)].slice(0, 8);
+  saveRecentBooks();
+}
+
+// Heading a book files under in the A–Z list: its first letter, or "0–9".
+function bookLetter(book) {
+  const c = normText(prettyName(book.name)).trim().charAt(0).toUpperCase();
+  return /[0-9]/.test(c) ? '0–9' : /[A-Z]/.test(c) ? c : '#';
+}
+
+// How many of a book's (non-hidden) rules contain every search word.
+function rulesMentioning(book, words) {
+  let n = 0;
+  for (const r of book.rules) {
+    if (isHidden(ruleUid(book, r))) continue;
+    const text = searchText(r).all;
+    if (words.every(w => text.includes(w))) n++;
+  }
+  return n;
+}
+
 function renderPickerList() {
   const term = $('picker-search').value.trim();
+  const words = normText(term).trim().split(/\s+/).filter(Boolean);
+  const newest = $('picker-sort').value === 'newest';
   const ds = doneSet();
   const nameCount = new Map();
   for (const b of data.books) {
     const k = prettyName(b.name).toLowerCase();
     nameCount.set(k, (nameCount.get(k) || 0) + 1);
   }
-  const books = sortedBooks().filter(b => bookMatches(b, term));
-  if ($('picker-sort').value === 'newest') books.sort((a, b) => String(b.importedAt || '').localeCompare(String(a.importedAt || '')));
-  $('picker-results').textContent = `${books.length} of ${data.books.length} books`;
+  // books whose NAME matches, A–Z … then, when searching, books whose RULES mention the words
+  const entries = sortedBooks().filter(b => bookMatches(b, term)).map(b => ({ b, inside: 0 }));
+  if (words.length) {
+    const named = new Set(entries.map(e => e.b.id)), byContent = [];
+    for (const b of sortedBooks()) {
+      if (named.has(b.id)) continue;
+      const inside = rulesMentioning(b, words);
+      if (inside) byContent.push({ b, inside });
+    }
+    byContent.sort((x, y) => y.inside - x.inside);
+    entries.push(...byContent);
+  } else if (newest) {
+    entries.sort((x, y) => String(y.b.importedAt || '').localeCompare(String(x.b.importedAt || '')));
+  }
+  $('picker-results').textContent = `${entries.length} of ${data.books.length} books`;
 
-  let html = term ? '' : `
+  const row = (b, inside = 0) => {
+    const done = b.rules.reduce((n, r) => n + (ds.has(ruleUid(b, r)) ? 1 : 0), 0);
+    const hidden = b.rules.reduce((n, r) => n + (isHidden(ruleUid(b, r)) ? 1 : 0), 0);
+    const dup = nameCount.get(prettyName(b.name).toLowerCase()) > 1;
+    return `<button class="picker-row ${filter === b.id ? 'active' : ''}" data-pick="${b.id}" ${inside ? 'data-inside="1"' : ''} aria-current="${filter === b.id ? 'true' : 'false'}">
+      <span class="book-dot" style="background:${b.color}"></span>
+      <span class="picker-copy"><span class="picker-name">${esc(prettyName(b.name))}</span>
+      ${inside ? `<span class="picker-meta inside">${inside} rule${inside === 1 ? ' mentions' : 's mention'} “${esc(term)}”</span>` : ''}
+      <span class="picker-meta">${b.rules.length} rules · ${done} done today${hidden ? ` · ${hidden} hidden` : ''}</span>
+      ${dup || newest ? `<span class="picker-meta">Added ${esc(b.importedAt || 'date unknown')}${dup ? ' · same title' : ''}</span>` : ''}</span>
+      ${uiIcon(filter === b.id ? 'Check' : 'ChevronRight')}
+    </button>`;
+  };
+
+  // letter headings only earn their place in a long A–Z list
+  const letters = !term && !newest && data.books.length >= 12;
+  let html = '';
+  if (!term) {
+    html += `
     <button class="picker-row ${filter === 'all' ? 'active' : ''}" data-pick="all" aria-current="${filter === 'all' ? 'true' : 'false'}">
       <span class="book-dot" style="background:var(--text-faint)"></span>
       <span class="picker-copy"><span class="picker-name">All books</span><span class="picker-meta">${data.books.length} books in your library</span></span>
       ${uiIcon(filter === 'all' ? 'Check' : 'ChevronRight')}
     </button>`;
-  html += books.map(b => {
-    const done = b.rules.reduce((n, r) => n + (ds.has(ruleUid(b, r)) ? 1 : 0), 0);
-    const hidden = b.rules.reduce((n, r) => n + (isHidden(ruleUid(b, r)) ? 1 : 0), 0);
-    const dup = nameCount.get(prettyName(b.name).toLowerCase()) > 1;
-    return `<button class="picker-row ${filter === b.id ? 'active' : ''}" data-pick="${b.id}" aria-current="${filter === b.id ? 'true' : 'false'}">
-      <span class="book-dot" style="background:${b.color}"></span>
-      <span class="picker-copy"><span class="picker-name">${esc(prettyName(b.name))}</span>
-      <span class="picker-meta">${b.rules.length} rules · ${done} done today${hidden ? ` · ${hidden} hidden` : ''}</span>
-      ${dup || $('picker-sort').value === 'newest' ? `<span class="picker-meta">Added ${esc(b.importedAt || 'date unknown')}${dup ? ' · same title' : ''}</span>` : ''}</span>
-      ${uiIcon(filter === b.id ? 'Check' : 'ChevronRight')}
-    </button>`;
+    const recent = recentBooks.map(id => data.books.find(b => b.id === id)).filter(Boolean).slice(0, 5);
+    if (recent.length && data.books.length > 5) {
+      html += `<div class="picker-group">Recently opened</div>${recent.map(b => row(b)).join('')}`;
+      if (!letters) html += `<div class="picker-group">${newest ? 'All books, newest first' : 'All books A–Z'}</div>`;
+    }
+  }
+  let letter = null;
+  html += entries.map(({ b, inside }) => {
+    let heading = '';
+    if (letters && bookLetter(b) !== letter) { letter = bookLetter(b); heading = `<div class="picker-group">${letter}</div>`; }
+    return heading + row(b, inside);
   }).join('');
-  if (term && !books.length) html = `<div class="picker-empty">No book matches “${esc(term)}”.</div>`;
+  if (term && !entries.length) html = `<div class="picker-empty">No book is named, or mentions, “${esc(term)}”.</div>`;
   if (!data.books.length) html = `<div class="picker-empty">No books imported yet.</div>`;
   $('picker-list').innerHTML = html;
+}
+
+// From a rule to its book: opens the book with that rule unfolded and in view.
+function gotoRule(uid) {
+  const hit = ruleByUid(uid);
+  if (!hit) return;
+  selectBook(hit.book.id);
+  if (!isHidden(uid)) jumpTo(uid);
 }
 
 let bookPickerReturnFocus = null;
@@ -2362,7 +2455,7 @@ function selectBook(id) {
   searchTerm = '';
   $('search').value = '';
   filter = id;
-  if (id !== 'all') { openBooks.add(id); saveOpenBooks(); }
+  if (id !== 'all') { openBooks.add(id); saveOpenBooks(); noteBookOpened(id); }
   closeBookPicker(false);
   closeLibrary(false);
   renderAll();
@@ -2580,7 +2673,7 @@ function cardHtml(book, rule, uid, showTag, snippet = '') {
        id="card-${cssId(uid)}" data-uid="${uid}" style="border-left-color:${book.color}">
     <div class="card-top">
       <div class="card-top-left">
-        ${showTag ? bookTag(book) : ''}
+        ${showTag ? bookTag(book, uid) : ''}
         <span class="rule-n">RULE ${rule.n}</span>
         <span class="lvl-slot">${lvlBadge(uid)}</span>
       </div>
@@ -2663,6 +2756,23 @@ function renderGrid() {
       : `${n} in ${esc(filterLabel())}${widerCount > rules.length ? ` <button class="link-btn" id="search-all">Show all ${widerCount} in every book</button>` : ''}`}</div>` + html;
   }
 
+  // Searching also finds BOOKS by name: they are listed first, one tap opens the book.
+  let booksHtml = '', bookHits = [];
+  if (searching) {
+    const term = searchTerm.trim();
+    bookHits = sortedBooks().filter(b => bookMatches(b, term));
+    if (bookHits.length) {
+      const SHOW = 6;
+      booksHtml = `<div class="search-note" role="status">${bookHits.length} book${bookHits.length === 1 ? '' : 's'} named “${esc(term)}”</div>`
+        + bookHits.slice(0, SHOW).map(b => `<div class="section-header book-hit" data-open-book="${b.id}" style="border-left-color:${b.color}">
+            <span class="book-tag" style="background:${b.color}">${esc(prettyName(b.name))}</span>
+            <span class="section-count">${b.rules.length} rules</span>
+            <button class="collapse-arrow" aria-label="Open ${esc(prettyName(b.name))}">${uiIcon('ChevronRight')}</button>
+          </div>`).join('')
+        + (bookHits.length > SHOW ? `<button class="more-cards" id="more-books">${buttonContent('Library', `See all ${bookHits.length} books`)}</button>` : '');
+    }
+  }
+
   // Mastery view: a one-line scoreboard of how many rules sit at each level
   if (filter === 'mastery' && rules.length) {
     const tally = { mastered: 0, living: 0, practicing: 0, learning: 0 };
@@ -2689,6 +2799,8 @@ function renderGrid() {
           <strong>Nothing mastered yet — that's the point</strong>
           <p>Every day you tick a rule because you actually lived it, it grows: 🌱 Learning → 🌿 Practicing → 🌳 Living it → 🏆 Mastered. Pick a mission or start a challenge to begin.</p>
         </div>`
+      : (term && bookHits.length && !widerCount)
+      ? `<div class="search-note">No rule mentions “${esc(term)}” — only the book${bookHits.length === 1 ? '' : 's'} above.</div>`
       : (term && widerCount)
       ? `<div class="empty" style="grid-column:1/-1">
           <strong>No matches in ${esc(filterLabel())}</strong>
@@ -2702,8 +2814,15 @@ function renderGrid() {
         </div>`;
   }
 
-  $('grid').innerHTML = html;
+  $('grid').innerHTML = booksHtml + html;
   renderCardPracticeActions();
+  const moreBooks = $('more-books');
+  if (moreBooks) moreBooks.onclick = () => {   // the full list of matching books lives in the Browse sheet
+    const term = searchTerm.trim();
+    openBookPicker();
+    $('picker-search').value = term;
+    renderPickerList();
+  };
   const clr = $('clear-filters');
   if (clr) clr.onclick = () => {
     // clearing a search goes back to the view you were in; clearing a filter goes to All
@@ -2736,10 +2855,15 @@ $('grid').addEventListener('click', (e) => {
   if (challengeBtn) { startChallenge(challengeBtn.dataset.challenge); return; }
   if (e.target.closest('#clear-filters')) return;
 
+  const goto = e.target.closest('[data-goto]');            // a rule's book tag → that book, at that rule
+  if (goto) { gotoRule(goto.dataset.goto); return; }
+  const bookHit = e.target.closest('[data-open-book]');     // a book found by the main search
+  if (bookHit) { selectBook(bookHit.dataset.openBook); return; }
+
   const hdr = e.target.closest('.section-header');
   if (hdr) {
     const id = hdr.dataset.collapse;
-    openBooks.has(id) ? openBooks.delete(id) : openBooks.add(id);
+    if (openBooks.has(id)) openBooks.delete(id); else { openBooks.add(id); noteBookOpened(id); }
     saveOpenBooks();
     renderGrid();
     return;
@@ -2779,6 +2903,8 @@ function renderLibrary() {
   }
   const removeRow = $('remove-all-row');
   if (removeRow) removeRow.hidden = !nBooks || !!term;
+  const sortBtn = $('btn-sort-books');
+  if (sortBtn) sortBtn.hidden = nBooks < 2 || !!term || librarySortedAZ();   // nothing to do → not offered
   const fv = $('focus-size-val');
   if (fv) fv.textContent = focusSize;
   if (!nBooks) {
@@ -2818,6 +2944,29 @@ function renderLibrary() {
   for (const btn of list.querySelectorAll('[data-open-book]')) btn.onclick = () => selectBook(btn.dataset.openBook);
   for (const btn of list.querySelectorAll('[data-up]'))   btn.onclick = () => moveBook(btn.dataset.up, -1);
   for (const btn of list.querySelectorAll('[data-down]')) btn.onclick = () => moveBook(btn.dataset.down, 1);
+}
+
+// One tap puts the whole library in the same natural A–Z order as the Browse
+// sheet (numbered books first, 2 before 10), so the "All" view and this list
+// can be scanned by name. The order is this device's own; Undo puts it back.
+function librarySortedAZ() {
+  const sorted = sortedBooks();
+  return data.books.every((b, i) => b.id === sorted[i].id);
+}
+function setLibraryOrder(ids) {
+  const byId = new Map(data.books.map(b => [b.id, b]));
+  const next = ids.map(id => byId.get(id)).filter(Boolean);
+  for (const b of data.books) if (!ids.includes(b.id)) next.push(b);   // anything new since keeps its place at the end
+  data.books = next;
+  invalidateRules();
+  writeBooks();   // the order lives in the index
+  renderAll();
+}
+function sortLibraryAZ() {
+  if (librarySortedAZ()) { toast('Already in A–Z order'); return; }
+  const before = data.books.map(b => b.id);
+  setLibraryOrder(sortedBooks().map(b => b.id));
+  toastAction('Library sorted A–Z', 'Undo', () => { setLibraryOrder(before); toast('↩ Back to the order you had'); }, 9000);
 }
 
 function moveBook(id, dir) {
@@ -3217,6 +3366,7 @@ function reviveBook(src, index) {
   booksChanged(book.id);
   rewriteUids(aliasUid);
   if (openBooks.has(from)) { openBooks.delete(from); openBooks.add(book.id); saveOpenBooks(); }
+  if (recentBooks.includes(from)) { recentBooks = recentBooks.map(id => (id === from ? book.id : id)); saveRecentBooks(); }
   return book;
 }
 
@@ -3916,6 +4066,7 @@ function mergeBookInto(keep, dup) {
   bookRemoved(dup.id);
   booksChanged(keep.id);
   if (openBooks.has(dup.id)) { openBooks.delete(dup.id); openBooks.add(keep.id); saveOpenBooks(); }
+  if (recentBooks.includes(dup.id)) { recentBooks = [...new Set(recentBooks.map(id => (id === dup.id ? keep.id : id)))]; saveRecentBooks(); }
   if (filter === dup.id) filter = keep.id;
 }
 
@@ -4758,6 +4909,7 @@ $('btn-reset').onclick = resetToday;
 $('btn-import').onclick = () => $('file-input').click();
 $('btn-modal-import').onclick = () => $('file-input').click();
 $('btn-remove-all').onclick = removeAllBooks;
+$('btn-sort-books').onclick = sortLibraryAZ;
 $('focus-minus').onclick = () => setFocusSize(focusSize - 5);
 $('focus-plus').onclick  = () => setFocusSize(focusSize + 5);
 $('file-input').addEventListener('change', (e) => {
@@ -4810,7 +4962,24 @@ $('book-picker').addEventListener('click', (e) => {
   if (e.target === $('book-picker')) { closeBookPicker(); return; }
   const row = e.target.closest('[data-pick]');
   if (!row) return;
+  // a book found by what it SAYS opens showing just the rules that say it
+  const term = row.dataset.inside ? $('picker-search').value.trim() : '';
   selectBook(row.dataset.pick);
+  if (term) {
+    searchTerm = term; $('search').value = term; searchAll = false;
+    renderChips(); renderGrid();
+  }
+});
+// book tags outside the grid (mission, challenge) — and the keyboard, for all of them
+document.addEventListener('click', (e) => {
+  const goto = e.target.closest('[data-goto]');
+  if (goto && !goto.closest('#grid')) gotoRule(goto.dataset.goto);
+});
+document.addEventListener('keydown', (e) => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-goto]')) {
+    e.preventDefault();
+    gotoRule(e.target.dataset.goto);
+  }
 });
 
 // Drag & drop anywhere on the page
