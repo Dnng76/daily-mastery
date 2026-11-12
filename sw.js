@@ -1,16 +1,26 @@
-/* Daily Mastery service worker — network-first for HTML so the app always
-   updates to the latest version when online, with an offline cache fallback. */
-const VERSION = 'v38-2026-10-18';
+/* Daily Mastery service worker — network-first for the app page so it always
+   updates to the latest version when online, with an offline copy of the page
+   and of every file the app ships with (icons, PDF reader, Firebase). */
+const VERSION = 'v39-2026-11-12';
 const CACHE = 'daily-mastery-' + VERSION;
+const SHELL = './index.html';
 const ASSETS = [
-  './', './index.html', './manifest.webmanifest',
-  './icon-192.png', './icon-512.png', './apple-touch-icon.png',
-  './pdf.worker.min.js'   // self-hosted PDF worker → import works offline / in PWA
+  SHELL, './manifest.webmanifest',
+  './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon-32.png',
+  // self-hosted libraries → PDF import and sync start with no connection to any CDN
+  './pdf.min.js', './pdf.worker.min.js',
+  './firebase-app-compat.js', './firebase-auth-compat.js', './firebase-firestore-compat.js'
 ];
+const abs = (path) => new URL(path, self.location).href;
+const ASSET_URLS = new Set(ASSETS.map(abs));
+const SHELL_URLS = new Set(['./', SHELL].map(abs));   // the app page, with or without "index.html"
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS).catch(() => {})));
+  // One file at a time: a single missing file must not stop the rest being saved.
+  // 'reload' skips the browser's own cache so the saved copies are really current.
+  e.waitUntil(caches.open(CACHE).then(c =>
+    Promise.all(ASSETS.map(a => c.add(new Request(a, { cache: 'reload' })).catch(() => {})))));
 });
 
 self.addEventListener('activate', (e) => {
@@ -24,22 +34,36 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
+  const url = req.url.split('#')[0].split('?')[0];
 
-  const isHTML = req.mode === 'navigate' ||
-    (req.headers.get('accept') || '').includes('text/html');
-
-  if (isHTML) {
-    // Always try the network first so a new index.html is picked up immediately.
+  // The app page: always try the network first so a new version is picked up
+  // immediately; offline, use the saved copy. Only a real, successful copy of
+  // the app page is ever saved — an error page, or another file opened under
+  // this address (the reminders calendar), can't replace the offline copy.
+  if (req.mode === 'navigate' && SHELL_URLS.has(url)) {
     e.respondWith(
       fetch(req).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put('./index.html', copy));
+        if (res.ok && (res.headers.get('content-type') || '').includes('text/html')) {
+          const copy = res.clone();
+          e.waitUntil(caches.open(CACHE).then(c => c.put(SHELL, copy)));
+        }
         return res;
-      }).catch(() => caches.match(req).then(m => m || caches.match('./index.html')))
+      }).catch(() => caches.match(SHELL).then(m => m || Response.error()))
     );
     return;
   }
 
-  // Other same-origin assets: cache-first, fall back to network.
-  e.respondWith(caches.match(req).then(m => m || fetch(req)));
+  // Files the app ships with: saved copy first, network as the fallback
+  // (and that answer is saved for next time).
+  if (ASSET_URLS.has(url)) {
+    e.respondWith(caches.match(url).then(m => m || fetch(req).then(res => {
+      if (res.ok) {
+        const copy = res.clone();
+        e.waitUntil(caches.open(CACHE).then(c => c.put(url, copy)));
+      }
+      return res;
+    })));
+  }
+  // Everything else (the calendar file, Google sign-in, sync traffic, a CDN
+  // fallback) goes straight to the network, untouched.
 });

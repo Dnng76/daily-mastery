@@ -8,15 +8,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Mastery">
-<!-- Inline SVG favicon: scalable, works offline and when opening the file locally -->
 <link rel="icon" href="favicon-32.png" type="image/png">
 <!-- PNG icons + manifest for installing to the phone home screen (served from the site) -->
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<!-- No third-party <script> tags here on purpose: the PDF reader and Firebase are
+     loaded on demand by loadLib() further down, so the app draws immediately and
+     still starts when those files can't be reached (offline, blocked, outage). -->
 <!-- LZString (inlined so storage compression works offline) — github.com/pieroxy/lz-string MIT -->
 <script>
 var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",n="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$",e={};function t(r,o){if(!e[r]){e[r]={};for(var n=0;n<r.length;n++)e[r][r.charAt(n)]=n}return e[r][o]}var i={compressToBase64:function(r){if(null==r)return"";var n=i._compress(r,6,function(r){return o.charAt(r)});switch(n.length%4){default:case 0:return n;case 1:return n+"===";case 2:return n+"==";case 3:return n+"="}},decompressFromBase64:function(r){return null==r?"":""==r?null:i._decompress(r.length,32,function(n){return t(o,r.charAt(n))})},compressToUTF16:function(o){return null==o?"":i._compress(o,15,function(o){return r(o+32)})+" "},decompressFromUTF16:function(r){return null==r?"":""==r?null:i._decompress(r.length,16384,function(o){return r.charCodeAt(o)-32})},compress:function(o){return i._compress(o,16,function(o){return r(o)})},_compress:function(r,o,n){if(null==r)return"";var e,t,i,s={},u={},a="",p="",c="",l=2,f=3,h=2,d=[],m=0,v=0;for(i=0;i<r.length;i+=1)if(a=r.charAt(i),Object.prototype.hasOwnProperty.call(s,a)||(s[a]=f++,u[a]=!0),p=c+a,Object.prototype.hasOwnProperty.call(s,p))c=p;else{if(Object.prototype.hasOwnProperty.call(u,c)){if(c.charCodeAt(0)<256){for(e=0;e<h;e++)m<<=1,v==o-1?(v=0,d.push(n(m)),m=0):v++;for(t=c.charCodeAt(0),e=0;e<8;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}else{for(t=1,e=0;e<h;e++)m=m<<1|t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t=0;for(t=c.charCodeAt(0),e=0;e<16;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}0==--l&&(l=Math.pow(2,h),h++),delete u[c]}else for(t=s[c],e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;0==--l&&(l=Math.pow(2,h),h++),s[p]=f++,c=String(a)}if(""!==c){if(Object.prototype.hasOwnProperty.call(u,c)){if(c.charCodeAt(0)<256){for(e=0;e<h;e++)m<<=1,v==o-1?(v=0,d.push(n(m)),m=0):v++;for(t=c.charCodeAt(0),e=0;e<8;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}else{for(t=1,e=0;e<h;e++)m=m<<1|t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t=0;for(t=c.charCodeAt(0),e=0;e<16;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}0==--l&&(l=Math.pow(2,h),h++),delete u[c]}else for(t=s[c],e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;0==--l&&(l=Math.pow(2,h),h++)}for(t=2,e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;for(;;){if(m<<=1,v==o-1){d.push(n(m));break}v++}return d.join("")},decompress:function(r){return null==r?"":""==r?null:i._decompress(r.length,32768,function(o){return r.charCodeAt(o)})},_decompress:function(o,n,e){var t,i,s,u,a,p,c,l=[],f=4,h=4,d=3,m="",v=[],g={val:e(0),position:n,index:1};for(t=0;t<3;t+=1)l[t]=t;for(s=0,a=Math.pow(2,2),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;switch(s){case 0:for(s=0,a=Math.pow(2,8),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;c=r(s);break;case 1:for(s=0,a=Math.pow(2,16),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;c=r(s);break;case 2:return""}for(l[3]=c,i=c,v.push(c);;){if(g.index>o)return"";for(s=0,a=Math.pow(2,d),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;switch(c=s){case 0:for(s=0,a=Math.pow(2,8),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;l[h++]=r(s),c=h-1,f--;break;case 1:for(s=0,a=Math.pow(2,16),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;l[h++]=r(s),c=h-1,f--;break;case 2:return v.join("")}if(0==f&&(f=Math.pow(2,d),d++),l[c])m=l[c];else{if(c!==h)return null;m=i+i.charAt(0)}v.push(m),l[h++]=i+m.charAt(0),i=m,0==--f&&(f=Math.pow(2,d),d++)}}};return i}();
@@ -197,7 +195,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .mission-plan .link-btn { padding: 2px 4px; margin-left: 4px; }
   .plan-form { margin: 2px 0 14px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; display: grid; gap: 8px; }
   .plan-form label { font-size: 0.78rem; color: var(--text-dim); font-weight: 600; }
-  .plan-form input { margin: 0; font-size: 0.95rem; }
+  .plan-form input { margin: 0; font-size: 1rem; }   /* 16px: anything smaller makes iPhone zoom the page on focus */
   .plan-form .plan-hint { font-size: 0.76rem; color: var(--text-dim); }
   .plan-actions { display: flex; gap: 8px; justify-content: flex-end; }
 
@@ -259,7 +257,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .picker-options { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .book-results { font-size: 0.78rem; color: var(--text-dim); }
   .picker-sort-label { display: flex; align-items: center; gap: 8px; color: var(--text-dim); font-size: 0.78rem; }
-  .picker-sort-label select { font: inherit; font-size: 0.85rem; color: var(--text); background: var(--surface-2); border: 1px solid var(--button-border); border-radius: 6px; padding: 8px; min-height: 44px; }
+  .picker-sort-label select { font: inherit; font-size: 1rem; color: var(--text); background: var(--surface-2); border: 1px solid var(--button-border); border-radius: 6px; padding: 8px; min-height: 44px; }
   .picker-sort-label select:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
   .picker-row {
     display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
@@ -592,8 +590,12 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     max-width: 520px;
     max-height: 80vh;
     overflow-y: auto;
+    overscroll-behavior: contain;   /* reaching the end of a sheet must not start scrolling the page behind */
     padding: 20px;
   }
+  /* while any sheet is open the page behind stays put (class set by lockScroll) */
+  html { scrollbar-gutter: stable; }
+  body.modal-open { overflow: hidden; }
   @media (min-width: 560px) {
     .modal-backdrop.show { align-items: center; }
     .modal { border-radius: 16px; }
@@ -731,6 +733,15 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     color: var(--text-faint);
     margin: 4px 0 10px;
   }
+
+  /* ---------- Search results ---------- */
+  .search-note { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: 0.84rem; color: var(--text-dim); padding: 0 2px; }
+  .search-note .link-btn { color: var(--cyan); font-size: 0.84rem; text-decoration: underline; text-underline-offset: 3px; }
+  .card-snippet { margin-top: 8px; font-size: 0.84rem; line-height: 1.5; color: var(--text-dim); overflow-wrap: anywhere; cursor: pointer; }
+  .card.open .card-snippet { display: none; }   /* the full text is on show — no need for the excerpt */
+  .card-snippet mark { background: #4a3c1c; color: #ffe58a; border-radius: 3px; padding: 0 2px; }
+  .more-cards { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 56px; }
+  .more-left { font-size: 0.74rem; font-weight: 400; color: var(--text-dim); }
   .count-note { font-size: 0.78rem; color: var(--text-faint); margin: 14px 0 0; text-align: center; }
 
   /* ---------- Import diagnostic banner ---------- */
@@ -797,7 +808,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     color: var(--text);
     padding: 11px 13px;
     font: inherit;
-    font-size: 0.95rem;
+    font-size: 1rem;   /* 16px minimum — smaller text makes iPhone zoom in when the box is tapped */
     outline: none;
     margin-top: 4px;
   }
@@ -818,6 +829,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     .chips::-webkit-scrollbar { display: none; }
     .chips .chip { flex-shrink: 0; }
   }
+  /* any touch device (iPad included): 16px text so tapping the search box never zooms the page */
+  @media (pointer: coarse) { .toolbar input[type="search"] { font-size: 1rem; } }
   @media (max-width: 480px) {
     .wrap { padding: 16px; }
     header { padding-top: 4px; }
@@ -955,8 +968,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 </div>
 
 <div class="modal-backdrop" id="rename-modal">
-  <div class="modal rename-modal">
-    <h3>Rename book</h3>
+  <div class="modal rename-modal" role="dialog" aria-modal="true" aria-labelledby="rename-title">
+    <h3 id="rename-title">Rename book</h3>
     <input type="text" id="rename-input" class="rename-field" autocomplete="off" placeholder="Book name">
     <div class="modal-footer">
       <button id="rename-cancel">Cancel</button>
@@ -1054,13 +1067,50 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 <script>
 'use strict';
 
-// Self-hosted worker (cached by the service worker) so PDF parsing is reliable
-// inside an installed PWA / offline, instead of depending on the CDN worker.
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
+/* ================= Libraries, loaded on demand =================
+   The app itself needs nothing from the network. Its two helpers are fetched
+   only when wanted — the PDF reader when you import a PDF, Firebase (sync)
+   right after the first screen is drawn — so a slow or missing connection can
+   never hold up, or break, the app. Each file is tried from this site first
+   (the service worker keeps a copy for offline) and from its CDN second. */
+const LIBS = {
+  pdf: [['pdf.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js']],
+  firebase: ['app', 'auth', 'firestore'].map(n =>
+    [`firebase-${n}-compat.js`, `https://www.gstatic.com/firebasejs/10.12.5/firebase-${n}-compat.js`])
+};
+const PDF_WORKER_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve(src);
+    s.onerror = () => { s.remove(); reject(new Error('Could not load ' + src)); };
+    document.head.appendChild(s);
+  });
+}
+
+const _libLoads = {}, _libFromCdn = {};
+function loadLib(name) {   // resolves once every script of that library has run
+  return _libLoads[name] || (_libLoads[name] = (async () => {
+    for (const [local, cdn] of LIBS[name]) {
+      try { await loadScript(local); }
+      catch (e) { await loadScript(cdn); _libFromCdn[name] = true; }
+    }
+  })().catch(e => { delete _libLoads[name]; throw e; }));   // failed → the next call tries again
+}
+
+async function ensurePdfJs() {
+  if (typeof pdfjsLib === 'undefined') await loadLib('pdf');
+  // Self-hosted worker (cached by the service worker) so PDF parsing is reliable
+  // inside an installed PWA / offline. If the reader itself had to come from the
+  // CDN, take the matching worker from there too.
+  pdfjsLib.GlobalWorkerOptions.workerSrc = _libFromCdn.pdf ? PDF_WORKER_CDN : 'pdf.worker.min.js';
+}
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v38 · 2026-10-18 (backup, history, reminders)';
+const APP_VERSION = 'v39 · 2026-11-12 (safer sync, offline start, full search)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1150,8 +1200,12 @@ function writeTicks() {
    Detailed ticks are pruned after HISTORY_DAYS (mastery levels are a rolling
    window on purpose), but your streak and History must not be — otherwise the
    streak stalled at 61 days. data.daylog keeps one tiny record per day, forever:
-     { 'YYYY-MM-DD': { t: rules lived that day, m: 1 if you lived your mission } }
-   ~20 bytes a day. Synced with the ticks (merge = max per day). */
+     { 'YYYY-MM-DD': { t: rules lived that day, m: 1 if you lived your mission,
+                       g: the Focus size that day — the number of rules that counted as "Focus done" } }
+   ~30 bytes a day. Synced with the ticks (merge = max per day; smallest goal).
+   The goal is stored WITH the day so that changing your Daily Focus size later
+   can't rewrite history: before, raising it from 15 to 20 made every past
+   15-rule day stop counting and a long streak read 0. */
 function refreshDaylog() {
   const log = data.daylog || (data.daylog = {});
   const missions = (data.plan && data.plan.missions) || {};
@@ -1160,8 +1214,12 @@ function refreshDaylog() {
     const day = k.slice(6), ticks = data[k], ms = missions[day], cur = log[day];
     const rec = { t: ticks.length };
     if (ms ? (ms.uid && ticks.includes(ms.uid)) : (cur && cur.m)) rec.m = 1;
+    // today's goal is set when the day's record starts and can only come down
+    // during the day; a past day keeps the goal it was lived under
+    const g = day === currentDay ? Math.min((cur && cur.g) || focusSize, focusSize) : (cur && cur.g);
+    if (g) rec.g = g;
     if (!rec.t && !rec.m) { if (cur) delete log[day]; continue; }
-    if (!cur || cur.t !== rec.t || (cur.m || 0) !== (rec.m || 0)) log[day] = rec;
+    if (!cur || cur.t !== rec.t || (cur.m || 0) !== (rec.m || 0) || (cur.g || 0) !== (rec.g || 0)) log[day] = rec;
   }
 }
 
@@ -1174,7 +1232,9 @@ function mergeDaylog(remoteLog) {
     const cur = log[day] || { t: 0 };
     const next = { t: Math.max(cur.t || 0, r.t || 0) };
     if (cur.m || r.m) next.m = 1;
-    if (next.t !== (cur.t || 0) || (next.m || 0) !== (cur.m || 0)) { log[day] = next; changed = true; }
+    const g = Math.min(cur.g > 0 ? cur.g : Infinity, r.g > 0 ? r.g : Infinity);   // devices agree on the smaller goal
+    if (g !== Infinity) next.g = g;
+    if (next.t !== (cur.t || 0) || (next.m || 0) !== (cur.m || 0) || (next.g || 0) !== (cur.g || 0)) { log[day] = next; changed = true; }
   }
   return changed;
 }
@@ -1183,15 +1243,18 @@ function remoteMissingOurLog(remoteLog) {
   remoteLog = remoteLog || {};
   for (const [day, r] of Object.entries(data.daylog || {})) {
     const o = remoteLog[day];
-    if (!o || (r.t || 0) > (o.t || 0) || (r.m && !o.m)) return true;
+    if (!o || (r.t || 0) > (o.t || 0) || (r.m && !o.m) || (r.g && (!o.g || r.g < o.g))) return true;
   }
   return false;
 }
 
+// The number of rules that made "Focus done" on that day (older records: today's size).
+function dayGoal(r) { return (r && r.g) || focusSize; }
+
 // Does this day count toward the streak? Lived your mission, or finished Focus.
 function dayCounts(day) {
   const r = data.daylog && data.daylog[day];
-  return !!r && (r.m === 1 || (r.t || 0) >= focusSize);
+  return !!r && (r.m === 1 || (r.t || 0) >= dayGoal(r));
 }
 
 // Which books need their local record rewritten / removed. Migrating from a
@@ -1282,16 +1345,99 @@ let currentDay = todayKey();
 function ticksKey() { return 'ticks_' + currentDay; }
 function getTicks() { return data[ticksKey()] || []; }
 function setTicks(arr) {
-  data[ticksKey()] = arr;
+  const key = ticksKey(), now = Date.now();
+  // Log WHAT changed and when — not just the new list — so two devices that tick
+  // on the same day are merged rule by rule (see "Tick log" below).
+  const before = new Set(data[key] || []), after = new Set(arr);
+  const ops = dayOps(currentDay);
+  for (const uid of after) if (!before.has(uid)) ops[uid] = opStamp(ops[uid], now);
+  for (const uid of before) if (!after.has(uid)) ops[uid] = -opStamp(ops[uid], now);
+  data[key] = arr;
   _doneSet = null; _livedCache = null; // tick set changed → rebuild lookups on next use
-  data.tickStamp = { [currentDay]: Date.now() }; // per-day timestamp drives sync conflict resolution
+  data.tickStamp = { [currentDay]: now }; // day-level time: still read by devices on an older version
   // keep history (for the smart spotlight), but prune anything older than HISTORY_DAYS
   const cutoff = dateKey(new Date(Date.now() - HISTORY_DAYS * 86400000));
   archiveChallengeDays(cutoff);
   for (const k of Object.keys(data)) {
     if (k.startsWith('ticks_') && k.slice(6) < cutoff) delete data[k];
   }
+  pruneTickOps();
   save();
+}
+
+/* ================= Tick log (what makes two-device sync safe) =================
+   data.tickOps = { 'YYYY-MM-DD': { uid: ±time } }   +time = ticked, −time = unticked
+   Syncing used to be "the device that changed the day last wins the whole day",
+   so a tick made before the other device's ticks had arrived wiped them out.
+   With a time per rule, a merge keeps every tick and applies every untick: for
+   each rule the newest action wins. Kept for the last OPS_DAYS days only — older
+   days can no longer be unticked, so there a plain union is always right. */
+const OPS_DAYS = 7;
+function opsCutoff() { return addDays(currentDay, -OPS_DAYS); }
+function dayOps(day) { const all = data.tickOps || (data.tickOps = {}); return all[day] || (all[day] = {}); }
+// time for a new action: now, but always after anything already known for that rule
+function opStamp(prev, now) { return Math.max(now || Date.now(), Math.abs(prev || 0) + 1); }
+// which of two actions on one rule stands? the later one; a dead heat keeps the tick
+function newerOp(e, cur) {
+  return cur === undefined || Math.abs(e) > Math.abs(cur) || (Math.abs(e) === Math.abs(cur) && e > cur);
+}
+function pruneTickOps() {
+  const all = data.tickOps;
+  if (!all) return;
+  const cutoff = opsCutoff();
+  for (const day of Object.keys(all)) if (day < cutoff || !Object.keys(all[day]).length) delete all[day];
+}
+function sameOps(a, b) {
+  const ka = Object.keys(a || {}), kb = Object.keys(b || {});
+  return ka.length === kb.length && ka.every(k => a[k] === b[k]);
+}
+
+// One day's ticks from two devices → one answer. Each side is { list, ops, stamp }.
+// A rule that is in a list but has no logged time (ticked on an older version)
+// counts as ticked at that side's day stamp, so it is never dropped merely
+// because the other side's list doesn't contain it — only a later, explicit
+// untick removes a tick.
+function mergeDayTicks(mine, theirs) {
+  const view = ({ list, ops, stamp }) => {
+    const out = new Map(), implicit = Math.max(1, stamp || 0);
+    for (const uid of list || []) { const e = ops && ops[uid]; out.set(uid, e > 0 ? e : e < 0 ? -e + 1 : implicit); }
+    for (const [uid, e] of Object.entries(ops || {})) if (e < 0 && !out.has(uid)) out.set(uid, e);
+    return out;
+  };
+  const a = view(mine), b = view(theirs), ops = {};
+  for (const side of [a, b]) for (const [uid, e] of side) if (newerOp(e, ops[uid])) ops[uid] = e;
+  const list = [...new Set([...(mine.list || []), ...(theirs.list || [])])].filter(uid => ops[uid] > 0);
+  return { list, ops };
+}
+
+// Merge every day of a remote tick payload into ours; true when anything changed.
+function mergeTickDays(remote) {
+  const ls = data.tickStamp || {}, rs = remote.tickStamp || {};
+  const lo = data.tickOps || (data.tickOps = {}), ro = remote.ops || {};
+  const cutoff = opsCutoff();
+  const keys = new Set([...Object.keys(data), ...Object.keys(remote)].filter(k => k.startsWith('ticks_')));
+  // a day where everything was unticked has no list left, only its log
+  for (const day of [...Object.keys(lo), ...Object.keys(ro)]) if (day >= cutoff) keys.add('ticks_' + day);
+  const stamps = {};
+  let changed = false;
+  for (const k of keys) {
+    const day = k.slice('ticks_'.length);
+    const lt = ls[day] || 0, rt = rs[day] || 0;
+    let next;
+    if (day >= cutoff) {
+      const m = mergeDayTicks({ list: data[k], ops: lo[day], stamp: lt }, { list: remote[k], ops: ro[day], stamp: rt });
+      next = m.list;
+      if (!sameOps(m.ops, lo[day])) { lo[day] = m.ops; changed = true; }
+    } else {
+      next = [...new Set([...(data[k] || []), ...(remote[k] || [])])];
+    }
+    if (JSON.stringify(next) !== JSON.stringify(data[k] || [])) { data[k] = next; changed = true; }
+    stamps[day] = Math.max(lt, rt);
+  }
+  data.tickStamp = stamps;
+  pruneTickOps();
+  if (changed) { _doneSet = null; _livedCache = null; }
+  return changed;
 }
 
 /* ================= Derived state ================= */
@@ -1401,6 +1547,7 @@ function getSpotOverride() {
 }
 
 function shuffleSpotlight() {
+  if (staleDay()) return;
   const all = allRules().filter(r => !isHidden(r.uid));
   if (all.length < 2) return;
   const cur = spotlightRule();
@@ -1462,10 +1609,19 @@ const FOCUS_SIZE_KEY = 'mastery_focus_size';
 let focusSize = 15;
 try { const v = parseInt(localStorage.getItem(FOCUS_SIZE_KEY), 10); if (v > 0) focusSize = v; } catch (e) { /* ignore */ }
 
-function setFocusSize(n) {
+function applyFocusSize(n) {
   focusSize = Math.max(1, Math.min(200, n | 0));
   try { localStorage.setItem(FOCUS_SIZE_KEY, String(focusSize)); } catch (e) { /* ignore */ }
   _focusCache = null;
+}
+
+// Your choice of Focus size now syncs (plan().prefs.focus, newest change wins),
+// so phone and iPad draw the same Focus list and agree on what "Focus done" means.
+function setFocusSize(n) {
+  applyFocusSize(n);
+  const p = plan();
+  p.prefs = { ...(p.prefs || {}), focus: { v: focusSize, at: Math.max(Date.now(), ((p.prefs && p.prefs.focus && p.prefs.focus.at) || 0) + 1) } };
+  save();
   renderAll();
 }
 
@@ -1630,7 +1786,7 @@ function todaysMission() {
 }
 
 function setMission(uid) {
-  if (isHidden(uid)) return;
+  if (staleDay() || isHidden(uid)) return;
   const p = plan();
   const cur = p.missions[currentDay];
   if (cur && cur.uid === uid) { toast('Already today\'s mission'); return; }
@@ -1646,6 +1802,7 @@ function setMission(uid) {
 }
 
 function clearMission() {
+  if (staleDay()) return;
   planEditing = false;
   plan().missions[currentDay] = { uid: null, at: Date.now() };
   save();
@@ -1691,6 +1848,7 @@ let challengeDraft = null;
 let challengeReturnFocus = null;
 
 function startChallenge(uid) {
+  if (staleDay()) return;
   const hit = ruleByUid(uid);
   if (!hit || isHidden(uid)) return;
   const cur = activeChallenge();
@@ -1716,6 +1874,7 @@ function closeChallengeDialog() {
 
 function commitChallenge() {
   if (!challengeDraft) return;
+  if (staleDay()) { closeChallengeDialog(); return; }
   const duration = $('challenge-duration').valueAsNumber;
   const fail = (message) => {
     $('duration-error').textContent = message;
@@ -1746,6 +1905,7 @@ function commitChallenge() {
 }
 
 function endChallenge() {
+  if (staleDay()) return;
   const cur = activeChallenge();
   if (!cur) return;
   if (!cur.finished && !confirm('End this challenge early?')) return;
@@ -1761,6 +1921,8 @@ function completedChallenges() { return plan().challengeLog.filter(c => c.days >
 
 let filter = 'focus';      // 'focus' | 'all' | 'todo' | 'done' | book id
 let searchTerm = '';
+const FLAT_STEP = 100;     // cards drawn per "page" of a flat list (search results, mixed order…)
+let flatLimit = FLAT_STEP, _flatKey = '';
 const expanded = new Set();
 // Book sections start MINIMIZED: only books you open render their cards, which
 // keeps the grid fast with 70+ books. Open set persists per device.
@@ -1857,6 +2019,7 @@ function missionPlanHtml(m) {
 }
 
 function saveMissionPlan() {
+  if (staleDay()) return;
   const m = plan().missions[currentDay];
   if (!m || !m.uid) return;
   const when = $('plan-when').value.trim().replace(/^when\s+/i, '').replace(/[,.]\s*$/, '');
@@ -2006,7 +2169,8 @@ function renderChallenge() {
 function renderToday() { renderSpotlight(); renderChallenge(); renderCardPracticeActions(); }
 
 function chipHtml(c) {
-  const active = filter === c.id;
+  // while a search covers the whole library, no filter is in force → none is lit
+  const active = filter === c.id && !searchingEverywhere();
   const style = (active && c.color)
     ? `style="background:${c.color};border-color:${c.color}"` : '';
   return `<button class="chip ${active ? 'active' : ''} ${c.color ? '' : 'neutral'}"
@@ -2032,7 +2196,7 @@ function renderChips() {
   // All books sit behind ONE chip (a wall of 60+ book chips was unreadable).
   // When a book is selected, the chip shows its name in its colour, plus ✕ to clear.
   if (data.books.length) {
-    const active = data.books.find(b => b.id === filter);
+    const active = !searchingEverywhere() && data.books.find(b => b.id === filter);
     if (active) {
       parts.push(`<button class="chip chip-book active" data-open-picker="1" aria-haspopup="dialog" aria-controls="book-picker"
         style="background:${active.color};border-color:${active.color};color:var(--bg)">
@@ -2044,7 +2208,8 @@ function renderChips() {
   $('chips').innerHTML = parts.join('');
 
   for (const el of $('chips').querySelectorAll('.chip[data-filter]')) {
-    el.onclick = () => { filter = el.dataset.filter; renderAll(); };
+    // tapping a filter during a search narrows the search to that filter
+    el.onclick = () => { filter = el.dataset.filter; if (searchWords().length) searchAll = false; renderAll(); };
   }
   const pick = $('chips').querySelector('[data-open-picker]');
   if (pick) pick.onclick = openBookPicker;
@@ -2186,7 +2351,7 @@ function mixCards() {
   localStorage.setItem(MIX_KEY, JSON.stringify(mixOrder));
   updateMixButtons();
   renderGrid();
-  toast('Cards mixed — press "1→50 Order" to restore');
+  toast('Cards mixed — More → "Back to rule order" puts them back', 4000);
 }
 
 function orderCards() {
@@ -2196,27 +2361,88 @@ function orderCards() {
   renderGrid();
 }
 
-function visibleRules() {
-  const term = searchTerm.trim().toLowerCase();
-  const focus = filter === 'focus' ? getDailyFocus() : null;
-  const lived = filter === 'mastery' ? livedCounts() : null;
+/* ================= Search =================
+   Typing in the search box searches the WHOLE library and the full text of
+   every rule (title, standard, gains, losses, reality check…), every word in
+   any order. It used to look only inside the current filter — on the default
+   Focus view that is 15 rules, so real matches came back as "nothing found".
+   Tapping a filter chip while a search is on narrows the results to it
+   (searchAll = false); a new search always starts wide again. */
+let searchAll = true;
+
+const normText = (s) => String(s || '').normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
+function searchWords() { return normText(searchTerm).trim().split(/\s+/).filter(Boolean); }
+function searchingEverywhere() { return searchAll && searchWords().length > 0; }
+
+// Each rule's searchable text, normalised once (rule objects are replaced when a book changes).
+const _searchText = new WeakMap();
+function searchText(rule) {
+  let t = _searchText.get(rule);
+  if (!t) {
+    t = {
+      title: normText(rule.title),
+      all: normText([rule.title, rule.standard, rule.today, ...(rule.gain || []), ...(rule.lose || []),
+                     rule.reality, rule.choice, rule.why].filter(Boolean).join(' \n '))
+    };
+    _searchText.set(rule, t);
+  }
+  return t;
+}
+
+// For a hit that isn't (only) in the title: the passage it was found in, word highlighted.
+function matchSnippet(rule, words) {
+  const title = searchText(rule).title;
+  const w = words.find(x => !title.includes(x));
+  if (!w) return '';
+  for (const text of [rule.standard, rule.today, ...(rule.gain || []), ...(rule.lose || []), rule.reality, rule.choice, rule.why]) {
+    if (!text) continue;
+    const norm = normText(text), i = norm.indexOf(w);
+    if (i < 0) continue;
+    if (norm.length !== text.length) return `<div class="card-snippet">${esc(text.slice(0, 120))}${text.length > 120 ? '…' : ''}</div>`;
+    const from = Math.max(0, i - 45), to = Math.min(text.length, i + w.length + 70);
+    return `<div class="card-snippet">${from ? '…' : ''}${esc(text.slice(from, i))}<mark>${esc(text.slice(i, i + w.length))}</mark>${esc(text.slice(i + w.length, to))}${to < text.length ? '…' : ''}</div>`;
+  }
+  return '';
+}
+
+function filterLabel() {
+  const names = { focus: 'Focus', all: 'all books', todo: 'To Do', done: 'Done', starred: 'Starred', hidden: 'Hidden', mastery: 'Mastery' };
+  if (names[filter]) return names[filter];
+  const book = data.books.find(b => b.id === filter);
+  return book ? prettyName(book.name) : 'this view';
+}
+
+// everywhere = true ignores the filter chips (hidden rules stay out unless you ask for them)
+function visibleRules(everywhere = searchingEverywhere()) {
+  const words = searchWords();
+  const focus = !everywhere && filter === 'focus' ? getDailyFocus() : null;
+  const lived = !everywhere && filter === 'mastery' ? livedCounts() : null;
+  const wantHidden = !everywhere && filter === 'hidden';
   const out = applyMix(allRules()).filter(({ book, rule, uid }) => {
-    if (filter === 'hidden' ? !isHidden(uid) : isHidden(uid)) return false;
-    if (focus) { if (!focus.has(uid)) return false; }
+    if (wantHidden ? !isHidden(uid) : isHidden(uid)) return false;
+    if (everywhere) { /* the whole library */ }
+    else if (focus) { if (!focus.has(uid)) return false; }
     else if (lived) { if (!lived.get(uid)) return false; }
     else if (filter === 'starred') { if (!isStarred(uid)) return false; }
     else if (filter === 'hidden') { /* hidden rules are explicitly requested */ }
     else if (filter === 'todo' && isDone(uid)) return false;
     else if (filter === 'done' && !isDone(uid)) return false;
     else if (filter !== 'all' && filter !== 'todo' && filter !== 'done' && book.id !== filter) return false;
-    if (term) {
-      const hay = (rule.title + ' ' + rule.standard).toLowerCase();
-      if (!hay.includes(term)) return false;
+    if (words.length) {
+      const text = searchText(rule).all;
+      for (const w of words) if (!text.includes(w)) return false;
     }
     return true;
   });
   // Mastery view: the rules you've lived most, first (unless you've mixed the order)
   if (lived && !Array.isArray(mixOrder)) out.sort((a, b) => lived.get(b.uid) - lived.get(a.uid));
+  // Search: rules with the words in their TITLE come before ones that only mention them
+  if (words.length) {
+    const inTitle = (r) => { const t = searchText(r.rule).title; return words.every(w => t.includes(w)); };
+    const top = [], rest = [];
+    for (const r of out) (inTitle(r) ? top : rest).push(r);
+    return [...top, ...rest];
+  }
   return out;
 }
 
@@ -2288,7 +2514,7 @@ function renderCardPracticeActions() {
 // 3,500-rule grid scrollable on a phone.
 // showTag: only when the card isn't already under its book's section header
 // (repeating the book name on every card was pure noise).
-function cardHtml(book, rule, uid, showTag) {
+function cardHtml(book, rule, uid, showTag, snippet = '') {
   const done = isDone(uid);
   const open = expanded.has(uid);
   return `
@@ -2305,6 +2531,7 @@ function cardHtml(book, rule, uid, showTag) {
       </div>
     </div>
     <button class="card-expand" aria-expanded="${open}" aria-controls="body-${cssId(uid)}"><span class="card-title">${esc(rule.title)}</span><span class="card-chevron" aria-hidden="true">${uiIcon('ChevronDown')}</span></button>
+    ${snippet}
     <div class="card-body" id="body-${cssId(uid)}">${open ? bodyHtml(rule, uid) : ''}</div>
   </div>`;
 }
@@ -2329,9 +2556,15 @@ function renderGrid() {
 
   // Sections show unless mixing, searching, or in Focus (whose rules span books
   // and should read as one flat to-do list).
-  const searching = !!searchTerm.trim();
+  const words = searchWords();
+  const searching = words.length > 0;
   // Done is a short "what I lived today" list — show the rules themselves, not closed book headers.
   const showSections = !mixOrder && !searching && !['focus', 'mastery', 'done', 'starred', 'hidden'].includes(filter);
+
+  // A flat list can be the whole library (a broad search, mixed order): draw it a
+  // screenful at a time instead of thousands of cards at once.
+  const listKey = [filter, searchTerm.trim(), searchAll, !!mixOrder].join('|');
+  if (listKey !== _flatKey) { _flatKey = listKey; flatLimit = FLAT_STEP; }
 
   let html = '';
   if (showSections) {
@@ -2357,7 +2590,19 @@ function renderGrid() {
     }
   } else {
     // flat list (search / mixed): show the book tag since there's no header above
-    html = rules.map(({ book, rule, uid }) => cardHtml(book, rule, uid, true)).join('');
+    const shown = rules.slice(0, flatLimit), left = rules.length - shown.length;
+    html = shown.map(({ book, rule, uid }) => cardHtml(book, rule, uid, true, searching ? matchSnippet(rule, words) : '')).join('');
+    if (left > 0) html += `<button class="more-cards" id="more-cards">${buttonContent('ChevronDown', `Show ${Math.min(FLAT_STEP, left)} more`)}<span class="more-left">${left} not shown yet</span></button>`;
+  }
+
+  // Searching: say how many were found and WHERE the search looked, with one tap to widen it
+  let widerCount = 0;
+  if (searching && !searchAll) widerCount = visibleRules(true).length;
+  if (searching && rules.length) {
+    const n = `${rules.length} match${rules.length === 1 ? '' : 'es'}`;
+    html = `<div class="search-note" role="status">${searchAll
+      ? `${n} in your whole library`
+      : `${n} in ${esc(filterLabel())}${widerCount > rules.length ? ` <button class="link-btn" id="search-all">Show all ${widerCount} in every book</button>` : ''}`}</div>` + html;
   }
 
   // Mastery view: a one-line scoreboard of how many rules sit at each level
@@ -2386,9 +2631,15 @@ function renderGrid() {
           <strong>Nothing mastered yet — that's the point</strong>
           <p>Every day you tick a rule because you actually lived it, it grows: 🌱 Learning → 🌿 Practicing → 🌳 Living it → 🏆 Mastered. Pick a mission or start a challenge to begin.</p>
         </div>`
+      : (term && widerCount)
+      ? `<div class="empty" style="grid-column:1/-1">
+          <strong>No matches in ${esc(filterLabel())}</strong>
+          <p>“${esc(term)}” appears in ${widerCount} rule${widerCount === 1 ? '' : 's'} elsewhere in your library.</p>
+          <button class="primary-btn" id="search-all">${buttonContent('Search', `Show ${widerCount === 1 ? 'it' : `all ${widerCount}`}`)}</button>
+        </div>`
       : `<div class="empty" style="grid-column:1/-1">
           <strong>No matching rules</strong>
-          <p>${term ? `Nothing matches “${esc(term)}”` : 'Nothing here with the current filter'}.</p>
+          <p>${term ? `Nothing in your library matches “${esc(term)}”` : 'Nothing here with the current filter'}.</p>
           <button id="clear-filters">Clear ${term ? 'search' : 'filter'}</button>
         </div>`;
   }
@@ -2397,12 +2648,18 @@ function renderGrid() {
   renderCardPracticeActions();
   const clr = $('clear-filters');
   if (clr) clr.onclick = () => {
-    searchTerm = ''; $('search').value = ''; filter = 'all'; renderAll();
+    // clearing a search goes back to the view you were in; clearing a filter goes to All
+    if (searchTerm.trim()) { searchTerm = ''; $('search').value = ''; } else filter = 'all';
+    renderAll();
   };
+  const wide = $('search-all');
+  if (wide) wide.onclick = () => { searchAll = true; renderChips(); renderGrid(); };
+  const more = $('more-cards');
+  if (more) more.onclick = () => { flatLimit += FLAT_STEP; renderGrid(); };
 
   const base = rules.length === total
     ? `${total} rules · ${data.books.length} book${data.books.length === 1 ? '' : 's'}`
-    : `${rules.length} shown · ${total} total`;
+    : `${rules.length} of ${total} rules`;
   $('count-note').textContent = base + ' · ' + APP_VERSION;
 }
 
@@ -2431,7 +2688,7 @@ $('grid').addEventListener('click', (e) => {
   }
 
   const card = e.target.closest('.card');
-  if (card && e.target.closest('.card-expand, .card-top')) {
+  if (card && e.target.closest('.card-expand, .card-top, .card-snippet')) {
     const uid = card.dataset.uid;
     const body = card.querySelector('.card-body');
     if (expanded.has(uid)) {
@@ -2604,7 +2861,7 @@ function friendlyDate(key, opts) {
 function dayLevel(day) {
   const r = data.daylog && data.daylog[day];
   if (!r) return 0;
-  const goal = (r.t || 0) >= focusSize;
+  const goal = (r.t || 0) >= dayGoal(r);
   if (r.m && goal) return 3;
   if (r.m || goal) return 2;
   return r.t > 0 ? 1 : 0;
@@ -2614,7 +2871,7 @@ function openHistory() {
   refreshDaylog();
   histMonth = currentDay.slice(0, 7);
   renderHistory();
-  $('history-modal').classList.add('show');
+  openSheet('history-modal');
 }
 
 function shiftMonth(ym, n) {
@@ -2682,10 +2939,9 @@ function renderAll() {
 function popTick(el) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
 
 function toggleTick(uid) {
+  if (staleDay()) return;
   const ticks = getTicks();
-  const i = ticks.indexOf(uid);
-  if (i >= 0) ticks.splice(i, 1); else ticks.push(uid);
-  setTicks(ticks);
+  setTicks(ticks.includes(uid) ? ticks.filter(u => u !== uid) : [...ticks, uid]);
 
   // Surgical update instead of re-rendering all cards (huge win with many books).
   const done = isDone(uid);
@@ -2726,8 +2982,9 @@ function toggleTick(uid) {
   renderCountdown();
   renderStreak();
   renderChips();   // keep the 🎯 Focus / 🏆 Mastery counts in step
-  // These filters change membership on a tick → need a grid rebuild.
-  if (filter === 'todo' || filter === 'done' || filter === 'mastery') renderGrid();
+  // These filters change membership on a tick → need a grid rebuild
+  // (not while a whole-library search is showing — no filter is in force then).
+  if (!searchingEverywhere() && (filter === 'todo' || filter === 'done' || filter === 'mastery')) renderGrid();
   else updateSectionHeader(uid.slice(0, uid.lastIndexOf(':')));
 }
 
@@ -2751,7 +3008,11 @@ function jumpTo(uid) {
   if (!openBooks.has(bookId)) { openBooks.add(bookId); saveOpenBooks(); }
   expanded.add(uid);
   renderGrid();
-  const el = $('card-' + cssId(uid));
+  let el = $('card-' + cssId(uid));
+  if (!el) {   // in a long flat list it may sit beyond the cards drawn so far
+    const at = visibleRules().findIndex(r => r.uid === uid);
+    if (at >= flatLimit) { flatLimit = Math.ceil((at + 1) / FLAT_STEP) * FLAT_STEP; renderGrid(); el = $('card-' + cssId(uid)); }
+  }
   if (!el) { toast('Rule is hidden by the current filter'); return; }
   el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
   el.classList.remove('flash');
@@ -2775,9 +3036,12 @@ function randomRule() {
 }
 
 function removeBook(id) {
-  const book = data.books.find(b => b.id === id);
+  checkDayRollover();
+  const index = data.books.findIndex(b => b.id === id);
+  const book = data.books[index];
   if (!book) return;
   if (!confirm(`Remove "${prettyName(book.name)}" and its ${book.rules.length} rules?`)) return;
+  const tickedToday = getTicks().filter(uid => uid.startsWith(id + ':'));
   data.books = data.books.filter(b => b.id !== id);
   bookRemoved(id);
   if (!data.deletedBooks) data.deletedBooks = {};
@@ -2786,13 +3050,16 @@ function removeBook(id) {
   if (filter === id) filter = 'all';
   save();
   renderAll();
-  toast(`Removed "${prettyName(book.name)}"`);
+  toastAction(`Removed "${prettyName(book.name)}"`, 'Undo', () => undoRemove([{ book, index, tickedToday }]), 9000);
 }
 
 function removeAllBooks() {
+  checkDayRollover();
   const n = data.books.length;
   if (!n) return;
-  if (!confirm(`Remove ALL ${n} book${n === 1 ? '' : 's'} and every rule? This cannot be undone.`)) return;
+  if (!confirm(`Remove ALL ${n} book${n === 1 ? '' : 's'} and every rule?\n\nYou can undo this for a few seconds afterwards. After that, the books only come back from a backup file or by importing the PDFs again.`)) return;
+  const tickedToday = getTicks();
+  const removed = data.books.map((book, index) => ({ book, index, tickedToday: tickedToday.filter(uid => uid.startsWith(book.id + ':')) }));
   if (!data.deletedBooks) data.deletedBooks = {};
   for (const b of data.books) {
     data.deletedBooks[b.id] = Date.now(); // tombstones so the wipe syncs
@@ -2803,10 +3070,60 @@ function removeAllBooks() {
   filter = 'all';
   save();
   renderAll();
-  toast(`Removed all ${n} book${n === 1 ? '' : 's'}`);
+  toastAction(`Removed all ${n} book${n === 1 ? '' : 's'}`, 'Undo', () => undoRemove(removed), 12000);
+}
+
+/* ================= Bringing a removed book back =================
+   A removed book's id is tombstoned on every device (that is what makes a
+   removal sync, and stops the book creeping back). So a book never returns
+   under its old id: it comes back as a NEW book, and an alias (old id → new id)
+   carries everything that pointed at it — ticks, stars, missions, a running
+   challenge — across. This is the mechanism duplicate-merging already uses, so
+   it syncs to your other devices and older app versions understand it too. */
+
+// id the book's rules live under today (follows merges and earlier revivals)
+function finalBookId(id) { return splitUid(aliasUid(id + ':0'))[0]; }
+
+// `index`: where to put it back in the library (end when omitted)
+function reviveBook(src, index) {
+  const book = JSON.parse(JSON.stringify(src));
+  assignRuleIds(book);
+  const from = finalBookId(src.id);
+  const map = {};   // rule id as stored in history → rule id in the returning book (only where they differ)
+  for (const r of book.rules) {
+    const rid = splitUid(aliasUid(src.id + ':' + r.id))[1];
+    if (String(rid) !== String(r.id)) map[rid] = r.id;
+  }
+  book.id = uuid();
+  if (index != null && index >= 0 && index < data.books.length) data.books.splice(index, 0, book);
+  else data.books.push(book);
+  if (!data.bookAlias) data.bookAlias = {};
+  data.bookAlias[from] = { to: book.id, map, at: Date.now() };
+  booksChanged(book.id);
+  rewriteUids(aliasUid);
+  if (openBooks.has(from)) { openBooks.delete(from); openBooks.add(book.id); saveOpenBooks(); }
+  return book;
+}
+
+function undoRemove(items) {
+  checkDayRollover();
+  let back = 0;
+  const ticks = [];
+  for (const { book, index, tickedToday } of items) {
+    if (data.books.some(b => b.id === finalBookId(book.id))) continue;   // already back
+    reviveBook(book, index);
+    ticks.push(...tickedToday);
+    back++;
+  }
+  if (!back) return;
+  if (ticks.length) setTicks([...new Set([...getTicks(), ...ticks.map(aliasUid)])]);   // today's ticks return too
+  save(); flushSave();
+  renderAll();
+  toast(back === 1 ? `↩ "${prettyName(items[0].book.name)}" is back` : `↩ All ${back} books are back`);
 }
 
 function resetToday() {
+  if (staleDay()) return;
   if (!getTicks().length) { toast('Nothing ticked today yet'); return; }
   if (!confirm("Reset all of today's ticks?")) return;
   setTicks([]);
@@ -2820,7 +3137,23 @@ function checkDayRollover() {
     currentDay = now; // ticks key changes → fresh day, old keys pruned on next tick
     _doneSet = null;
     planEditing = false;
+    todayOpenUid = null;
   }
+}
+
+// The page can stay open across midnight — a phone often resumes last night's
+// screen in the morning. Nothing may be written to the wrong date, so:
+//  - the screen redraws for the new day the moment the app is looked at again
+//    (refreshIfNewDay, wired to visibility / pageshow / focus + the minute timer);
+//  - every action tied to "today" asks staleDay() first. If the date moved on
+//    since the screen was drawn, the tap is NOT applied (it was aimed at
+//    yesterday's screen): the app redraws and asks for the tap again.
+function refreshIfNewDay() { if (todayKey() !== currentDay) renderAll(); }
+function staleDay() {
+  if (todayKey() === currentDay) return false;
+  renderAll();
+  toast('🌅 It\'s a new day — the screen was still showing yesterday. Tap again.', 4500);
+  return true;
 }
 
 /* ================= PDF parsing ================= */
@@ -3100,8 +3433,11 @@ function rememberPdfHash(book, hash) {
 
 async function importPdf(file) {
   const diag = { name: file.name, size: file.size, type: file.type || '(none)', pdfjs: typeof pdfjsLib !== 'undefined' };
-  if (typeof pdfjsLib === 'undefined') {  // CDN script didn't load (offline / bad network)
-    showImportDiag('PDF reader not loaded', 'The pdf.js library did not load (offline or blocked). Reload the app while online.', diag);
+  try {
+    await ensurePdfJs();   // the PDF reader is only fetched the first time you import
+    diag.pdfjs = true;
+  } catch (e) {
+    showImportDiag('PDF reader not loaded', 'The PDF reader could not be loaded (offline, or blocked). Open the app once while online, then try again.', diag);
     return { status: 'error' };
   }
   let pdf, buf;
@@ -3285,7 +3621,9 @@ async function importFiles(fileList) {
   }
 
   let added = 0, addedBooks = 0, merged = 0, mergedBooks = 0, uptodate = 0;
-  for (const f of files) {
+  for (const [i, f] of files.entries()) {
+    // reading a big PDF takes a moment — say so instead of looking frozen
+    toast(files.length > 1 ? `📖 Reading PDF ${i + 1} of ${files.length}…` : '📖 Reading the PDF…', 0);
     try {
       const res = await importPdf(f);
       if (res.status === 'added')    { added += res.count; addedBooks++; }
@@ -3307,6 +3645,8 @@ async function importFiles(fileList) {
     toast(parts.join(' · '));
   } else if (uptodate) {
     toast('Already in your library - duplicate PDF skipped. Nothing added.');
+  } else {
+    hideToast();   // nothing imported: the problem is explained in the banner on the page
   }
   const m = dedupeBooks();   // belt and braces: never leave two copies of one book
   if (m) { renderAll(); toast(duplicateToast(m)); }
@@ -3364,6 +3704,16 @@ function rewriteUids(fn) {
     if (!k.startsWith('ticks_') || !Array.isArray(data[k])) continue;
     const next = [...new Set(data[k].map(fn))];
     if (next.length !== data[k].length || next.some((u, i) => u !== data[k][i])) { data[k] = next; changed = true; }
+  }
+  for (const [day, ops] of Object.entries(data.tickOps || {})) {   // the tick log follows its rules
+    const next = {};
+    let moved = false;
+    for (const [uid, e] of Object.entries(ops)) {
+      const u = fn(uid);
+      if (u !== uid) moved = true;
+      if (newerOp(e, next[u])) next[u] = e;
+    }
+    if (moved) { data.tickOps[day] = next; changed = true; }
   }
   const p = data.plan;
   if (p) {
@@ -3500,6 +3850,19 @@ let pushTimer = null;
 
 function fbReady() { return typeof firebase !== 'undefined' && firebase.apps; }
 
+// Firebase is fetched after the first screen is drawn (see loadLib). If that
+// fails — no connection and no saved copy — sync simply stays off and is tried
+// again by itself as soon as the device is back online.
+let fbLibState = 'loading';   // loading | ready | failed
+function loadFirebase() {
+  fbLibState = 'loading';
+  renderSyncUI();
+  loadLib('firebase').then(
+    () => { fbLibState = 'ready'; initFirebase(); },
+    () => { fbLibState = 'failed'; renderSyncUI(); });
+}
+window.addEventListener('online', () => { if (fbLibState === 'failed') loadFirebase(); });
+
 function initFirebase() {
   if (!fbReady()) { renderSyncUI(); return; }
   try {
@@ -3541,6 +3904,8 @@ let _lastTk = null, _lastTomb = null; // last payloads sent/seen → confirmed e
 function tickPayload() {
   const t = { tickStamp: data.tickStamp || {} };
   for (const k of Object.keys(data)) if (k.startsWith('ticks_')) t[k] = data[k];
+  pruneTickOps();
+  if (data.tickOps && Object.keys(data.tickOps).length) t.ops = data.tickOps;   // per-rule tick/untick times (see "Tick log")
   if (data.plan) t.plan = data.plan;   // today's mission + challenge
   if (data.bookAlias) t.alias = data.bookAlias;   // merged duplicate copies → their keeper
   if (data.daylog) t.log = data.daylog;           // permanent per-day record (streak + History)
@@ -3592,6 +3957,13 @@ function remoteMissingOurTicks(remote) {
     if (!k.startsWith('ticks_')) continue;
     const rem = new Set(remote[k] || []);
     for (const u of data[k] || []) if (!rem.has(u)) return true;
+  }
+  // …or a tick/untick time of ours it hasn't seen (an untick is ONLY visible in the log)
+  const ro = remote.ops || {}, cutoff = opsCutoff();
+  for (const [day, ops] of Object.entries(data.tickOps || {})) {
+    if (day < cutoff) continue;
+    const r = ro[day] || {};
+    for (const [uid, e] of Object.entries(ops)) if (r[uid] === undefined || Math.abs(r[uid]) < Math.abs(e)) return true;
   }
   return false;
 }
@@ -3731,23 +4103,9 @@ function applyRemoteTombs(tomb) {
   return changed;
 }
 
-// per-day tick resolution: newer stamp wins, tie unions (same rules as before)
+// ticks merge rule by rule (mergeTickDays) — nothing a device ticked is ever dropped
 function mergeTicks(remote) {
-  const ls = data.tickStamp || {}, rs = remote.tickStamp || {};
-  let changed = false;
-  const keys = [...new Set([...Object.keys(data), ...Object.keys(remote)])].filter(k => k.startsWith('ticks_'));
-  const stamps = {};
-  for (const k of keys) {
-    const day = k.slice('ticks_'.length);
-    const lt = ls[day] || 0, rt = rs[day] || 0;
-    let next;
-    if (lt === rt) next = [...new Set([...(data[k] || []), ...(remote[k] || [])])];
-    else next = (lt > rt ? data[k] : remote[k]) || [];
-    if (JSON.stringify(next) !== JSON.stringify(data[k] || [])) { data[k] = next; changed = true; }
-    stamps[day] = Math.max(lt, rt);
-  }
-  data.tickStamp = stamps;
-  if (changed) { _doneSet = null; _livedCache = null; }
+  let changed = mergeTickDays(remote);
   if (mergePlan(remote.plan)) changed = true;   // missions + challenges ride in the same payload
   if (mergeAliases(remote.alias)) changed = true;
   if (applyAliases()) changed = true;           // ticks for a merged-away copy → its keeper
@@ -3771,6 +4129,13 @@ function mergePlan(rp) {
   for (const [day, m] of Object.entries(rp.missions || {})) {
     const cur = p.missions[day];
     if (m && (!cur || (m.at || 0) > (cur.at || 0))) { p.missions[day] = m; changed = true; }
+  }
+  // Daily Focus size chosen on another device (newest change wins)
+  const rf = rp.prefs && rp.prefs.focus, lf = p.prefs && p.prefs.focus;
+  if (rf && Number.isInteger(rf.v) && rf.v >= 1 && Number.isFinite(rf.at) && (!lf || rf.at > lf.at)) {
+    p.prefs = { ...(p.prefs || {}), focus: { v: rf.v, at: rf.at } };
+    if (rf.v !== focusSize) applyFocusSize(rf.v);
+    changed = true;
   }
   const previousChallenge = p.challenge;
   if (rp.challenge && (!p.challenge || (rp.challenge.at || 0) > (p.challenge.at || 0))) {
@@ -3808,6 +4173,8 @@ function remoteMissingOurPlan(rp) {
   for (const [day, m] of Object.entries(p.missions || {})) {
     if (!rm[day] || (m.at || 0) > (rm[day].at || 0)) return true;
   }
+  const lf = p.prefs && p.prefs.focus, rf = rp.prefs && rp.prefs.focus;
+  if (lf && (!rf || lf.at > rf.at)) return true;
   if (p.challenge && (!rp.challenge || (p.challenge.at || 0) > (rp.challenge.at || 0))) return true;
   if (p.challenge?.uid && rp.challenge && challengeKey(p.challenge) === challengeKey(rp.challenge)) {
     const remoteDays = new Set(rp.challenge.livedDays || []);
@@ -3827,7 +4194,7 @@ function onRemoteError(err) {
 //  - books are unioned by id (a book added on either device survives)
 //  - deletions propagate via tombstones (deletedBooks: {id: ts}), so an
 //    intentional Remove still syncs and a deleted book never resurrects
-//  - ticks are resolved per day by their own timestamp (unioned on a tie)
+//  - ticks are merged rule by rule (the newest action on each rule wins)
 function mergeRemote(remote) {
   if (!remote) return;
   mergePlan(remote.plan);
@@ -3844,19 +4211,9 @@ function mergeRemote(remote) {
   for (const b of (data.books || [])) byId.set(b.id, b);
   const books = [...byId.values()].filter(b => !tomb[b.id]);
 
-  // ticks per day
-  const ls = data.tickStamp || {}, rs = remote.tickStamp || {};
-  const stamps = {}, ticks = {};
-  const keys = [...new Set([...Object.keys(data), ...Object.keys(remote)])].filter(k => k.startsWith('ticks_'));
-  for (const k of keys) {
-    const day = k.slice('ticks_'.length);
-    const lt = ls[day] || 0, rt = rs[day] || 0;
-    if (lt === rt) ticks[k] = [...new Set([...(data[k] || []), ...(remote[k] || [])])];
-    else ticks[k] = (lt > rt ? data[k] : remote[k]) || [];
-    stamps[day] = Math.max(lt, rt);
-  }
+  mergeTickDays(remote);   // ticks, rule by rule
 
-  data = { ...data, ...ticks, books, deletedBooks: tomb, tickStamp: stamps,
+  data = { ...data, books, deletedBooks: tomb,
            updatedAt: Math.max(data.updatedAt || 0, remote.updatedAt || 0) };
   invalidateRules();
   _doneSet = null; _livedCache = null;
@@ -3899,7 +4256,8 @@ function renderSyncUI() {
   const box = $('sync-box');
   if (!box) return;
   if (!fbReady()) {
-    box.innerHTML = `<p class="sync-note">Sync needs an internet connection. If this persists, reload the page.</p>`;
+    box.innerHTML = `<p class="sync-note">${fbLibState === 'loading' ? '⏳ Getting sync ready…'
+      : 'Sync needs an internet connection. It will connect by itself when you\'re back online — everything you do meanwhile is kept on this device.'}</p>`;
     return;
   }
   if (!fbUser) {
@@ -3931,22 +4289,24 @@ function renderSyncUI() {
 /* ================= Toast ================= */
 
 let toastTimer = null;
-function toast(msg) {
+// ms = 0 keeps the message up until the next one replaces it (progress messages)
+function toast(msg, ms = 2800) {
   const t = $('toast');
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+  if (ms) toastTimer = setTimeout(() => t.classList.remove('show'), ms);
 }
+function hideToast() { clearTimeout(toastTimer); $('toast').classList.remove('show'); }
 
 // Toast with one action button (e.g. Undo); stays up a little longer.
-function toastAction(msg, label, fn) {
+function toastAction(msg, label, fn, ms = 5500) {
   const t = $('toast');
   t.innerHTML = `${esc(msg)} <button class="toast-btn">${esc(label)}</button>`;
   t.querySelector('.toast-btn').onclick = () => { t.classList.remove('show'); fn(); };
   t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 5500);
+  toastTimer = setTimeout(() => t.classList.remove('show'), ms);
 }
 
 // Persistent, screenshottable diagnostic shown when a PDF import fails, so a
@@ -4025,6 +4385,33 @@ async function exportBackup() {
   toast(`💾 Backup saved — ${data.books.length} books, ${rules} rules, all your history`);
 }
 
+// A backup is a file from outside the app, so a book is only taken in if it is
+// shaped like one, and nothing from the file is trusted inside HTML (ids,
+// colours and rule numbers are written into the page as-is elsewhere).
+function cleanBackupBook(b) {
+  if (!b || typeof b.id !== 'string' || !/^[\w.-]{1,80}$/.test(b.id) || !Array.isArray(b.rules)) return null;
+  const str = (v) => (typeof v === 'string' ? v : '');
+  const list = (v) => (Array.isArray(v) ? v.filter(x => typeof x === 'string') : []);
+  const book = {
+    id: b.id,
+    name: str(b.name).slice(0, 200) || 'Untitled Book',
+    color: /^(#[0-9a-f]{3,8}|hsl\(\s*\d+(\.\d+)?\s*,\s*\d+%\s*,\s*\d+%\s*\))$/i.test(str(b.color)) ? b.color : bookColor(data.books.length),
+    importedAt: /^\d{4}-\d{2}-\d{2}$/.test(str(b.importedAt)) ? b.importedAt : todayKey(),
+    pdfHashes: list(b.pdfHashes),
+    rules: []
+  };
+  for (const r of b.rules) {
+    if (!r || !Number.isFinite(r.n) || !str(r.title)) continue;
+    const rule = { n: r.n, title: r.title, gain: list(r.gain), lose: list(r.lose),
+                   reality: str(r.reality), choice: str(r.choice), standard: str(r.standard) };
+    if (Number.isFinite(r.id)) rule.id = r.id;
+    if (typeof r.today === 'string') rule.today = r.today;
+    if (str(r.why)) rule.why = r.why;
+    book.rules.push(rule);
+  }
+  return book;
+}
+
 async function restoreBackup(file) {
   let payload;
   try { payload = JSON.parse(await file.text()); } catch (e) { payload = null; }
@@ -4033,28 +4420,64 @@ async function restoreBackup(file) {
   const when = payload.exportedAt ? new Date(payload.exportedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'an unknown date';
   if (!confirm(`Restore from the backup made ${when}?\n\nIt has ${src.books.length} books. Anything missing from the app is added back — nothing you have now is removed or overwritten.`)) return;
 
-  const have = new Set(data.books.map(b => b.id));
+  checkDayRollover();
+  const live = () => new Set(data.books.map(b => b.id));
   const removed = data.deletedBooks || {};
-  const merged = data.bookAlias || {};
-  let addedBooks = 0, addedTicks = 0;
-  for (const b of src.books) {
-    if (!b || !b.id || !Array.isArray(b.rules) || have.has(b.id)) continue;
-    if (removed[b.id] || merged[b.id]) continue;   // you removed it, or it was merged into another copy
-    const book = JSON.parse(JSON.stringify(b));
+  // Sort the backup's books: already here (itself, or merged into a copy that is) ·
+  // new to this device · ones you removed from the app (those need a yes from you).
+  const fresh = [], gone = [];
+  {
+    const have = live();
+    for (const raw of src.books) {
+      const b = cleanBackupBook(raw);
+      if (!b) continue;
+      const now = finalBookId(b.id);
+      if (have.has(now)) continue;
+      if (removed[now]) gone.push(b);
+      else if (now === b.id) fresh.push(b);
+    }
+  }
+  let bringBack = false;
+  if (gone.length) {
+    const names = gone.slice(0, 6).map(b => '• ' + prettyName(b.name)).join('\n') + (gone.length > 6 ? `\n…and ${gone.length - 6} more` : '');
+    bringBack = confirm(`This backup also has ${gone.length} book${gone.length === 1 ? '' : 's'} you removed from the app:\n\n${names}\n\nBring ${gone.length === 1 ? 'it' : 'them'} back too?\n\nOK = bring back · Cancel = leave removed`);
+  }
+
+  let addedBooks = 0, revived = 0, addedTicks = 0;
+  for (const book of fresh) {
+    if (live().has(book.id)) continue;   // the same book listed twice in the file
     assignRuleIds(book);
     data.books.push(book);
     booksChanged(book.id);
-    have.add(book.id);
     addedBooks++;
   }
+  if (bringBack) {
+    for (const b of gone) {
+      if (live().has(finalBookId(b.id))) continue;   // an earlier copy in this file already brought it back
+      reviveBook(b);
+      revived++;
+    }
+  }
+  const leftOut = bringBack ? 0 : gone.length;
+  // The backup names rules by the ids they had THEN; read them in today's ids
+  // (a merged or brought-back book has a new one), so a tick you already have
+  // isn't added — or counted — a second time.
+  mergeAliases(src.bookAlias);
+  const opsFrom = opsCutoff();
   for (const k of Object.keys(src)) {
     if (!k.startsWith('ticks_') || !Array.isArray(src[k])) continue;
-    const before = (data[k] || []).length;
-    data[k] = [...new Set([...(data[k] || []), ...src[k]])];
-    addedTicks += data[k].length - before;
+    const day = k.slice('ticks_'.length), had = new Set(data[k] || []);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+    let add = [...new Set(src[k].filter(uid => typeof uid === 'string').map(aliasUid))].filter(uid => !had.has(uid));
+    // today's list only ever holds rules that exist (removing a book takes its ticks out of today)
+    if (day === currentDay) add = add.filter(uid => ruleByUid(uid));
+    if (!add.length) continue;
+    data[k] = [...(data[k] || []), ...add];
+    addedTicks += add.length;
+    // a restored tick counts as ticked now, so a merge can't take it straight back out
+    if (day >= opsFrom) for (const uid of add) dayOps(day)[uid] = opStamp(dayOps(day)[uid]);
   }
   mergePlan(src.plan);
-  mergeAliases(src.bookAlias);
   mergeDaylog(src.daylog);
   applyAliases();
   invalidateRules();
@@ -4062,9 +4485,15 @@ async function restoreBackup(file) {
   const dupes = dedupeBooks();
   save(); flushSave();
   renderAll();
-  toast(addedBooks || addedTicks
-    ? `↩ Restored ${addedBooks} book${addedBooks === 1 ? '' : 's'} and ${addedTicks} tick${addedTicks === 1 ? '' : 's'}${dupes ? ` (merged ${dupes} duplicate${dupes === 1 ? '' : 's'})` : ''}`
-    : 'Nothing to restore — everything in the backup is already here.');
+  const books = addedBooks + revived;
+  const skipped = leftOut ? `${leftOut} removed book${leftOut === 1 ? ' was' : 's were'} left out` : '';
+  toast(books || addedTicks
+    ? `↩ Restored ${books} book${books === 1 ? '' : 's'} and ${addedTicks} tick${addedTicks === 1 ? '' : 's'}`
+      + (revived ? ` — ${revived} brought back after removal` : '')
+      + (dupes ? ` (merged ${dupes} duplicate${dupes === 1 ? '' : 's'})` : '')
+      + (skipped ? ` · ${skipped}` : '')
+    : skipped ? `Nothing new to restore — the ${skipped}.`
+    : 'Nothing to restore — everything in the backup is already here.', 6000);
 }
 
 /* ================= Daily reminders =================
@@ -4073,7 +4502,7 @@ async function restoreBackup(file) {
    back here); iPhone shows "Add All". Times can be changed in Calendar after. */
 function addReminders() {
   window.open('reminders.ics', '_blank');
-  $('reminders-modal').classList.remove('show');
+  closeModal('reminders-modal');
   toast('📅 Opening your calendar — choose "Add All"');
 }
 
@@ -4085,8 +4514,33 @@ for (const button of document.querySelectorAll('button[data-icon]')) {
 
 // ⋯ More sheet: every row closes the sheet first, then does its own job
 // (the rows keep their original ids, so their existing handlers still apply).
-function closeModal(id) { $(id).classList.remove('show'); }
-$('btn-more').onclick = () => { renderBackupNote(); $('more-modal').classList.add('show'); };
+// Sheets (More / History / Reminders): keyboard focus moves into the sheet when
+// it opens, Tab stays inside it, and focus goes back to where you were on close.
+let sheetReturnFocus = null;
+function openSheet(id) {
+  const from = document.activeElement;
+  if (from && from !== document.body && !from.closest('.modal-backdrop')) sheetReturnFocus = from;
+  $(id).classList.add('show');
+  const first = $(id).querySelector('.modal-heading button');
+  if (first) first.focus({ preventScroll: true });
+}
+function closeModal(id) {
+  if (!$(id).classList.contains('show')) return;
+  $(id).classList.remove('show');
+  if (!document.querySelector('.modal-backdrop.show') && sheetReturnFocus && sheetReturnFocus.isConnected) {
+    sheetReturnFocus.focus({ preventScroll: true });
+  }
+}
+for (const id of ['more-modal', 'history-modal', 'reminders-modal']) {
+  $(id).addEventListener('keydown', e => bookDialogKeydown(e, $(id), () => closeModal(id)));
+}
+// While any sheet is open the page behind must not scroll (see body.modal-open).
+const lockScroll = () => document.body.classList.toggle('modal-open', !!document.querySelector('.modal-backdrop.show'));
+for (const m of document.querySelectorAll('.modal-backdrop')) {
+  new MutationObserver(lockScroll).observe(m, { attributes: true, attributeFilter: ['class'] });
+}
+
+$('btn-more').onclick = () => { renderBackupNote(); openSheet('more-modal'); };
 $('more-close').onclick = () => closeModal('more-modal');
 $('more-modal').addEventListener('click', (e) => {
   if (e.target === $('more-modal') || e.target.closest('.menu-row')) closeModal('more-modal');
@@ -4099,7 +4553,7 @@ $('history-modal').addEventListener('click', (e) => { if (e.target === $('histor
 $('hist-prev').onclick = () => { histMonth = shiftMonth(histMonth, -1); renderHistory(); };
 $('hist-next').onclick = () => { histMonth = shiftMonth(histMonth, 1); renderHistory(); };
 
-$('btn-reminders').onclick = () => $('reminders-modal').classList.add('show');
+$('btn-reminders').onclick = () => openSheet('reminders-modal');
 $('reminders-close').onclick = () => closeModal('reminders-modal');
 $('reminders-modal').addEventListener('click', (e) => { if (e.target === $('reminders-modal')) closeModal('reminders-modal'); });
 $('rem-add').onclick = addReminders;
@@ -4120,7 +4574,13 @@ document.addEventListener('keydown', (e) => {
 let searchTimer = null;
 $('search').addEventListener('input', (e) => {
   clearTimeout(searchTimer);   // debounce: render once you pause typing, not per keystroke
-  searchTimer = setTimeout(() => { searchTerm = e.target.value; renderGrid(); }, 180);
+  searchTimer = setTimeout(() => {
+    const was = searchWords().length > 0;
+    searchTerm = e.target.value;
+    if (!was) searchAll = true;   // a new search always starts with the whole library
+    renderChips();                // the lit filter depends on whether a search is on
+    renderGrid();
+  }, 180);
 });
 $('btn-random').onclick = randomRule;
 $('btn-mix').onclick = mixCards;
@@ -4208,7 +4668,10 @@ document.addEventListener('drop', (e) => {
 window.addEventListener('pagehide', flushSave);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') flushSave();
+  else refreshIfNewDay();   // back in view → never keep showing yesterday
 });
+window.addEventListener('pageshow', refreshIfNewDay);
+window.addEventListener('focus', refreshIfNewDay);
 
 // Tick the countdown every minute; full re-render at day rollover
 setInterval(() => {
@@ -4222,10 +4685,14 @@ $('ver-mark').title = APP_VERSION;
 // One library, no duplicate books: merge any copies now (keeps all their ticks).
 if (applyAliases()) save();
 const mergedAtStart = dedupeBooks();
-writeTicks();   // backfills the permanent day log from the tick history you already have
+refreshDaylog();   // backfills the permanent day log from the tick history you already have
+// Days recorded before goals were stored: pin them to the Focus size in use now,
+// once, so history reads exactly as it does today and can't shift afterwards.
+for (const r of Object.values(data.daylog || {})) if (r && !r.g) r.g = focusSize;
+writeTicks();
 
 renderAll();
-initFirebase();
+loadFirebase();   // after the first render, so sync never delays the screen
 if (mergedAtStart) setTimeout(() => toast(duplicateToast(mergedAtStart)), 600);
 
 // Service worker: keeps the installed (home-screen) app updating to the latest
@@ -4241,10 +4708,11 @@ if ('serviceWorker' in navigator) {
   });
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').then(reg => {
-      reg.update(); // check for a newer sw.js right now
+      const check = () => reg.update().catch(() => { /* offline — try again next time */ });
+      check(); // look for a newer sw.js right now
       // and again whenever the app is brought back to the foreground
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') reg.update();
+        if (document.visibilityState === 'visible') check();
       });
       reg.addEventListener('updatefound', () => {
         const nw = reg.installing;
