@@ -794,7 +794,9 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   }
   #import-diag h4 { color: var(--amber); font-size: 0.8rem; margin-bottom: 6px; }
   #import-diag code { font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--cyan); word-break: break-all; }
-  #import-diag .diag-close { margin-top: 8px; font-size: 0.78rem; padding: 5px 12px; }
+  #import-diag .diag-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  #import-diag .diag-actions button { font-size: 0.78rem; padding: 5px 12px; min-height: 36px; }
+  .book-warn { color: var(--amber); }
 
   /* ---------- Book section headers in grid ---------- */
   .section-header {
@@ -1150,7 +1152,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v44 · 2026-11-19 (coloured "The meaning" heading)';
+const APP_VERSION = 'v45 · 2026-11-19 (safer imports, small fixes)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -2071,7 +2073,7 @@ let planEditing = false;   // when–then form open on today's mission
 
 // "When ___, I will ___": tie the mission to a concrete moment in your day.
 // Stored on the mission entry (plan().missions[day].when / .will) so it syncs.
-function missionPlanHtml(m) {
+function missionPlanHtml(m, done) {
   if (planEditing) {
     return `<form class="plan-form" id="plan-form">
       <label for="plan-when">When…</label>
@@ -2090,6 +2092,7 @@ function missionPlanHtml(m) {
       : m.when ? `When <b>${esc(m.when)}</b>.` : `I will <b>${esc(m.will)}</b>.`;
     return `<div class="mission-plan">📌 ${text}<button class="link-btn" id="plan-edit">Edit</button></div>`;
   }
+  if (done) return '';   // already lived today: nothing left to plan
   return `<button class="link-btn" id="plan-edit" style="margin:0 0 10px -6px">${buttonContent('Plus', 'Add a when–then plan')}</button>`;
 }
 
@@ -2122,15 +2125,19 @@ function renderSpotlight() {
     const lived = missionsLived();
     const mEntry = plan().missions[currentDay];
     // keep a half-typed plan if the card redraws (tick elsewhere, sync arriving…)
-    const draft = planEditing && $('plan-when')
+    let draft = planEditing && $('plan-when')
       ? { when: $('plan-when').value, will: $('plan-will').value, focus: document.activeElement && document.activeElement.id } : null;
+    // Lived it before writing a plan → the empty form has no job left; close it.
+    if (done && planEditing && !mEntry.when && !mEntry.will && !(draft && (draft.when.trim() || draft.will.trim()))) {
+      planEditing = false; draft = null;
+    }
     box.innerHTML = `
       <div class="spotlight mission ${done ? 'accomplished' : ''}" style="border-left-color:${done ? 'var(--green)' : book.color}">
         <div class="kicker">⚔️ Today's mission · ${done ? '✓ accomplished' : 'live this one rule today'}</div>
         <div class="mission-meta">${bookTag(book, uid)}${lvlBadge(uid)}</div>
         <h2>Rule ${rule.n} — ${esc(rule.title)}</h2>
         ${rule.standard ? `<div class="std">${esc(rule.standard)}</div>` : ''}
-        ${missionPlanHtml(mEntry)}
+        ${missionPlanHtml(mEntry, done)}
         ${body(uid, rule)}
         <div class="spot-actions">
           <button class="lived-btn ${done ? 'on' : ''}" id="mission-lived" aria-pressed="${done}">${buttonContent('Check', done ? 'Lived it' : 'I lived it')}</button>
@@ -2944,7 +2951,7 @@ function renderLibrary() {
           <div class="book-row-name">
             <button class="book-name-text" data-open-book="${b.id}" title="Open ${esc(prettyName(b.name))}">${esc(prettyName(b.name))}</button>
           </div>
-          <div class="book-row-meta">${b.rules.length} rules · imported ${esc(b.importedAt)}</div>
+          <div class="book-row-meta">${b.rules.length} rules · imported ${esc(b.importedAt)}${looksMisread(b) ? '<br><span class="book-warn">⚠ Read wrongly by an older version — import its PDF again to repair it</span>' : ''}</div>
         </div>
       </div>
       <div class="book-row-actions">
@@ -3033,9 +3040,10 @@ function renderCountdown() {
   const left = total - done;
   const [y, mo, d] = currentDay.split('-').map(Number);
   const dayLabel = new Date(y, mo - 1, d).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  // nothing to live yet (empty library) is not "done" — no celebration for that
   el.textContent = `${dayLabel} · ` + (h ? `${h}h` : `${m}m`) + ' left' +
-    (left > 0 ? ` · ${left} to go` : ' · focus done 🎉');
-  el.title = left > 0 ? `${left} of today's ${total} focus rules still to live` : 'Today\'s focus is done';
+    (left > 0 ? ` · ${left} to go` : total ? ' · focus done 🎉' : '');
+  el.title = left > 0 ? `${left} of today's ${total} focus rules still to live` : total ? 'Today\'s focus is done' : '';
   el.classList.toggle('urgent', h < 2 && left > 0);
 }
 
@@ -3593,7 +3601,11 @@ function bookNameFromFile(filename, coverLines) {
   // The filename is the most reliable, most distinct source — prefer it.
   // (Cover titles are often split across lines, e.g. "BRUTAL" / "DISCIPLINE"
   //  / "RULES", which previously collapsed many books to just "Brutal".)
-  const fromFile = filename.replace(/\.pdf$/i, '')
+  // Download leftovers at the end of a file name are not part of the book's name:
+  // "Guide (1)", "Guide - Final", "Guide_final", "Guide - Copy (2)".
+  const base = filename.replace(/\.pdf$/i, '');
+  const tidy = base.replace(/(?:\s*\(\d+\)|(?:\s+[-–—]\s*|_)(?:final|copy)\b)+\s*$/i, '');
+  const fromFile = (/[a-z0-9]/i.test(tidy) ? tidy : base)
     .replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ').trim();
   const generic = !fromFile || fromFile.length < 3 ||
     /^(document|untitled|file|download|scan|image|new|temp|pdf)\b/i.test(fromFile) ||
@@ -3870,7 +3882,7 @@ async function importPdf(file) {
   const signature = contentSignature(rules);
   const misread = knownFile && data.books.includes(knownFile) && looksMisread(knownFile) ? knownFile : null;
   if (misread && rereadBook(misread, rules)) {
-    return { status: 'repaired', count: misread.rules.length, name: misread.name };
+    return { status: 'repaired', count: misread.rules.length, name: misread.name, id: misread.id };
   }
   const exact = data.books.find(b =>
     (fileHash && (b.pdfHashes || []).includes(fileHash)) || contentSignature(b.rules) === signature);
@@ -3907,7 +3919,7 @@ async function importPdf(file) {
     booksChanged(bestMatch.id);
     rememberPdfHash(bestMatch, completeHash);
     save();
-    return { status: 'merged', count: newRules.length, name: bestMatch.name };
+    return { status: 'merged', count: newRules.length, name: bestMatch.name, id: bestMatch.id };
   }
 
   // brand-new book
@@ -3924,7 +3936,8 @@ async function importPdf(file) {
   data.books.push(newBook);
   booksChanged(newId);
   save();
-  return { status: 'added', count: rules.length };
+  return { status: 'added', count: rules.length, id: newId, name: newBook.name,
+           ...(importLooksWrong(newBook) ? { suspect: diag } : {}) };
 }
 
 // Before v43 the "daily principle" layout was not understood: the whole page
@@ -3933,6 +3946,18 @@ async function importPdf(file) {
 // repaired by importing its PDF again, instead of being reported as up to date.
 function looksMisread(book) {
   return (book.rules || []).some(r => HEAD_TAG_RE.test(String(r.title || '').trim()));
+}
+
+// A layout the importer doesn't know usually shows up as "titles" that swallowed
+// the page. Checked once, straight after an import, so a wrongly-read book is
+// pointed out (with a way to remove it) instead of quietly joining the library.
+// Another sign: an unknown "TODAY'S …" heading read as "TODAY" + text ("'S TASK …").
+const LONG_TITLE = 140;
+function importLooksWrong(book) {
+  const rules = book.rules || [];
+  if (looksMisread(book)) return true;
+  const odd = rules.filter(r => String(r.title || '').length > LONG_TITLE || /^['’]S\b/.test(r.today || '')).length;
+  return odd >= Math.max(2, rules.length * 0.25);
 }
 
 // Replace a book's rules with a fresh read of the same rules. Only when every
@@ -3978,6 +4003,8 @@ async function importFiles(fileList) {
   }
 
   let added = 0, addedBooks = 0, merged = 0, mergedBooks = 0, uptodate = 0, repairedBooks = 0;
+  const touched = [];    // ids of the books this import added to or repaired
+  const suspects = [];   // new books that look wrongly read: { id, file, diag }
   for (const [i, f] of files.entries()) {
     // reading a big PDF takes a moment — say so instead of looking frozen
     toast(files.length > 1 ? `📖 Reading PDF ${i + 1} of ${files.length}…` : '📖 Reading the PDF…', 0);
@@ -3987,6 +4014,8 @@ async function importFiles(fileList) {
       else if (res.status === 'merged')   { merged += res.count; mergedBooks++; }
       else if (res.status === 'repaired') repairedBooks++;
       else if (res.status === 'uptodate') uptodate++;
+      if (res.id && !touched.includes(res.id)) touched.push(res.id);
+      if (res.suspect) suspects.push({ id: res.id, file: f.name, diag: res.suspect });
     } catch (e) {
       console.error(e);
       showImportDiag(`Couldn't read "${f.name}"`, 'An unexpected error occurred while importing.',
@@ -4001,7 +4030,9 @@ async function importFiles(fileList) {
     if (mergedBooks) parts.push(`Added ${merged} new rule${merged === 1 ? '' : 's'} to ${mergedBooks} book${mergedBooks === 1 ? '' : 's'}`);
     if (repairedBooks) parts.push(`Repaired ${repairedBooks} book${repairedBooks === 1 ? '' : 's'} that had been read wrongly`);
     if (uptodate) parts.push(`${uptodate} already in your library - skipped`);
-    toast(parts.join(' · '));
+    // one book → offer the way straight into it (the page may be showing another view)
+    if (touched.length === 1) toastAction(parts.join(' · '), 'Open', () => selectBook(touched[0]), 8000);
+    else toast(parts.join(' · '));
   } else if (uptodate) {
     toast('Already in your library - duplicate PDF skipped. Nothing added.');
   } else {
@@ -4009,6 +4040,47 @@ async function importFiles(fileList) {
   }
   const m = dedupeBooks();   // belt and braces: never leave two copies of one book
   if (m) { renderAll(); toast(duplicateToast(m)); }
+
+  // A new book whose "titles" are whole pages was almost certainly read wrongly
+  // (a layout the app doesn't know). Say so now, with the way out, rather than
+  // leaving a broken book to be found later.
+  const bad = suspects.map(s => ({ ...s, book: data.books.find(b => b.id === s.id) })).filter(s => s.book);
+  if (bad.length && $('import-diag').hidden) {
+    const s = bad[0], name = prettyName(s.book.name);
+    showImportDiag(
+      bad.length > 1 ? `${bad.length} books may have been read wrongly` : `"${name}" may have been read wrongly`,
+      `Some rules ${bad.length > 1 ? 'in "' + name + '" and ' + (bad.length - 1) + ' more ' : ''}came out with very long titles or broken text, which usually means this PDF uses a layout the app doesn't know yet. Open the book and check a rule: if it looks wrong, remove it.`,
+      { name: s.file, ...s.diag },
+      [{ label: 'Open book', fn: () => selectBook(s.id) },
+       { label: bad.length > 1 ? `Remove these ${bad.length} books` : 'Remove book', danger: true, fn: () => removeSuspects(bad.map(x => x.id)) }]);
+  }
+}
+
+// Remove the books an import just flagged, in one go (no extra question: the
+// button says what it does, and Undo brings them back).
+function removeSuspects(ids) {
+  checkDayRollover();
+  const items = [];
+  for (const id of ids) {
+    const index = data.books.findIndex(b => b.id === id);
+    if (index < 0) continue;
+    const book = data.books[index];
+    items.push({ book, index, tickedToday: getTicks().filter(uid => uid.startsWith(id + ':')) });
+  }
+  if (!items.length) { clearImportDiag(); return; }
+  if (!data.deletedBooks) data.deletedBooks = {};
+  for (const { book } of items) {
+    data.books = data.books.filter(b => b.id !== book.id);
+    bookRemoved(book.id);
+    data.deletedBooks[book.id] = Date.now();
+    if (filter === book.id) filter = 'all';
+  }
+  setTicks(getTicks().filter(uid => !items.some(({ book }) => uid.startsWith(book.id + ':'))));
+  save();
+  clearImportDiag();
+  renderAll();
+  toastAction(items.length === 1 ? `Removed "${prettyName(items[0].book.name)}"` : `Removed ${items.length} books`,
+    'Undo', () => undoRemove(items), 9000);
 }
 
 /* ================= Duplicate books =================
@@ -4717,7 +4789,8 @@ function toastAction(msg, label, fn, ms = 5500) {
 // Persistent, screenshottable diagnostic shown when a PDF import fails, so a
 // device-specific failure can be reported without a live console.
 function clearImportDiag() { const el = $('import-diag'); if (el) { el.hidden = true; el.innerHTML = ''; } }
-function showImportDiag(title, why, d) {
+// actions = extra buttons before Dismiss: [{ label, fn, danger }]
+function showImportDiag(title, why, d, actions = []) {
   const el = $('import-diag');
   if (!el) { toast(title + ' — ' + why); return; }
   const kb = d.size != null ? Math.round(d.size / 1024) + ' KB' : '?';
@@ -4739,9 +4812,10 @@ function showImportDiag(title, why, d) {
     <div style="margin-top:8px">${rows.map(r => `${r[0]}: <code>${esc(String(r[1]))}</code>`).join(' · ')}</div>
     ${sample}
     <div>Screenshot this and send it to get it fixed.</div>
-    <button class="diag-close">Dismiss</button>`;
+    <div class="diag-actions">${actions.map((a, i) => `<button class="${a.danger ? 'danger' : ''}" data-act="${i}">${esc(a.label)}</button>`).join('')}<button class="diag-close">Dismiss</button></div>`;
   el.hidden = false;
   el.querySelector('.diag-close').onclick = clearImportDiag;
+  for (const b of el.querySelectorAll('[data-act]')) b.onclick = () => actions[+b.dataset.act].fn();
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
