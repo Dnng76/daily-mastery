@@ -1147,7 +1147,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v42 · 2026-11-12 (easier to find books)';
+const APP_VERSION = 'v43 · 2026-11-19 (reads daily-principle PDFs)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -2525,6 +2525,12 @@ const normText = (s) => String(s || '').normalize('NFKD').replace(/\p{M}/gu, '')
 function searchWords() { return normText(searchTerm).trim().split(/\s+/).filter(Boolean); }
 function searchingEverywhere() { return searchAll && searchWords().length > 0; }
 
+// Every passage of a rule besides its title, in the order search should prefer them.
+function ruleTexts(rule) {
+  return [rule.standard, rule.today, rule.meaning, ...(rule.examples || []), rule.remember,
+          ...(rule.gain || []), ...(rule.lose || []), rule.reality, rule.choice, rule.why];
+}
+
 // Each rule's searchable text, normalised once (rule objects are replaced when a book changes).
 const _searchText = new WeakMap();
 function searchText(rule) {
@@ -2532,8 +2538,7 @@ function searchText(rule) {
   if (!t) {
     t = {
       title: normText(rule.title),
-      all: normText([rule.title, rule.standard, rule.today, ...(rule.gain || []), ...(rule.lose || []),
-                     rule.reality, rule.choice, rule.why].filter(Boolean).join(' \n '))
+      all: normText([rule.title, ...ruleTexts(rule)].filter(Boolean).join(' \n '))
     };
     _searchText.set(rule, t);
   }
@@ -2545,7 +2550,7 @@ function matchSnippet(rule, words) {
   const title = searchText(rule).title;
   const w = words.find(x => !title.includes(x));
   if (!w) return '';
-  for (const text of [rule.standard, rule.today, ...(rule.gain || []), ...(rule.lose || []), rule.reality, rule.choice, rule.why]) {
+  for (const text of ruleTexts(rule)) {
     if (!text) continue;
     const norm = normText(text), i = norm.indexOf(w);
     if (i < 0) continue;
@@ -2600,8 +2605,15 @@ function visibleRules(everywhere = searchingEverywhere()) {
 // uid given → it's a grid card, so append the mission/challenge actions
 function bodyHtml(rule, uid) {
   return `
-      ${rule.today ? `<section class="rule-section rule-section-wide"><h4 class="choice-h">Today</h4>
+      ${rule.meaning ? `<section class="rule-section"><h4>The meaning</h4>
+        <p class="para">${esc(rule.meaning)}</p></section>` : ''}
+      ${rule.examples && rule.examples.length ? `<section class="rule-section"><h4 class="reality-h">The reality</h4>
+        ${rule.examples.length > 1 ? `<ul>${rule.examples.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`
+                                   : `<p class="para">${esc(rule.examples[0])}</p>`}</section>` : ''}
+      ${rule.today ? `<section class="rule-section rule-section-wide"><h4 class="choice-h">${rule.meaning || rule.examples || rule.remember ? 'Today’s action' : 'Today'}</h4>
         <div class="standard-text">${esc(rule.today)}</div></section>` : ''}
+      ${rule.remember ? `<section class="rule-section"><h4 class="gain-h">Remember</h4>
+        <p class="para">${esc(rule.remember)}</p></section>` : ''}
       ${rule.gain.length ? `<section class="rule-section"><h4 class="gain-h">What you gain</h4>
         <ul>${rule.gain.map(g => `<li>${esc(g)}</li>`).join('')}</ul></section>` : ''}
       ${rule.lose.length ? `<section class="rule-section"><h4 class="lose-h">What you lose if you ignore this</h4>
@@ -2612,7 +2624,7 @@ function bodyHtml(rule, uid) {
         <p class="para">${esc(rule.choice)}</p></section>` : ''}
       ${rule.why ? `<section class="rule-section"><h4 class="choice-h">Why it works</h4>
         <p class="para">${esc(rule.why)}</p></section>` : ''}
-      ${rule.standard && rule.standard !== rule.today ? `<section class="rule-section rule-section-wide"><h4>The Standard</h4>
+      ${rule.standard && rule.standard !== rule.today && rule.standard !== rule.remember ? `<section class="rule-section rule-section-wide"><h4>The Standard</h4>
         <div class="standard-text">${esc(rule.standard)}</div></section>` : ''}
       ${uid ? `<div class="card-actions ${isHidden(uid) ? 'personal-only' : ''}">
         ${isHidden(uid) ? '' : `<div class="action-section action-section-today" role="group" aria-label="Today">
@@ -3437,6 +3449,18 @@ const STD_RE     = /^THE\s+STANDARD/i;
 const TODAY_RE   = /^TODAY\b\s*[:.]?\s*/i;
 const WHY_RE     = /^WHY\s+IT\s+WORKS\s*[:.]?$/i;
 const RULE_RE    = /^RULE\s+(\d+)/i;
+// "Daily principle" layout: RULE n [ TAG ] / title / THE MEANING / THE REALITY
+// (a list of everyday examples) / TODAY'S ACTION / REMEMBER / a tick-box line.
+// Headings count only when written as headings (capitals or Title Case, no full
+// stop), so a sentence that happens to end in "…the reality." is never one.
+const MEANING_RE  = /^(?:THE\s+MEANING|The\s+Meaning)\s*:?$/;
+const EXAMPLES_RE = /^(?:THE\s+REALITY|The\s+Reality)\s*:?$/;
+const ACTION_RE   = /^(?:TODAY['’]S\s+ACTION|Today['’]s\s+Action)\s*:?$/;
+const REMEMBER_RE = /^(?:REMEMBER|Remember)\s*:?$/;
+const CHECKIN_RE  = /^TODAY['’]S\s+CHECK[\s-]?IN\b/i;                 // "TODAY'S CHECK-IN: ▢ I took the action ▢ …"
+const BAND_RE     = /^DAILY\s+MASTERY\s*[\/|·•—–-]\s*\S/i;            // footer band: "DAILY MASTERY / DAILY LEARNING 01 / 20"
+const HEAD_TAG_RE = /^\[[^\]]*\]\s*/;                                 // "[ DAILY PRINCIPLE ]" after the rule number
+const BULLET_START_RE = /^(?:[•▪●○◦‣·*✗✘×✕✖+]\s*|[\-–—]\s+)/;
 // lines that are only a bullet marker (+, ✗, ×, •, dash …) or page furniture
 const MARKER_ONLY_RE = /^[+xX•▪●○◦‣·\-–—*✗✘×✕✖�\s]{1,3}$/;
 const FURNITURE_RE   = /^(\d+|\d+\s+of\s+\d+|MASTERY\s+RULES)$/i;
@@ -3468,7 +3492,10 @@ function stripBullet(line) {
 function parseRuleFromLines(lines) {
   let n = null, title = '';
   const gain = [], lose = [], reality = [], choice = [], stdParts = [], preParts = [], todayParts = [], whyParts = [];
+  const meaningParts = [], examples = [], rememberParts = [];
   let hasToday = false;
+  let daily = false;        // the "daily principle" layout (THE MEANING / THE REALITY / TODAY'S ACTION / REMEMBER)
+  let newExample = false;   // a bullet mark stood on its own line → the next line starts a new example
   // pre → title (first content line) → posttitle (extra lines before sections) → gain/lose/…/std
   let section = 'pre';
 
@@ -3480,10 +3507,18 @@ function parseRuleFromLines(lines) {
       const m = line.match(RULE_RE);
       if (m) {
         n = parseInt(m[1], 10);
-        const rest = line.replace(RULE_RE, '').replace(/^[\s:—–\-.]+/, '').trim();
+        const rest = line.replace(RULE_RE, '').replace(/^[\s:—–\-.]+/, '').replace(HEAD_TAG_RE, '').trim();
         if (rest) { title = rest; section = 'posttitle'; } else { section = 'title'; }
       }
       continue;
+    }
+    if (BAND_RE.test(line)) continue;                                   // page footer, never content
+    if (CHECKIN_RE.test(line)) { section = 'skip'; continue; }          // tick boxes printed under the rule
+    if (section !== 'title') {   // straight after "RULE n" the line is the title, whatever it says
+      if (MEANING_RE.test(line))  { section = 'meaning';  daily = true; continue; }
+      if (EXAMPLES_RE.test(line)) { section = 'examples'; daily = true; continue; }
+      if (REMEMBER_RE.test(line)) { section = 'remember'; daily = true; continue; }
+      if (ACTION_RE.test(line))   { section = 'today'; daily = true; hasToday = true; continue; }
     }
     if (GAIN_RE.test(line))    { section = 'gain';    continue; }
     if (LOSE_RE.test(line))    { section = 'lose';    continue; }
@@ -3497,9 +3532,17 @@ function parseRuleFromLines(lines) {
       continue;
     }
     if (WHY_RE.test(line))     { section = 'why'; continue; }
-    if (MARKER_ONLY_RE.test(line)) continue;
+    if (MARKER_ONLY_RE.test(line)) { if (section === 'examples') newExample = true; continue; }
 
     switch (section) {
+      case 'meaning':  meaningParts.push(line); break;
+      case 'remember': rememberParts.push(line); break;
+      case 'examples':
+        // one example per bullet; a line without a bullet is the rest of a wrapped one
+        if (newExample || BULLET_START_RE.test(line) || !examples.length) examples.push(stripBullet(line));
+        else examples[examples.length - 1] += ' ' + line;
+        newExample = false;
+        break;
       case 'title':
         // first content line becomes the title, then switch to posttitle
         title = stripBullet(line); section = 'posttitle'; break;
@@ -3517,19 +3560,25 @@ function parseRuleFromLines(lines) {
   }
 
   if (n === null || !title) return null;
-  // A TODAY heading delimits the complete title, including wrapped lines.
-  if (hasToday) title = [title, ...preParts].join(' ').trim();
+  // A TODAY heading delimits the complete title, including wrapped lines —
+  // and so does the first heading of the daily-principle layout.
+  if (hasToday || daily) title = [title, ...preParts].join(' ').trim();
   const today = todayParts.join(' ').trim();
+  const meaning = meaningParts.join(' ').trim();
+  const remember = rememberParts.join(' ').trim();
   // Keep today's action searchable and available to spotlight/mission views.
   const standard = stdParts.length ? stdParts.join(' ').trim() :
-    hasToday ? today : preParts.join(' ').trim();
+    hasToday ? today : daily ? remember : preParts.join(' ').trim();
   return {
     n, title, gain, lose,
     reality: reality.join(' ').trim(),
     choice: choice.join(' ').trim(),
     standard,
     ...(hasToday ? { today } : {}),
-    ...(whyParts.length ? { why: whyParts.join(' ').trim() } : {})
+    ...(whyParts.length ? { why: whyParts.join(' ').trim() } : {}),
+    ...(meaning ? { meaning } : {}),
+    ...(examples.length ? { examples } : {}),
+    ...(remember ? { remember } : {})
   };
 }
 
@@ -3619,7 +3668,8 @@ function parseAllRules(allLines) {
 // split one rule per page and take the title as the text above the first
 // section header. Only used when parseAllRules finds nothing, so it can't
 // regress any PDF that already imports.
-const SECTION_ANY_RE = l => GAIN_RE.test(l) || LOSE_RE.test(l) || REALITY_RE.test(l) || CHOICE_RE.test(l) || STD_RE.test(l) || TODAY_RE.test(l) || WHY_RE.test(l);
+const DAILY_ANY_RE   = l => MEANING_RE.test(l) || EXAMPLES_RE.test(l) || ACTION_RE.test(l) || REMEMBER_RE.test(l);
+const SECTION_ANY_RE = l => GAIN_RE.test(l) || LOSE_RE.test(l) || REALITY_RE.test(l) || CHOICE_RE.test(l) || STD_RE.test(l) || TODAY_RE.test(l) || WHY_RE.test(l) || DAILY_ANY_RE(l);
 const PAGE_FOOTER_RE = /^(MASTERY\s+RULES|BRUTAL)\b/i; // header/footer band on each page
 const TICK_LINE_RE   = /^tick\b/i;
 const N_OF_RE        = /(\d{1,3})\s+of\s+\d+/i;         // "01 of 50" anywhere on a page
@@ -3635,10 +3685,10 @@ function parseByPage(pages) {
     for (const l of raw) { const m = l.match(N_OF_RE); if (m) { n = parseInt(m[1], 10); break; } }
 
     // drop the repeating header/footer + "tick" line so they can't pollute a section
-    const clean = raw.filter(l => { const t = l.trim(); return t && !PAGE_FOOTER_RE.test(t) && !TICK_LINE_RE.test(t); });
+    const clean = raw.filter(l => { const t = l.trim(); return t && !PAGE_FOOTER_RE.test(t) && !TICK_LINE_RE.test(t) && !CHECKIN_RE.test(t); });
     const secIdx = clean.findIndex(l => SECTION_ANY_RE(l.trim()));
     if (secIdx < 1) continue;                                   // no sections → not a rule page
-    if (!clean.slice(secIdx).some(l => GAIN_RE.test(l.trim()) || STD_RE.test(l.trim()))) continue;
+    if (!clean.slice(secIdx).some(l => GAIN_RE.test(l.trim()) || STD_RE.test(l.trim()) || MEANING_RE.test(l.trim()) || ACTION_RE.test(l.trim()))) continue;
 
     seq++;
     if (n === null) n = seq;
@@ -3677,7 +3727,7 @@ function cleanPdfPages(pages) {
       }
     }
     return lines.filter(line => {
-      if (furniture.has(line)) return false;
+      if (furniture.has(line) || BAND_RE.test(line.trim())) return false;
       const footer = line.trim().match(/^(.*?)\s+[-\u2013\u2014]\s+PRINCIPLE\s+\d+$/i);
       return !footer || !labels.has(footer[1]);
     });
@@ -3722,10 +3772,11 @@ async function importPdf(file) {
   }
   const fileHash = await pdfFileHash(buf);
   const knownFile = fileHash && data.books.find(b => (b.pdfHashes || []).includes(fileHash));
-  if (knownFile) {
+  if (knownFile && !looksMisread(knownFile)) {
     clearImportDiag();
     return { status: 'uptodate', name: knownFile.name };
   }
+  // knownFile from here on = a copy an older version read wrongly: read the file again and repair it
   try {
     pdf = await pdfjsLib.getDocument({ data: buf }).promise;
     diag.numPages = pdf.numPages;
@@ -3814,6 +3865,10 @@ async function importPdf(file) {
   // Only remember complete reads, so a failed page can be recovered on re-import.
   const completeHash = pageErrors === 0 ? fileHash : null;
   const signature = contentSignature(rules);
+  const misread = knownFile && data.books.includes(knownFile) && looksMisread(knownFile) ? knownFile : null;
+  if (misread && rereadBook(misread, rules)) {
+    return { status: 'repaired', count: misread.rules.length, name: misread.name };
+  }
   const exact = data.books.find(b =>
     (fileHash && (b.pdfHashes || []).includes(fileHash)) || contentSignature(b.rules) === signature);
   if (exact) {
@@ -3869,6 +3924,34 @@ async function importPdf(file) {
   return { status: 'added', count: rules.length };
 }
 
+// Before v43 the "daily principle" layout was not understood: the whole page
+// landed in the title, starting with the "[ DAILY PRINCIPLE ]" tag (which the
+// importer now strips, so no well-read rule begins with one). Such a book is
+// repaired by importing its PDF again, instead of being reported as up to date.
+function looksMisread(book) {
+  return (book.rules || []).some(r => HEAD_TAG_RE.test(String(r.title || '').trim()));
+}
+
+// Replace a book's rules with a fresh read of the same rules. Only when every
+// stored rule has exactly one fresh counterpart (by number); each keeps its id,
+// so ticks, stars, missions and challenges stay attached.
+function rereadBook(book, rules) {
+  const byN = new Map();
+  for (const r of rules) { if (byN.has(r.n)) return false; byN.set(r.n, r); }
+  const have = new Set();
+  for (const r of book.rules) { if (have.has(r.n) || !byN.has(r.n)) return false; have.add(r.n); }
+  book.rules = book.rules.map(old => {
+    const { id, ...fresh } = byN.get(old.n);
+    return old.id != null ? { ...fresh, id: old.id } : fresh;
+  });
+  const extra = rules.filter(r => !have.has(r.n)).map(r => { const { id, ...fresh } = r; return fresh; });
+  if (extra.length) book.rules = [...book.rules, ...extra].sort((a, b) => a.n - b.n);
+  assignRuleIds(book);
+  booksChanged(book.id);
+  save();
+  return true;
+}
+
 // Ignore page order, case, and spacing when comparing previously imported rules.
 function contentSignature(rules) {
   return JSON.stringify(rules.map(r =>
@@ -3891,7 +3974,7 @@ async function importFiles(fileList) {
     return;
   }
 
-  let added = 0, addedBooks = 0, merged = 0, mergedBooks = 0, uptodate = 0;
+  let added = 0, addedBooks = 0, merged = 0, mergedBooks = 0, uptodate = 0, repairedBooks = 0;
   for (const [i, f] of files.entries()) {
     // reading a big PDF takes a moment — say so instead of looking frozen
     toast(files.length > 1 ? `📖 Reading PDF ${i + 1} of ${files.length}…` : '📖 Reading the PDF…', 0);
@@ -3899,6 +3982,7 @@ async function importFiles(fileList) {
       const res = await importPdf(f);
       if (res.status === 'added')    { added += res.count; addedBooks++; }
       else if (res.status === 'merged')   { merged += res.count; mergedBooks++; }
+      else if (res.status === 'repaired') repairedBooks++;
       else if (res.status === 'uptodate') uptodate++;
     } catch (e) {
       console.error(e);
@@ -3906,12 +3990,13 @@ async function importFiles(fileList) {
         { name: f.name, size: f.size, type: f.type || '(none)', pdfjs: typeof pdfjsLib !== 'undefined', error: (e && (e.name + ': ' + e.message)) || String(e) });
     }
   }
-  const changed = addedBooks + mergedBooks;
+  const changed = addedBooks + mergedBooks + repairedBooks;
   if (changed) {
     renderAll();
     const parts = [];
     if (addedBooks) parts.push(`Imported ${added} rule${added === 1 ? '' : 's'} from ${addedBooks} new book${addedBooks === 1 ? '' : 's'}`);
     if (mergedBooks) parts.push(`Added ${merged} new rule${merged === 1 ? '' : 's'} to ${mergedBooks} book${mergedBooks === 1 ? '' : 's'}`);
+    if (repairedBooks) parts.push(`Repaired ${repairedBooks} book${repairedBooks === 1 ? '' : 's'} that had been read wrongly`);
     if (uptodate) parts.push(`${uptodate} already in your library - skipped`);
     toast(parts.join(' · '));
   } else if (uptodate) {
@@ -4035,6 +4120,8 @@ function mergeAliases(remoteAlias) {
 
 // Merge book `dup` into `keep`. Returns nothing; caller persists.
 function mergeBookInto(keep, dup) {
+  // the kept copy was read wrongly by an older version and the other one wasn't → keep the good text
+  if (looksMisread(keep) && !looksMisread(dup)) rereadBook(keep, dup.rules);
   const map = {};
   const byKey = new Map(keep.rules.map(r => [ruleKey(r), r]));
   const byTitle = new Map(keep.rules.map(r => [normRuleTitle(r.title), r]));
@@ -4722,6 +4809,9 @@ function cleanBackupBook(b) {
     if (Number.isFinite(r.id)) rule.id = r.id;
     if (typeof r.today === 'string') rule.today = r.today;
     if (str(r.why)) rule.why = r.why;
+    if (str(r.meaning)) rule.meaning = r.meaning;
+    if (list(r.examples).length) rule.examples = list(r.examples);
+    if (str(r.remember)) rule.remember = r.remember;
     book.rules.push(rule);
   }
   return book;
