@@ -206,7 +206,44 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .hist-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
   .hist-stat { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; }
   .hist-stat b { display: block; font-size: 1.25rem; }
-  .hist-stat span { font-size: 0.74rem; color: var(--text-dim); }
+  .hist-stat span { font-size: 0.75rem; color: var(--text-dim); }
+  /* ---------- Dashboard (top of the History sheet) ---------- */
+  .dash-hero { background: var(--surface-2); border-radius: 12px; padding: 14px 16px 16px; margin-bottom: 10px; }
+  .dash-hero-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .dash-num { font-size: 3.25rem; font-weight: 800; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; }
+  .dash-unit { font-size: 0.95rem; font-weight: 600; color: var(--text-dim); }
+  .dash-status { margin-top: 10px; font-size: 0.86rem; line-height: 1.45; color: var(--text-dim); }
+  .dash-status b { color: var(--text); }
+  .dash-meter { margin-top: 14px; }
+  .dash-meter-track { height: 8px; border-radius: 999px; background: #3b2e14; overflow: hidden; }
+  .dash-meter-fill { height: 100%; min-width: 4px; border-radius: 999px; background: var(--amber); }
+  .dash-meter-label { display: flex; justify-content: space-between; gap: 10px; margin-top: 6px; font-size: 0.75rem; color: var(--text-dim); }
+  .dash-h { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-faint); margin: 20px 0 8px; }
+  .dash-h-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 20px 0 8px; }
+  .dash-h-row .dash-h { margin: 0; }
+  .dash-note { font-size: 0.75rem; color: var(--text-dim); margin: 8px 0 0; line-height: 1.45; }
+  .dash-bars, .dash-axis { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 2px; }
+  .dash-bars { height: 96px; border-bottom: 1px solid var(--border); }
+  button.dash-col {
+    display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+    height: 100%; width: 100%; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; cursor: pointer;
+  }
+  .dash-bar { display: block; width: 100%; max-width: 24px; border-radius: 4px 4px 0 0; background: var(--green-dim); }
+  .dash-col.counted .dash-bar { background: var(--green); }
+  .dash-col:hover .dash-bar, .dash-col:focus-visible .dash-bar, .dash-col.sel .dash-bar { filter: brightness(1.3); }
+  .dash-col:focus-visible { outline: 2px solid var(--cyan); outline-offset: -2px; }
+  .dash-axis { margin-top: 4px; }
+  .dash-axis span { text-align: center; font-size: 0.75rem; line-height: 1.25; color: var(--text-faint); }
+  .dash-axis span i { display: block; font-style: normal; min-height: 1.25em; color: var(--text-dim); }
+  .dash-axis span.today { color: var(--amber); font-weight: 700; }
+  .dash-axis span.sel { color: var(--text); font-weight: 700; }
+  .dash-readout { margin-top: 8px; font-size: 0.86rem; color: var(--text-dim); min-height: 1.4em; }
+  .dash-readout b { color: var(--text); }
+  .dash-levels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .dash-level { background: var(--surface-2); border-radius: 8px; padding: 8px 6px; text-align: center; }
+  .dash-level b { display: block; font-size: 1.05rem; }
+  .dash-level span { font-size: 0.75rem; color: var(--text-dim); }
+  .streak-badge.zero { color: var(--text-dim); }
   .hist-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
   .hist-nav button { width: 44px; padding: 0; }
   .hist-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
@@ -1051,7 +1088,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     <div class="menu-group">
       <button id="btn-import" class="menu-row" data-icon="Upload">Add PDF</button>
       <button id="btn-library" class="menu-row" data-icon="Library" title="Manage books and sync settings">Manage library</button>
-      <button id="btn-history" class="menu-row" data-icon="History">History calendar</button>
+      <button id="btn-history" class="menu-row" data-icon="History" title="Your streak, progress and history calendar">Dashboard</button>
       <button id="btn-reminders" class="menu-row" data-icon="Bell">Daily reminders</button>
     </div>
     <div class="menu-group">
@@ -1072,14 +1109,19 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 
 <div class="modal-backdrop" id="history-modal">
   <div class="modal history-modal" role="dialog" aria-modal="true" aria-labelledby="history-title">
-    <div class="modal-heading"><h3 id="history-title">History</h3><button id="history-close" data-icon="X" title="Close" aria-label="Close"></button></div>
+    <div class="modal-heading"><h3 id="history-title">Dashboard</h3><button id="history-close" data-icon="X" title="Close" aria-label="Close"></button></div>
+    <div id="dash-hero"></div>
     <div class="hist-stats" id="hist-stats"></div>
+    <div id="dash-chart"></div>
+    <div id="dash-mastery"></div>
+    <h4 class="dash-h">Calendar</h4>
     <div class="hist-nav">
       <button id="hist-prev" data-icon="ChevronLeft" aria-label="Previous month" title="Previous month"></button>
       <strong id="hist-month"></strong>
       <button id="hist-next" data-icon="ChevronRight" aria-label="Next month" title="Next month"></button>
     </div>
     <div class="hist-grid" id="hist-grid"></div>
+    <p class="dash-note" id="hist-monthnote"></p>
     <div class="hist-detail" id="hist-detail" aria-live="polite"></div>
     <div class="hist-legend">
       <span><i class="hl lv3"></i>Mission lived + Focus done</span>
@@ -1152,7 +1194,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v46 · 2026-11-19 (reads "PRINCIPLE 01 / 20" PDFs)';
+const APP_VERSION = 'v47 · 2026-11-19 (streak dashboard)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -3073,10 +3115,12 @@ function renderStreak() {
   const el = $('streak');
   if (!el) return;
   const s = computeStreak();
-  if (s > 0) {
+  // Always there once you have a book or any history: it is the way into the dashboard.
+  if (s > 0 || data.books.length || Object.keys(data.daylog || {}).length) {
     el.hidden = false; el.textContent = `🔥 ${s}`;
-    el.title = `${s}-day streak — days you lived your mission or finished Focus. Tap for History.`;
-    el.setAttribute('aria-label', `${s}-day streak. Open history`);
+    el.classList.toggle('zero', s === 0);
+    el.title = `${s}-day streak — days you lived your mission or finished Focus. Tap for your dashboard.`;
+    el.setAttribute('aria-label', `${s}-day streak. Open dashboard`);
   } else el.hidden = true;
 }
 
@@ -3096,6 +3140,105 @@ function dayLevel(day) {
   if (r.m && goal) return 3;
   if (r.m || goal) return 2;
   return r.t > 0 ? 1 : 0;
+}
+
+/* ================= Dashboard =================
+   The top of the History sheet: the streak as one big number, how far the next
+   milestone is, the last two weeks as a column chart, a few all-time numbers
+   and the mastery levels. Everything is read from what the app already keeps
+   (the permanent day log + the kept tick history) — nothing new is stored. */
+const STREAK_MILESTONES = [3, 7, 14, 21, 30, 50, 75, 100, 150, 200, 250, 300, 365, 500, 730, 1000];
+const DASH_DAYS = 14;
+
+// "12 rules lived · mission lived · counts toward your streak"
+function daySummary(day) {
+  const r = (data.daylog || {})[day];
+  const t = (r && r.t) || 0;
+  const parts = [`<b>${t}</b> rule${t === 1 ? '' : 's'} lived`];
+  if (r && r.m) parts.push('mission lived');
+  parts.push(dayCounts(day) ? 'counts toward your streak ✓' : day === currentDay ? 'not counted yet' : 'did not count');
+  return parts.join(' · ');
+}
+
+function dashSelectedDay(days) { return days.includes(histDay) ? histDay : currentDay; }
+
+function renderDashboard() {
+  const log = data.daylog || {};
+  const allDays = Object.keys(log).sort();
+  const streak = computeStreak(), best = bestStreak();
+  const { done, total } = focusProgress();
+
+  // --- the streak, and what today needs ---
+  const next = STREAK_MILESTONES.find(m => m > streak) || (Math.floor(streak / 500) + 1) * 500;
+  const toGo = next - streak;
+  const how = total ? `Live your mission or finish Focus (${done} of ${total})` : 'Live your mission';
+  const status = !data.books.length && !allDays.length ? 'Import a book, then live your mission or finish your daily Focus — each day you do adds one to your streak.'
+    : dayCounts(currentDay) ? `<b>✓ Today is counted.</b>${streak > 1 && streak === best ? ' This is your best streak so far.' : ''}`
+    : streak > 0 ? `<b>Today isn’t counted yet.</b> ${how} before midnight to make it ${streak + 1}.`
+    : `No streak right now. ${how} today to start one.`;
+  $('dash-hero').innerHTML = `
+    <div class="dash-hero">
+      <div class="dash-hero-row"><span class="dash-num">🔥 ${streak}</span><span class="dash-unit">day${streak === 1 ? '' : 's'} in a row</span></div>
+      <div class="dash-status">${status}</div>
+      <div class="dash-meter" role="progressbar" aria-valuemin="0" aria-valuemax="${next}" aria-valuenow="${streak}" aria-label="Progress to a ${next}-day streak">
+        <div class="dash-meter-track"><div class="dash-meter-fill" style="width:${Math.round(streak / next * 100)}%"></div></div>
+        <div class="dash-meter-label"><span>${toGo} day${toGo === 1 ? '' : 's'} to a ${next}-day streak</span><span>${streak} / ${next}</span></div>
+      </div>
+    </div>`;
+
+  // --- a few numbers ---
+  const sum = (from, to) => allDays.filter(d => d >= from && d <= to).reduce((n, d) => n + (log[d].t || 0), 0);
+  const [y, m, d] = currentDay.split('-').map(Number);
+  const monday = addDays(currentDay, -((new Date(y, m - 1, d).getDay() + 6) % 7));
+  const thisWeek = sum(monday, currentDay), lastWeek = sum(addDays(monday, -7), addDays(monday, -1));
+  $('hist-stats').innerHTML = [
+    [`🏅 ${best}`, 'best streak, in days'],
+    [`✅ ${allDays.filter(dayCounts).length}`, 'days that counted, all time'],
+    [`📖 ${thisWeek}`, `rules lived this week · ${lastWeek} last week`],
+    [`⚔️ ${allDays.filter(k => log[k].m).length}`, 'missions lived, all time']
+  ].map(([v, l]) => `<div class="hist-stat"><b>${v}</b><span>${esc(l)}</span></div>`).join('');
+
+  // --- the last two weeks: one column per day ---
+  const days = Array.from({ length: DASH_DAYS }, (_, i) => addDays(currentDay, i - DASH_DAYS + 1));
+  const counts = days.map(k => (log[k] && log[k].t) || 0);
+  const max = Math.max(1, ...counts);
+  const sel = dashSelectedDay(days);
+  $('dash-chart').innerHTML = `
+    <div class="dash-h-row"><h4 class="dash-h">Rules lived each day</h4><span class="dash-note" style="margin:0">last ${DASH_DAYS} days · most in a day: ${Math.max(0, ...counts)}</span></div>
+    <div class="dash-bars" id="dash-bars">${days.map((k, i) => {
+      const label = `${friendlyDate(k)}: ${daySummary(k).replace(/<\/?b>/g, '')}`;
+      return `<button class="dash-col ${dayCounts(k) ? 'counted' : ''} ${k === sel ? 'sel' : ''}" data-day="${k}" aria-pressed="${k === sel}" title="${esc(label)}" aria-label="${esc(label)}"><span class="dash-bar" style="height:${counts[i] ? Math.max(4, Math.round(counts[i] / max * 100)) : 0}%"></span></button>`;
+    }).join('')}</div>
+    <div class="dash-axis" aria-hidden="true">${days.map(k => {
+      const [yy, mm, dd] = k.split('-').map(Number);
+      return `<span class="${k === currentDay ? 'today' : ''} ${k === sel ? 'sel' : ''}">${'SMTWTFS'[new Date(yy, mm - 1, dd).getDay()]}<i>${dayCounts(k) ? '✓' : ''}</i></span>`;
+    }).join('')}</div>
+    <div class="dash-readout" id="dash-readout" aria-live="polite"></div>
+    <p class="dash-note">Bright columns with a ✓ are days that counted toward your streak. Tap a day to see what you lived.</p>`;
+  const readout = (k) => { $('dash-readout').innerHTML = `${daySummary(k)} — ${esc(k === currentDay ? 'today' : friendlyDate(k))}`; };
+  readout(sel);
+  const bars = $('dash-bars');
+  for (const col of bars.querySelectorAll('.dash-col')) {
+    col.onpointerenter = col.onfocus = () => readout(col.dataset.day);
+    col.onclick = () => {   // one selected day for the chart and the calendar below
+      histDay = col.dataset.day; histMonth = histDay.slice(0, 7);
+      renderHistory();
+      const again = $('dash-bars').querySelector(`[data-day="${histDay}"]`);
+      if (again) again.focus({ preventScroll: true });
+    };
+  }
+  bars.onpointerleave = () => readout(dashSelectedDay(days));
+
+  // --- mastery levels (rules by days lived in the kept history) ---
+  const lv = {};
+  for (const { uid } of allRules()) { const ms = masteryOf(uid); if (ms) lv[ms.key] = (lv[ms.key] || 0) + 1; }
+  $('dash-mastery').innerHTML = !Object.keys(lv).length ? '' : `
+    <div class="dash-h-row"><h4 class="dash-h">Mastery levels</h4><button class="link-btn" id="dash-see-mastery">See these rules</button></div>
+    <div class="dash-levels">${[...LEVELS].reverse().map(l =>
+      `<div class="dash-level" title="${l.label}: lived on ${l.min}+ day${l.min === 1 ? '' : 's'}"><b>${l.icon} ${lv[l.key] || 0}</b><span>${l.label}</span></div>`).join('')}</div>
+    <p class="dash-note">Rules by how many days you lived them in the last ${HISTORY_DAYS} days (1, 3, 7 and 14 days).</p>`;
+  const see = $('dash-see-mastery');
+  if (see) see.onclick = () => { closeModal('history-modal'); filter = 'mastery'; searchAll = false; renderAll(); $('chips').scrollIntoView({ block: 'start' }); };
 }
 
 function openHistory() {
@@ -3119,15 +3262,9 @@ function renderHistory() {
   const thisMonth = currentDay.slice(0, 7);
   const [y, m] = histMonth.split('-').map(Number);
 
-  // stats
-  const missions = allDays.filter(d => log[d].m).length;
+  renderDashboard();
   const activeThisMonth = allDays.filter(d => d.startsWith(histMonth) && (log[d].t || 0) > 0).length;
-  $('hist-stats').innerHTML = [
-    [`🔥 ${computeStreak()}`, 'current streak'],
-    [`🏅 ${bestStreak()}`, 'best streak'],
-    [`⚔️ ${missions}`, 'missions lived, all time'],
-    [`📅 ${activeThisMonth}`, `active days in ${new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long' })}`]
-  ].map(([v, l]) => `<div class="hist-stat"><b>${v}</b><span>${esc(l)}</span></div>`).join('');
+  $('hist-monthnote').textContent = `${activeThisMonth} active day${activeThisMonth === 1 ? '' : 's'} in ${new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long' })}`;
 
   $('hist-month').textContent = new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   $('hist-prev').disabled = histMonth <= firstMonth;
@@ -3203,6 +3340,7 @@ function selectHistDay(day) {
     b.classList.toggle('sel', on);
     b.setAttribute('aria-pressed', String(on));
   }
+  renderDashboard();   // the chart above marks the same day
   renderHistDetail();
 }
 
@@ -3273,6 +3411,7 @@ function toggleTick(uid) {
   // (not while a whole-library search is showing — no filter is in force then).
   if (!searchingEverywhere() && (filter === 'todo' || filter === 'done' || filter === 'mastery')) renderGrid();
   else updateSectionHeader(uid.slice(0, uid.lastIndexOf(':')));
+  if ($('history-modal').classList.contains('show')) renderHistory();   // an open dashboard stays true
 }
 
 // Keep the book header's count + progress bar in step with ticks without a grid rebuild.
