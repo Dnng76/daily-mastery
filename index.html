@@ -35,6 +35,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     --red: #e05252;
     --amber: #e0a53c;
     --cyan: #54b8c7;
+    --violet: #a892f5;
     --radius: 8px;
     --button-bg: #202027;
     --button-border: #464651;
@@ -345,6 +346,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .mission-body h4.lose-h { color: var(--red); }
   .mission-body h4.reality-h { color: var(--amber); }
   .mission-body h4.choice-h { color: var(--cyan); }
+  .mission-body h4.meaning-h { color: var(--violet); }
   .mission-body ul { list-style: none; }
   .mission-body li { color: var(--text-dim); padding-left: 14px; position: relative; margin-bottom: 3px; overflow-wrap: anywhere; }
   .mission-body li::before { content: "–"; position: absolute; left: 0; color: var(--text-faint); }
@@ -558,6 +560,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .card-body h4.lose-h { color: var(--red); }
   .card-body h4.reality-h { color: var(--amber); }
   .card-body h4.choice-h { color: var(--cyan); }
+  .card-body h4.meaning-h { color: var(--violet); }
   .card-body ul { list-style: none; }
   .card-body li {
     color: var(--text-dim);
@@ -1147,7 +1150,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v43 · 2026-11-19 (reads daily-principle PDFs)';
+const APP_VERSION = 'v44 · 2026-11-19 (coloured "The meaning" heading)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -2605,7 +2608,7 @@ function visibleRules(everywhere = searchingEverywhere()) {
 // uid given → it's a grid card, so append the mission/challenge actions
 function bodyHtml(rule, uid) {
   return `
-      ${rule.meaning ? `<section class="rule-section"><h4>The meaning</h4>
+      ${rule.meaning ? `<section class="rule-section"><h4 class="meaning-h">The meaning</h4>
         <p class="para">${esc(rule.meaning)}</p></section>` : ''}
       ${rule.examples && rule.examples.length ? `<section class="rule-section"><h4 class="reality-h">The reality</h4>
         ${rule.examples.length > 1 ? `<ul>${rule.examples.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`
