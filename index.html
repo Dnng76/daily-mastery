@@ -372,9 +372,15 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .book-navigation { display: flex; gap: 10px; margin: 0 0 24px; padding: 0 0 16px; border-bottom: 1px solid var(--border); }
   /* search button beside "Browse books": jumps to the search box further down the page */
   #btn-browse { flex: 1 1 auto; min-width: 0; }
-  #btn-find { flex-shrink: 0; width: 52px; min-height: 52px; padding: 0; border-color: var(--browse-border); background: var(--browse-bg); }
-  #btn-find .ui-icon { color: var(--browse-icon); width: 22px; height: 22px; }
-  #btn-find:hover { background: var(--browse-hover); border-color: var(--cyan-edge); }
+  #btn-find, #btn-theme { flex-shrink: 0; width: 52px; min-height: 52px; padding: 0; border-color: var(--browse-border); background: var(--browse-bg); }
+  #btn-find .ui-icon, #btn-theme .ui-icon { color: var(--browse-icon); width: 22px; height: 22px; }
+  #btn-find:hover, #btn-theme:hover { background: var(--browse-hover); border-color: var(--cyan-edge); }
+  /* one-tap light/dark button: it shows where a tap takes you — a sun while the
+     app is dark, a moon while it is light. Which one shows is decided here from
+     <html data-theme>, so it is right however the look was changed. */
+  #btn-theme .to-dark { display: none; }
+  :root[data-theme="light"] #btn-theme .to-dark { display: inline-block; }
+  :root[data-theme="light"] #btn-theme .to-light { display: none; }
   #btn-browse { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 12px 16px; text-align: left; border-color: var(--browse-border); background: var(--browse-bg); }
   #btn-browse > .ui-icon:first-child { color: var(--browse-icon); width: 22px; height: 22px; }
   #btn-browse > .ui-icon:last-child { margin-left: auto; }
@@ -1210,6 +1216,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 <symbol id="ui-Bell" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0"></path><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"></path></symbol>
 <symbol id="ui-History" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></symbol>
 <symbol id="ui-ChevronLeft" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></symbol>
+<symbol id="ui-Sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></symbol>
+<symbol id="ui-Moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></symbol>
 </svg>
 
 <div class="drop-overlay">Drop PDF to add to library</div>
@@ -1241,6 +1249,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   <nav class="book-navigation" aria-label="Book navigation">
     <button id="btn-browse" aria-haspopup="dialog" aria-controls="book-picker"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#ui-Library"></use></svg><span>Browse books</span><span class="filter-count" id="browse-count">0</span><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#ui-ChevronRight"></use></svg></button>
     <button id="btn-find" data-icon="Search" title="Search your principles" aria-label="Search your principles"></button>
+    <button id="btn-theme" title="Switch between light and dark" aria-label="Switch between light and dark"><svg class="ui-icon to-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#ui-Sun"></use></svg><svg class="ui-icon to-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#ui-Moon"></use></svg></button>
   </nav>
 
   <div id="spotlight-box"></div>
@@ -1360,7 +1369,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
           <button type="button" data-theme-pref="light" aria-pressed="false">Light</button>
           <button type="button" data-theme-pref="dark" aria-pressed="false">Dark</button>
         </div>
-        <p class="menu-note" id="theme-note">Auto follows this device's own light or dark setting. Your choice is kept on this device only.</p>
+        <p class="menu-note" id="theme-note">Auto follows this device's own light or dark setting. Your choice is kept on this device only. The sun / moon button at the top of the main screen switches with one tap.</p>
       </div>
     </div>
     <div class="menu-group">
@@ -1456,7 +1465,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v49 · 2026-11-20 (easier search)';
+const APP_VERSION = 'v50 · 2026-11-20 (light/dark button)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -5666,6 +5675,13 @@ $('theme-seg').addEventListener('click', (e) => {
   renderThemeSwitch();
 });
 renderThemeSwitch();
+// The one-tap button at the top: flips to the other look and keeps it (so it leaves
+// "Auto"; More → Appearance → Auto goes back to following the device).
+$('btn-theme').onclick = () => {
+  if (!window.AppTheme) return;
+  AppTheme.set(AppTheme.resolved() === 'light' ? 'dark' : 'light');
+  renderThemeSwitch();
+};
 
 $('btn-more').onclick = () => { renderBackupNote(); renderThemeSwitch(); openSheet('more-modal'); };
 $('more-close').onclick = () => closeModal('more-modal');
