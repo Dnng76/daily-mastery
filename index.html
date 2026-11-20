@@ -1465,7 +1465,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v50 · 2026-11-20 (light/dark button)';
+const APP_VERSION = 'v51 · 2026-11-20 (sections close at midnight)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -2310,11 +2310,26 @@ const FLAT_STEP = 100;     // cards drawn per "page" of a flat list (search resu
 let flatLimit = FLAT_STEP, _flatKey = '';
 const expanded = new Set();
 // Book sections start MINIMIZED: only books you open render their cards, which
-// keeps the grid fast with 70+ books. Open set persists per device.
+// keeps the grid fast with 70+ books. Open set persists per device, for ONE day:
+// at midnight every open section closes again (closeAllSections, called from
+// checkDayRollover), and a list saved on an earlier day is not reopened at start.
 let openBooks = new Set();
-try { openBooks = new Set(JSON.parse(localStorage.getItem('mastery_open_books') || '[]')); } catch (e) { /* ignore */ }
+try {
+  const day = localStorage.getItem('mastery_open_books_day');
+  // no date saved = kept by a version before v51: leave those open until the next midnight
+  if (!day || day === currentDay) openBooks = new Set(JSON.parse(localStorage.getItem('mastery_open_books') || '[]'));
+} catch (e) { /* ignore */ }
+saveOpenBooks();   // stamps the list with today's date (and drops an earlier day's list)
 function saveOpenBooks() {
-  try { localStorage.setItem('mastery_open_books', JSON.stringify([...openBooks])); } catch (e) { /* ignore */ }
+  try {
+    localStorage.setItem('mastery_open_books', JSON.stringify([...openBooks]));
+    localStorage.setItem('mastery_open_books_day', currentDay);
+  } catch (e) { /* ignore */ }
+}
+function closeAllSections() {
+  openBooks.clear();
+  expanded.clear();   // opened rule cards too — the new day starts with everything closed
+  saveOpenBooks();
 }
 
 /* ================= Rendering ================= */
@@ -4017,6 +4032,7 @@ function checkDayRollover() {
     _doneSet = null;
     planEditing = false;
     todayOpenUid = null;
+    closeAllSections();   // 12 am: open book sections close for the new day
   }
 }
 
