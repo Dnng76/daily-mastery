@@ -13,6 +13,42 @@
 <!-- PNG icons + manifest for installing to the phone home screen (served from the site) -->
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
+<!-- Appearance (light / dark): decided here, before anything is drawn, so the page
+     never flashes the wrong colours. The choice (auto / light / dark) is kept per
+     device in 'mastery_theme'; "auto" follows the device's own light/dark setting.
+     The colours themselves are the two lists at the top of the stylesheet below. -->
+<script>
+(function () {
+  var KEY = 'mastery_theme', root = document.documentElement, pref = 'auto';
+  try { var v = localStorage.getItem(KEY); if (v === 'light' || v === 'dark') pref = v; } catch (e) { /* storage blocked → auto */ }
+  var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+  // Installed iPhone/iPad app: its status bar is always white text (see .ios-app in the styles)
+  var iosApp = navigator.standalone === true;
+  if (iosApp) root.classList.add('ios-app');
+  function resolved() { return pref === 'auto' ? (mq && mq.matches ? 'light' : 'dark') : pref; }
+  function apply() {
+    var t = resolved();
+    root.setAttribute('data-theme', t);
+    var tc = document.querySelector('meta[name="theme-color"]'), cs = document.querySelector('meta[name="color-scheme"]');
+    if (tc) tc.setAttribute('content', t === 'light' && !iosApp ? '#f4f4f6' : '#0a0a0c');   // = --bg
+    if (cs) cs.setAttribute('content', t);
+  }
+  if (mq) { if (mq.addEventListener) mq.addEventListener('change', apply); else if (mq.addListener) mq.addListener(apply); }
+  // and again whenever the app comes back to the front (the device may have switched at sunset meanwhile)
+  document.addEventListener('visibilitychange', apply);
+  window.addEventListener('pageshow', apply);
+  window.AppTheme = {
+    pref: function () { return pref; },
+    resolved: resolved,
+    set: function (p) {
+      pref = (p === 'light' || p === 'dark') ? p : 'auto';
+      try { if (pref === 'auto') localStorage.removeItem(KEY); else localStorage.setItem(KEY, pref); } catch (e) { /* not saved; still applies until the app is closed */ }
+      apply();
+    }
+  };
+  apply();
+})();
+</script>
 <!-- No third-party <script> tags here on purpose: the PDF reader and Firebase are
      loaded on demand by loadLib() further down, so the app draws immediately and
      still starts when those files can't be reached (offline, blocked, outage). -->
@@ -21,6 +57,13 @@
 var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",n="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$",e={};function t(r,o){if(!e[r]){e[r]={};for(var n=0;n<r.length;n++)e[r][r.charAt(n)]=n}return e[r][o]}var i={compressToBase64:function(r){if(null==r)return"";var n=i._compress(r,6,function(r){return o.charAt(r)});switch(n.length%4){default:case 0:return n;case 1:return n+"===";case 2:return n+"==";case 3:return n+"="}},decompressFromBase64:function(r){return null==r?"":""==r?null:i._decompress(r.length,32,function(n){return t(o,r.charAt(n))})},compressToUTF16:function(o){return null==o?"":i._compress(o,15,function(o){return r(o+32)})+" "},decompressFromUTF16:function(r){return null==r?"":""==r?null:i._decompress(r.length,16384,function(o){return r.charCodeAt(o)-32})},compress:function(o){return i._compress(o,16,function(o){return r(o)})},_compress:function(r,o,n){if(null==r)return"";var e,t,i,s={},u={},a="",p="",c="",l=2,f=3,h=2,d=[],m=0,v=0;for(i=0;i<r.length;i+=1)if(a=r.charAt(i),Object.prototype.hasOwnProperty.call(s,a)||(s[a]=f++,u[a]=!0),p=c+a,Object.prototype.hasOwnProperty.call(s,p))c=p;else{if(Object.prototype.hasOwnProperty.call(u,c)){if(c.charCodeAt(0)<256){for(e=0;e<h;e++)m<<=1,v==o-1?(v=0,d.push(n(m)),m=0):v++;for(t=c.charCodeAt(0),e=0;e<8;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}else{for(t=1,e=0;e<h;e++)m=m<<1|t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t=0;for(t=c.charCodeAt(0),e=0;e<16;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}0==--l&&(l=Math.pow(2,h),h++),delete u[c]}else for(t=s[c],e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;0==--l&&(l=Math.pow(2,h),h++),s[p]=f++,c=String(a)}if(""!==c){if(Object.prototype.hasOwnProperty.call(u,c)){if(c.charCodeAt(0)<256){for(e=0;e<h;e++)m<<=1,v==o-1?(v=0,d.push(n(m)),m=0):v++;for(t=c.charCodeAt(0),e=0;e<8;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}else{for(t=1,e=0;e<h;e++)m=m<<1|t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t=0;for(t=c.charCodeAt(0),e=0;e<16;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}0==--l&&(l=Math.pow(2,h),h++),delete u[c]}else for(t=s[c],e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;0==--l&&(l=Math.pow(2,h),h++)}for(t=2,e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;for(;;){if(m<<=1,v==o-1){d.push(n(m));break}v++}return d.join("")},decompress:function(r){return null==r?"":""==r?null:i._decompress(r.length,32768,function(o){return r.charCodeAt(o)})},_decompress:function(o,n,e){var t,i,s,u,a,p,c,l=[],f=4,h=4,d=3,m="",v=[],g={val:e(0),position:n,index:1};for(t=0;t<3;t+=1)l[t]=t;for(s=0,a=Math.pow(2,2),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;switch(s){case 0:for(s=0,a=Math.pow(2,8),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;c=r(s);break;case 1:for(s=0,a=Math.pow(2,16),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;c=r(s);break;case 2:return""}for(l[3]=c,i=c,v.push(c);;){if(g.index>o)return"";for(s=0,a=Math.pow(2,d),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;switch(c=s){case 0:for(s=0,a=Math.pow(2,8),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;l[h++]=r(s),c=h-1,f--;break;case 1:for(s=0,a=Math.pow(2,16),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;l[h++]=r(s),c=h-1,f--;break;case 2:return v.join("")}if(0==f&&(f=Math.pow(2,d),d++),l[c])m=l[c];else{if(c!==h)return null;m=i+i.charAt(0)}v.push(m),l[h++]=i+m.charAt(0),i=m,0==--f&&(f=Math.pow(2,d),d++)}}};return i}();
 </script>
 <style>
+  /* ---------- Colours ----------
+     EVERY colour in this stylesheet is a named value from the two lists below:
+     the first list is the dark look, the second ([data-theme="light"]) the light
+     look. <html data-theme> is set by the small script in <head> from the
+     Appearance switch in the More sheet (Auto / Light / Dark).
+     Adding a colour? Give it a name in BOTH lists — a colour written straight
+     into a rule further down will be wrong in one of the two looks. */
   :root {
     color-scheme: dark;   /* the browser's own parts (scrollbars, drop-down lists, number steppers) match the dark app */
     --bg: #0a0a0c;
@@ -41,7 +84,180 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     --button-border: #464651;
     --button-hover: #2a2a33;
     --button-text: #f0f0f5;
+    /* text drawn ON a colour: on the app's green, and on a book's own colour */
+    --on-accent: #0a0a0c;
+    --on-book: #0a0a0c;
+    /* plain buttons, panels, dividers */
+    --button-border-strong: #555561;
+    --button-active: #2b2b35;
+    --count-bg: #ffffff0c;
+    --divider: #363640;
+    --panel-bg: #18181d;
+    --label-text: #c5c5cf;
+    --card-hover-border: #44444e;
+    --overlay-bg: rgba(10, 10, 12, 0.92);
+    --backdrop: rgba(0, 0, 0, 0.65);
+    --gbtn-ring: transparent;
+    /* red: remove / not-for-me */
+    --danger-border: #573037;
+    --danger-bg: #211619;
+    --danger-hover: #241616;
+    --miss-border: #5a2a2a;
+    --hide-icon: #ff8585;
+    --hide-ink: #ffb9b9;
+    --hide-border: #a55560;
+    --hide-hover: #322127;
+    /* cyan: browse, mission */
+    --browse-bg: #152227;
+    --browse-border: #395a62;
+    --browse-icon: #7cd4df;
+    --browse-hover: #203239;
+    --cyan-edge: #68bac9;
+    --cyan-tint: #1b3036;
+    --cyan-ink: #b3edf4;
+    --cyan-border: #49858e;
+    --mission-btn-bg: #17282c;
+    --mission-btn-border: #335962;
+    --mission-btn-hover: #213a40;
+    /* amber: streak, challenge, warnings, stars */
+    --amber-fill: #e0a53c;
+    --amber-border: #6b5220;
+    --amber-track: #3b2e14;
+    --amber-bg: #241d12;
+    --amber-edge: #d4ae68;
+    --amber-ink: #f5d39a;
+    --amber-border-strong: #7d6442;
+    --amber-tint: #30291d;
+    --challenge-btn-bg: #2a2418;
+    --challenge-btn-border: #635134;
+    --challenge-btn-hover: #3a301e;
+    --star: #facc15;
+    --star-border: #bda034;
+    --star-hover: #302a1a;
+    --star-ink: #ffe58a;
+    --star-bg: #40351a;
+    --star-card-border: #4a3c1c;
+    --mark-bg: #4a3c1c;
+    --mark-text: #ffe58a;
+    /* green: lived, done, calendar shades */
+    --green-hover: #45da87;
+    --green-ink: #bce8cc;
+    --chip-on-bg: #15251c;
+    --chip-on-border: #31533d;
+    --done-bg: #111a15;
+    --heat1-bg: #16301f;
+    --heat1-text: #9fe0b9;
+    --heat2-bg: #1d7a47;
+    --heat2-text: #e8fff1;
+    --bar-dim: #1d7a47;
+    --lived-bg: #4ade80;
+    --lived-text: #092112;
+    --lived-hover: #76eba0;
+    --lived-on-bg: #1c3426;
+    --lived-on-border: #41855c;
+    --lived-on-text: #8cebb3;
+    --lived-on-hover: #254431;
+    --lived-on-edge: #69bc88;
+    --practicing-text: #7fd6a4;
+    --practicing-border: #1f4a33;
   }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f4f4f6;
+    --surface: #ffffff;
+    --surface-2: #ebebef;
+    --border: #d8d8df;
+    --text: #17171b;
+    --text-dim: #4a4a55;
+    --text-faint: #666672;
+    --green: #167a3b;
+    --green-dim: #9fd6b3;
+    --red: #c22a2a;
+    --amber: #8d5400;
+    --cyan: #0c6f85;
+    --violet: #6245d0;
+    --button-bg: #ffffff;
+    --button-border: #bdbdc8;
+    --button-hover: #f0f0f4;
+    --button-text: #1b1b21;
+    --on-accent: #ffffff;
+    --on-book: #0a0a0c;
+    --button-border-strong: #9c9caa;
+    --button-active: #e5e5eb;
+    --count-bg: #0000000f;
+    --divider: #dcdce3;
+    --panel-bg: #f7f7f9;
+    --label-text: #50505c;
+    --card-hover-border: #b9b9c4;
+    --overlay-bg: rgba(255, 255, 255, 0.92);
+    --backdrop: rgba(22, 22, 30, 0.5);
+    --gbtn-ring: #bdbdc8;
+    --danger-border: #e3b1b1;
+    --danger-bg: #fdf1f1;
+    --danger-hover: #fbe4e4;
+    --miss-border: #e5b5b5;
+    --hide-icon: #c93a3a;
+    --hide-ink: #a82020;
+    --hide-border: #dba0a8;
+    --hide-hover: #fdeeee;
+    --browse-bg: #e9f5f7;
+    --browse-border: #a9d3da;
+    --browse-icon: #0c6f85;
+    --browse-hover: #dbeef2;
+    --cyan-edge: #3d9aac;
+    --cyan-tint: #dff1f4;
+    --cyan-ink: #0a5567;
+    --cyan-border: #7fbfcb;
+    --mission-btn-bg: #edf7f9;
+    --mission-btn-border: #afd6dd;
+    --mission-btn-hover: #dceff3;
+    --amber-fill: #b06f00;
+    --amber-border: #dcbd7c;
+    --amber-track: #f3e4c4;
+    --amber-bg: #fdf5e2;
+    --amber-edge: #b98a2e;
+    --amber-ink: #6f4300;
+    --amber-border-strong: #c9a55a;
+    --amber-tint: #f8ecd0;
+    --challenge-btn-bg: #fbf4e4;
+    --challenge-btn-border: #e0c995;
+    --challenge-btn-hover: #f6e9cb;
+    --star: #a87300;
+    --star-border: #cfa72f;
+    --star-hover: #fbf3d6;
+    --star-ink: #6b4e00;
+    --star-bg: #fbeeb8;
+    --star-card-border: #e2cd8a;
+    --mark-bg: #ffe8a3;
+    --mark-text: #3b2c00;
+    --green-hover: #116430;
+    --green-ink: #1c5c37;
+    --chip-on-bg: #e3f4e9;
+    --chip-on-border: #a4d5b6;
+    --done-bg: #f1f9f4;
+    --heat1-bg: #dff3e6;
+    --heat1-text: #1a6a3b;
+    --heat2-bg: #93d5ab;
+    --heat2-text: #0b3a1e;
+    --bar-dim: #4c9a6c;
+    --lived-bg: #167a3b;
+    --lived-text: #ffffff;
+    --lived-hover: #116430;
+    --lived-on-bg: #e0f3e7;
+    --lived-on-border: #86c7a0;
+    --lived-on-text: #14633a;
+    --lived-on-hover: #d0ecda;
+    --lived-on-edge: #4f9f73;
+    --practicing-text: #1f7a48;
+    --practicing-border: #a9d9bb;
+  }
+  /* Installed on an iPhone/iPad, the clock and battery at the top are always drawn
+     in WHITE over the page's own background. In the light look that would be white
+     on white, so there the page background stays dark (it only shows behind the
+     status bar) and the light page colour is painted by a layer above it. */
+  :root.ios-app[data-theme="light"] { background: #0a0a0c; }
+  :root.ios-app[data-theme="light"] body { background: transparent; }
+  :root.ios-app[data-theme="light"] body::before { content: ""; position: fixed; inset: 0; z-index: -1; background: var(--bg); }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body {
@@ -133,13 +349,13 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     transition: background 0.15s, border-color 0.15s, color 0.15s;
     -webkit-tap-highlight-color: transparent;
   }
-  button:hover { background: var(--button-hover); border-color: #555561; }
-  button:active { background: #2b2b35; }
+  button:hover { background: var(--button-hover); border-color: var(--button-border-strong); }
+  button:active { background: var(--button-active); }
   :is(button, input, a):focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
   button { min-height: 44px; }
   button:disabled { cursor: default; opacity: 0.45; }
-  button.danger { color: var(--red); border-color: #573037; background: #211619; }
-  button.danger:hover { background: #241616; }
+  button.danger { color: var(--red); border-color: var(--danger-border); background: var(--danger-bg); }
+  button.danger:hover { background: var(--danger-hover); }
   button.icon-btn { padding: 10px; width: 44px; flex-shrink: 0; }
   .icon-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
   .ui-icon { display: inline-block; width: 18px; height: 18px; flex-shrink: 0; vertical-align: middle; }
@@ -149,15 +365,15 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .star-btn.on .ui-icon { fill: currentColor; }
   button[data-mission] .ui-icon { color: var(--cyan); }
   button[data-challenge] .ui-icon { color: var(--amber); }
-  #btn-import, #btn-modal-import { border-color: #555561; color: var(--text); }
-  .filter-count { font-size: 0.72rem; font-variant-numeric: tabular-nums; padding: 2px 5px; border-radius: 4px; background: #ffffff0c; }
+  #btn-import, #btn-modal-import { border-color: var(--button-border-strong); color: var(--text); }
+  .filter-count { font-size: 0.72rem; font-variant-numeric: tabular-nums; padding: 2px 5px; border-radius: 4px; background: var(--count-bg); }
 
   /* ---------- Toolbar ---------- */
   .book-navigation { margin: 0 0 24px; padding: 0 0 16px; border-bottom: 1px solid var(--border); }
-  #btn-browse { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 12px 16px; text-align: left; border-color: #395a62; background: #152227; }
-  #btn-browse > .ui-icon:first-child { color: #7cd4df; width: 22px; height: 22px; }
+  #btn-browse { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 12px 16px; text-align: left; border-color: var(--browse-border); background: var(--browse-bg); }
+  #btn-browse > .ui-icon:first-child { color: var(--browse-icon); width: 22px; height: 22px; }
   #btn-browse > .ui-icon:last-child { margin-left: auto; }
-  #btn-browse:hover { background: #203239; border-color: #68bac9; }
+  #btn-browse:hover { background: var(--browse-hover); border-color: var(--cyan-edge); }
   #btn-browse .filter-count { color: var(--text-dim); }
   .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
   .toolbar-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
@@ -189,8 +405,19 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .menu-row[hidden] { display: none; }
   .menu-note { font-size: 0.78rem; color: var(--text-dim); padding: 8px 14px; margin: 0; }
   .menu-note.due { color: var(--amber); }
+  /* Appearance switch: three buttons, the chosen one lit. Not a .menu-row on
+     purpose — rows close the sheet, and here you want to see the change. */
+  .menu-setting { padding: 12px 14px; background: var(--surface); }
+  .menu-setting-label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; }
+  .seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .seg button { padding: 10px 6px; }
+  .seg button[aria-pressed="true"] {
+    color: var(--green-ink); background: var(--chip-on-bg); border-color: var(--green);
+    box-shadow: inset 0 0 0 1px var(--green); font-weight: 700;
+  }
+  .menu-setting .menu-note { padding: 8px 0 0; }
   .streak-badge { cursor: pointer; }
-  .streak-badge:hover { border-color: #6b5220; }
+  .streak-badge:hover { border-color: var(--amber-border); }
 
   /* ---------- When–then plan on the mission ---------- */
   .mission-plan { margin: 2px 0 14px; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); font-size: 0.9rem; line-height: 1.45; }
@@ -215,8 +442,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .dash-status { margin-top: 10px; font-size: 0.86rem; line-height: 1.45; color: var(--text-dim); }
   .dash-status b { color: var(--text); }
   .dash-meter { margin-top: 14px; }
-  .dash-meter-track { height: 8px; border-radius: 999px; background: #3b2e14; overflow: hidden; }
-  .dash-meter-fill { height: 100%; min-width: 4px; border-radius: 999px; background: var(--amber); }
+  .dash-meter-track { height: 8px; border-radius: 999px; background: var(--amber-track); overflow: hidden; }
+  .dash-meter-fill { height: 100%; min-width: 4px; border-radius: 999px; background: var(--amber-fill); }
   .dash-meter-label { display: flex; justify-content: space-between; gap: 10px; margin-top: 6px; font-size: 0.75rem; color: var(--text-dim); }
   .dash-h { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-faint); margin: 20px 0 8px; }
   .dash-h-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 20px 0 8px; }
@@ -228,7 +455,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
     height: 100%; width: 100%; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; cursor: pointer;
   }
-  .dash-bar { display: block; width: 100%; max-width: 24px; border-radius: 4px 4px 0 0; background: var(--green-dim); }
+  .dash-bar { display: block; width: 100%; max-width: 24px; border-radius: 4px 4px 0 0; background: var(--bar-dim); }
   .dash-col.counted .dash-bar { background: var(--green); }
   .dash-col:hover .dash-bar, .dash-col:focus-visible .dash-bar, .dash-col.sel .dash-bar { filter: brightness(1.3); }
   .dash-col:focus-visible { outline: 2px solid var(--cyan); outline-offset: -2px; }
@@ -252,10 +479,10 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 8px;
     font-size: 0.8rem; color: var(--text-dim); background: var(--surface-2); font-variant-numeric: tabular-nums;
   }
-  .hist-day.lv1 { background: #16301f; color: #9fe0b9; }
-  .hist-day.lv2 { background: var(--green-dim); color: #e8fff1; }
-  .hist-day.lv3 { background: var(--green); color: var(--bg); font-weight: 700; }
-  .hist-day.today { outline: 2px solid var(--amber); outline-offset: -2px; }
+  .hist-day.lv1 { background: var(--heat1-bg); color: var(--heat1-text); }
+  .hist-day.lv2 { background: var(--heat2-bg); color: var(--heat2-text); }
+  .hist-day.lv3 { background: var(--green); color: var(--on-accent); font-weight: 700; }
+  .hist-day.today { outline: 2px solid var(--amber-fill); outline-offset: -2px; }
   .hist-day.future, .hist-day.blank { background: transparent; color: var(--text-faint); }
   /* past days are buttons: tap one to see what you lived (a tooltip is no use on a phone) */
   button.hist-day { width: 100%; min-height: 0; padding: 0; border: 0; font-weight: 400; }
@@ -274,8 +501,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   /* ---------- Sync trouble banner (only ever shown when sync has stopped) ---------- */
   #sync-alert {
     display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px;
-    margin: 0 0 16px; padding: 10px 12px; border: 1px solid #6b5220; border-radius: var(--radius);
-    background: #241d12; font-size: 0.84rem; line-height: 1.45;
+    margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--amber-border); border-radius: var(--radius);
+    background: var(--amber-bg); font-size: 0.84rem; line-height: 1.45;
   }
   #sync-alert[hidden] { display: none; }
   .sync-alert-text { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
@@ -283,7 +510,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .hist-legend { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; font-size: 0.76rem; color: var(--text-dim); }
   .hist-legend span { display: flex; align-items: center; gap: 8px; }
   .hl { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
-  .hl.lv1 { background: #16301f; } .hl.lv2 { background: var(--green-dim); } .hl.lv3 { background: var(--green); }
+  .hl.lv1 { background: var(--heat1-bg); } .hl.lv2 { background: var(--heat2-bg); } .hl.lv3 { background: var(--green); }
 
   /* ---------- Reminders ---------- */
   .rem-row { display: grid; gap: 6px; margin: 12px 0; }
@@ -300,8 +527,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     padding: 8px 12px;
     font-size: 0.8rem;
   }
-  .chip.active { color: var(--bg); font-weight: 600; }
-  .chip.active.neutral { color: #bce8cc; background: #15251c; border-color: #31533d; }
+  .chip.active { color: var(--on-book); font-weight: 600; }
+  .chip.active.neutral { color: var(--green-ink); background: var(--chip-on-bg); border-color: var(--chip-on-border); }
   .chip .btn-content { gap: 6px; }
   .chip .ui-icon { width: 15px; height: 15px; }
   .chip:not(.active):hover { color: var(--text); background: var(--surface-2); border-color: var(--border); }
@@ -327,7 +554,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     padding: 14px 6px; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent;
   }
   .picker-row:hover { background: var(--surface-2); }
-  .picker-row.active { background: #1b3036; }
+  .picker-row.active { background: var(--cyan-tint); }
   .picker-row .book-dot { width: 10px; height: 10px; }
   .picker-copy { flex: 1; min-width: 0; }
   .picker-name { display: block; min-width: 0; font-size: 0.94rem; overflow-wrap: anywhere; }
@@ -389,10 +616,10 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .mission-body li::before { content: "–"; position: absolute; left: 0; color: var(--text-faint); }
   .mission-body .para { color: var(--text-dim); overflow-wrap: anywhere; }
   .mission-body .standard-text { color: var(--text); font-weight: 500; border-left: 2px solid var(--cyan); padding: 2px 0 2px 14px; overflow-wrap: anywhere; }
-  .lived-btn { font-weight: 700; border-color: #4ade80; color: #092112; background: #4ade80; padding: 10px 16px; }
-  .lived-btn:hover { background: #76eba0; border-color: #76eba0; }
-  .lived-btn.on { background: #1c3426; border-color: #41855c; color: #8cebb3; }
-  .lived-btn.on:hover { background: #254431; border-color: #69bc88; }
+  .lived-btn { font-weight: 700; border-color: var(--lived-bg); color: var(--lived-text); background: var(--lived-bg); padding: 10px 16px; }
+  .lived-btn:hover { background: var(--lived-hover); border-color: var(--lived-hover); }
+  .lived-btn.on { background: var(--lived-on-bg); border-color: var(--lived-on-border); color: var(--lived-on-text); }
+  .lived-btn.on:hover { background: var(--lived-on-hover); border-color: var(--lived-on-edge); }
   .lived-btn.pop { animation: tick-pop 0.35s ease; }
   .link-btn { border: none; background: transparent; color: var(--text-dim); padding: 8px 6px; font-size: 0.8rem; }
   .link-btn:hover { background: transparent; color: var(--text); }
@@ -402,7 +629,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     background: transparent;
     border: 0;
     border-bottom: 1px solid var(--border);
-    border-left: 4px solid var(--amber);
+    border-left: 4px solid var(--amber-fill);
     border-radius: 0;
     padding: 14px 16px;
     margin: -10px 0 22px;
@@ -413,10 +640,10 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .challenge .ch-rule .book-tag { margin-right: 6px; vertical-align: 1px; }
   .ch-dots { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; max-width: 350px; }
   .ch-range { color: var(--text-dim); font-size: 0.78rem; margin: 6px 0 10px; }
-  .ch-progress { display: block; width: 100%; max-width: 350px; height: 6px; margin-bottom: 12px; border: 0; border-radius: 3px; overflow: hidden; accent-color: var(--amber); background: var(--surface-2); }
+  .ch-progress { display: block; width: 100%; max-width: 350px; height: 6px; margin-bottom: 12px; border: 0; border-radius: 3px; overflow: hidden; accent-color: var(--amber-fill); background: var(--surface-2); }
   .ch-progress::-webkit-progress-bar { background: var(--surface-2); }
-  .ch-progress::-webkit-progress-value { background: var(--amber); }
-  .ch-progress::-moz-progress-bar { background: var(--amber); }
+  .ch-progress::-webkit-progress-value { background: var(--amber-fill); }
+  .ch-progress::-moz-progress-bar { background: var(--amber-fill); }
   .challenge-form label { display: block; font-size: 0.9rem; font-weight: 600; margin-top: 18px; }
   .challenge-form .duration-input { width: 120px; font-size: 1rem; }
   .challenge-form .duration-rule { color: var(--text-dim); overflow-wrap: anywhere; }
@@ -428,9 +655,9 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     width: 100%; aspect-ratio: 1; max-width: 32px; margin: 0 auto 3px;
     border-radius: 999px; border: 1.5px solid var(--border); font-style: normal; font-size: 0.8rem; font-weight: 700;
   }
-  .ch-dot.done i { background: var(--green); border-color: var(--green); color: var(--bg); }
-  .ch-dot.miss i { border-color: #5a2a2a; color: var(--red); }
-  .ch-dot.today i { border-color: var(--amber); color: var(--amber); }
+  .ch-dot.done i { background: var(--green); border-color: var(--green); color: var(--on-accent); }
+  .ch-dot.miss i { border-color: var(--miss-border); color: var(--red); }
+  .ch-dot.today i { border-color: var(--amber-fill); color: var(--amber); }
   .ch-dot.today { color: var(--amber); font-weight: 700; }
   .ch-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .ch-score { font-size: 0.8rem; color: var(--text-dim); }
@@ -444,18 +671,18 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap;
   }
   .lvl-learning { color: var(--text-dim); }
-  .lvl-practicing { color: #7fd6a4; border-color: #1f4a33; }
+  .lvl-practicing { color: var(--practicing-text); border-color: var(--practicing-border); }
   .lvl-living { color: var(--green); border-color: var(--green-dim); }
-  .lvl-mastered { color: var(--amber); border-color: #6b5220; }
+  .lvl-mastered { color: var(--amber); border-color: var(--amber-border); }
   @media (max-width: 380px) { .lvl .lvl-word { display: none; } }
   .card-actions {
     display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px;
     margin: 4px -18px -18px; padding: 20px 18px;
-    border-top: 1px solid #363640; border-radius: 0 0 7px 4px;
-    background: #18181d; grid-column: 1 / -1;
+    border-top: 1px solid var(--divider); border-radius: 0 0 7px 4px;
+    background: var(--panel-bg); grid-column: 1 / -1;
   }
   .action-section { min-width: 0; }
-  .action-label { color: #c5c5cf; font-size: 0.75rem; font-weight: 600; margin-bottom: 8px; }
+  .action-label { color: var(--label-text); font-size: 0.75rem; font-weight: 600; margin-bottom: 8px; }
   .action-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .action-section-today .action-group { grid-template-columns: minmax(0, 1fr); }
   .card-actions button { min-width: 0; min-height: 56px; font-size: 0.9rem; padding: 12px 10px; line-height: 1.35; }
@@ -465,22 +692,22 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .card-actions .action-section-practice button { padding: 12px 16px; text-align: left; }
   .card-actions .action-section-practice .btn-content { justify-content: flex-start; gap: 12px; }
   .card-actions .action-section-practice .ui-icon { width: 24px; height: 24px; stroke-width: 2; }
-  .card-actions button[data-mission] { background: #17282c; border-color: #335962; }
-  .card-actions button[data-mission]:hover { background: #213a40; border-color: #68bac9; }
-  .card-actions button[data-challenge] { background: #2a2418; border-color: #635134; }
-  .card-actions button[data-challenge]:hover { background: #3a301e; border-color: #d4ae68; }
-  .card-actions button[data-mission].is-current { color: #b3edf4; border-color: #49858e; background: #1b3036; }
-  .card-actions button[data-challenge].is-current { color: #f5d39a; border-color: #7d6442; background: #30291d; }
+  .card-actions button[data-mission] { background: var(--mission-btn-bg); border-color: var(--mission-btn-border); }
+  .card-actions button[data-mission]:hover { background: var(--mission-btn-hover); border-color: var(--cyan-edge); }
+  .card-actions button[data-challenge] { background: var(--challenge-btn-bg); border-color: var(--challenge-btn-border); }
+  .card-actions button[data-challenge]:hover { background: var(--challenge-btn-hover); border-color: var(--amber-edge); }
+  .card-actions button[data-mission].is-current { color: var(--cyan-ink); border-color: var(--cyan-border); background: var(--cyan-tint); }
+  .card-actions button[data-challenge].is-current { color: var(--amber-ink); border-color: var(--amber-border-strong); background: var(--amber-tint); }
   @media (min-width: 600px) {
     .card-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
     .action-section-today { grid-column: 1 / -1; }
-    .action-section-personal { border-left: 1px solid #363640; padding-left: 24px; }
+    .action-section-personal { border-left: 1px solid var(--divider); padding-left: 24px; }
     .card-actions.personal-only .action-section-personal { border-left: 0; padding-left: 0; }
   }
   @media (min-width: 1000px) {
     .card-actions { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.6fr) minmax(0, 1.5fr); }
     .action-section-today { grid-column: auto; }
-    .action-section-practice { border-left: 1px solid #363640; padding-left: 24px; }
+    .action-section-practice { border-left: 1px solid var(--divider); padding-left: 24px; }
   }
   .card-actions.personal-only { grid-template-columns: minmax(0, 420px); }
   .mastery-summary {
@@ -500,7 +727,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     border-radius: 4px;
     max-width: 100%;
     overflow-wrap: anywhere;
-    color: var(--bg);
+    color: var(--on-book);
   }
 
   /* ---------- Grid & cards ---------- */
@@ -522,10 +749,10 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     transition: border-color 0.15s, background 0.15s, transform 0.08s ease;
     border-left-width: 4px;
   }
-  .card:hover { border-color: #44444e; }
+  .card:hover { border-color: var(--card-hover-border); }
   .card.open { grid-column: 1 / -1; cursor: default; }
-  .card.done { background: #111a15; }
-  .card.done .card-title { color: #bce8cc; }
+  .card.done { background: var(--done-bg); }
+  .card.done .card-title { color: var(--green-ink); }
   .card.flash { animation: flash 1.6s ease; }
   @keyframes flash {
     0%, 60% { border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
@@ -570,7 +797,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .tick:hover { background: transparent; }
   .tick:hover::before { border-color: var(--green); }
   .tick:active { transform: scale(0.9); background: transparent; }
-  .tick.on { color: var(--bg); }
+  .tick.on { color: var(--on-accent); }
   .tick.on::before { background: var(--green); border-color: var(--green); }
   .tick.pop { animation: tick-pop 0.28s ease; }
   @keyframes tick-pop {
@@ -631,7 +858,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .drop-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(10, 10, 12, 0.92);
+    background: var(--overlay-bg);
     border: 3px dashed var(--green);
     border-radius: 16px;
     display: none;
@@ -649,7 +876,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.65);
+    background: var(--backdrop);
     display: none;
     align-items: flex-end;
     justify-content: center;
@@ -726,9 +953,12 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .gbtn {
     display: inline-flex;
     align-items: center;
+    /* Google's own white button, the same in both looks; the ring only shows in the
+       light look, where a white button on a white sheet would have no edge */
     background: #fff;
     color: #1f1f1f;
     border: none;
+    box-shadow: inset 0 0 0 1px var(--gbtn-ring);
     font-weight: 600;
     padding: 9px 16px;
   }
@@ -777,21 +1007,21 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; }
   .toast-btn {
     margin-left: 8px; padding: 3px 12px; font-size: 0.82rem; font-weight: 700;
-    color: var(--amber); border-color: #6b5220; border-radius: 999px; background: transparent;
+    color: var(--amber); border-color: var(--amber-border); border-radius: 999px; background: transparent;
   }
 
   /* ---------- ⭐ star / ✕ not-for-me ---------- */
   .card-top-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: auto; }
   .card-actions .star-btn { color: var(--button-text); }
-  .card-actions .star-btn .ui-icon { color: #facc15; }
-  .card-actions .star-btn:hover { border-color: #bda034; background: #302a1a; }
-  .card-actions .star-btn.on { color: #ffe58a; border-color: #bda034; background: #40351a; }
+  .card-actions .star-btn .ui-icon { color: var(--star); }
+  .card-actions .star-btn:hover { border-color: var(--star-border); background: var(--star-hover); }
+  .card-actions .star-btn.on { color: var(--star-ink); border-color: var(--star-border); background: var(--star-bg); }
   .star-btn.pop { animation: tick-pop 0.35s ease; }
-  .card.starred { border-color: #4a3c1c; }
+  .card.starred { border-color: var(--star-card-border); }
   .card-actions .hide-btn { color: var(--button-text); }
-  .card-actions .hide-btn .ui-icon { color: #ff8585; }
-  .card-actions .hide-btn:hover { color: #ffb9b9; border-color: #a55560; background: #322127; }
-  .card-actions .hide-btn.restore { color: #b3edf4; border-color: #49858e; background: #1b3036; }
+  .card-actions .hide-btn .ui-icon { color: var(--hide-icon); }
+  .card-actions .hide-btn:hover { color: var(--hide-ink); border-color: var(--hide-border); background: var(--hide-hover); }
+  .card-actions .hide-btn.restore { color: var(--cyan-ink); border-color: var(--cyan-border); background: var(--cyan-tint); }
   .card-actions .hide-btn.restore .ui-icon { color: var(--cyan); }
   .hidden-row {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -813,15 +1043,15 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .search-note .link-btn { color: var(--cyan); font-size: 0.84rem; text-decoration: underline; text-underline-offset: 3px; }
   .card-snippet { margin-top: 8px; font-size: 0.84rem; line-height: 1.5; color: var(--text-dim); overflow-wrap: anywhere; cursor: pointer; }
   .card.open .card-snippet { display: none; }   /* the full text is on show — no need for the excerpt */
-  .card-snippet mark { background: #4a3c1c; color: #ffe58a; border-radius: 3px; padding: 0 2px; }
+  .card-snippet mark { background: var(--mark-bg); color: var(--mark-text); border-radius: 3px; padding: 0 2px; }
   .more-cards { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 56px; }
   .more-left { font-size: 0.74rem; font-weight: 400; color: var(--text-dim); }
   .count-note { font-size: 0.78rem; color: var(--text-faint); margin: 14px 0 0; text-align: center; }
 
   /* ---------- Import diagnostic banner ---------- */
   #import-diag {
-    border: 1px solid var(--amber);
-    background: #241d12;
+    border: 1px solid var(--amber-fill);
+    background: var(--amber-bg);
     color: var(--text);
     border-radius: var(--radius);
     padding: 12px 14px;
@@ -889,8 +1119,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     margin-top: 4px;
   }
   .rename-field:focus { border-color: var(--green); }
-  .primary-btn { background: var(--green); border-color: var(--green); color: var(--bg); font-weight: 600; }
-  .primary-btn:hover { background: #45da87; border-color: #45da87; }
+  .primary-btn { background: var(--green); border-color: var(--green); color: var(--on-accent); font-weight: 600; }
+  .primary-btn:hover { background: var(--green-hover); border-color: var(--green-hover); }
   .mission-body h4 { font-size: 0.75rem; }
   .mission-body h4, .spotlight .kicker, .challenge .kicker, .lvl, .ver-mark, .section-label { letter-spacing: 0; }
   @media (min-width: 760px) {
@@ -1102,6 +1332,17 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
       <button id="btn-order" class="menu-row" data-icon="ListOrdered" title="Back to rule-number order" hidden>Back to rule order</button>
     </div>
     <div class="menu-group">
+      <div class="menu-setting">
+        <span class="menu-setting-label" id="theme-label">Appearance</span>
+        <div class="seg" id="theme-seg" role="group" aria-labelledby="theme-label">
+          <button type="button" data-theme-pref="auto" aria-pressed="false">Auto</button>
+          <button type="button" data-theme-pref="light" aria-pressed="false">Light</button>
+          <button type="button" data-theme-pref="dark" aria-pressed="false">Dark</button>
+        </div>
+        <p class="menu-note" id="theme-note">Auto follows this device's own light or dark setting. Your choice is kept on this device only.</p>
+      </div>
+    </div>
+    <div class="menu-group">
       <button id="btn-reset" class="menu-row danger" data-icon="RotateCcw" title="Untick everything you ticked today">Reset today's ticks</button>
     </div>
   </div>
@@ -1194,7 +1435,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v47 · 2026-11-19 (streak dashboard)';
+const APP_VERSION = 'v48 · 2026-11-20 (light mode)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -2323,7 +2564,7 @@ function renderChips() {
     const active = !searchingEverywhere() && data.books.find(b => b.id === filter);
     if (active) {
       parts.push(`<button class="chip chip-book active" data-open-picker="1" aria-haspopup="dialog" aria-controls="book-picker"
-        style="background:${active.color};border-color:${active.color};color:var(--bg)">
+        style="background:${active.color};border-color:${active.color};color:var(--on-book)">
         ${uiIcon('Library')}<span class="chip-book-label">${esc(prettyName(active.name))}</span>${uiIcon('ChevronDown')}</button>`);
       parts.push(`<button class="chip chip-clear neutral" data-filter="all" title="Show all books" aria-label="Show all books">${uiIcon('X')}</button>`);
     }
@@ -3214,7 +3455,7 @@ function renderDashboard() {
       return `<span class="${k === currentDay ? 'today' : ''} ${k === sel ? 'sel' : ''}">${'SMTWTFS'[new Date(yy, mm - 1, dd).getDay()]}<i>${dayCounts(k) ? '✓' : ''}</i></span>`;
     }).join('')}</div>
     <div class="dash-readout" id="dash-readout" aria-live="polite"></div>
-    <p class="dash-note">Bright columns with a ✓ are days that counted toward your streak. Tap a day to see what you lived.</p>`;
+    <p class="dash-note">Columns with a ✓ are days that counted toward your streak. Tap a day to see what you lived.</p>`;
   const readout = (k) => { $('dash-readout').innerHTML = `${daySummary(k)} — ${esc(k === currentDay ? 'today' : friendlyDate(k))}`; };
   readout(sel);
   const bars = $('dash-bars');
@@ -5214,7 +5455,23 @@ for (const m of document.querySelectorAll('.modal-backdrop')) {
   new MutationObserver(lockScroll).observe(m, { attributes: true, attributeFilter: ['class'] });
 }
 
-$('btn-more').onclick = () => { renderBackupNote(); openSheet('more-modal'); };
+// Appearance: Auto / Light / Dark. window.AppTheme lives in <head> (it has to run
+// before the page is drawn); here we only light the chosen button and pass taps on.
+function renderThemeSwitch() {
+  const pref = window.AppTheme ? AppTheme.pref() : 'dark';
+  for (const b of $('theme-seg').querySelectorAll('button')) {
+    b.setAttribute('aria-pressed', String(b.dataset.themePref === pref));
+  }
+}
+$('theme-seg').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-theme-pref]');
+  if (!b || !window.AppTheme) return;
+  AppTheme.set(b.dataset.themePref);
+  renderThemeSwitch();
+});
+renderThemeSwitch();
+
+$('btn-more').onclick = () => { renderBackupNote(); renderThemeSwitch(); openSheet('more-modal'); };
 $('more-close').onclick = () => closeModal('more-modal');
 $('more-modal').addEventListener('click', (e) => {
   if (e.target === $('more-modal') || e.target.closest('.menu-row')) closeModal('more-modal');
