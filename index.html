@@ -920,11 +920,6 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     padding: 2px 0 2px 14px;
     overflow-wrap: anywhere;
   }
-  /* Previous / Next at the end of an opened rule's text: step to the neighbouring rule */
-  .card-nav { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 10px; }
-  .card-nav button { min-height: 48px; padding: 10px 14px; }
-  .card-nav button[data-step="1"] { margin-left: auto; padding-right: 10px; }
-  .card-nav button[data-step="-1"] { padding-left: 10px; }
 
   /* ---------- Empty / drop zone ---------- */
   .empty {
@@ -1547,7 +1542,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v53 · 2026-11-20 (easier reading)';
+const APP_VERSION = 'v54 · 2026-11-20 (previous/next removed)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -3403,10 +3398,6 @@ function bodyHtml(rule, uid) {
         <p class="para">${esc(rule.why)}</p></section>` : ''}
       ${rule.standard && rule.standard !== rule.today && rule.standard !== rule.remember ? `<section class="rule-section rule-section-wide"><h4>The Standard</h4>
         <div class="standard-text">${esc(rule.standard)}</div></section>` : ''}
-      ${uid ? `<div class="card-nav" role="group" aria-label="Step to another rule">
-        <button data-step="-1" title="Close this rule and open the one before it">${buttonContent('ChevronLeft', 'Previous')}</button>
-        <button data-step="1" title="Close this rule and open the next one"><span class="btn-content"><span class="btn-label">Next rule</span>${uiIcon('ChevronRight')}</span></button>
-      </div>` : ''}
       ${uid ? `<div class="card-actions ${isHidden(uid) ? 'personal-only' : ''}">
         ${isHidden(uid) ? '' : `<div class="action-section action-section-today" role="group" aria-label="Today">
           <p class="action-label">Today</p>
@@ -3643,7 +3634,6 @@ function renderGrid() {
 
   $('grid').innerHTML = booksHtml + html;
   renderCardPracticeActions();
-  renderCardNav();
   const moreBooks = $('more-books');
   if (moreBooks) moreBooks.onclick = () => {   // the full list of matching books lives in the Browse sheet
     const term = searchTerm.trim();
@@ -3702,74 +3692,23 @@ $('grid').addEventListener('click', (e) => {
   }
 
   const card = e.target.closest('.card');
-  const step = e.target.closest('[data-step]');             // Previous / Next under an opened rule
-  if (card && step) { stepRule(card, +step.dataset.step); return; }
   if (card && e.target.closest('.card-expand, .card-top, .card-snippet')) {
-    setCardOpen(card, !expanded.has(card.dataset.uid));
+    const uid = card.dataset.uid;
+    const body = card.querySelector('.card-body');
+    if (expanded.has(uid)) {
+      expanded.delete(uid);
+      card.classList.remove('open');
+    } else {
+      expanded.add(uid);
+      if (body && !body.firstChild) {        // build the detail body on first open
+        const hit = ruleByUid(uid);
+        if (hit) { body.innerHTML = bodyHtml(hit.rule, uid); renderCardPracticeActions(); }
+      }
+      card.classList.add('open');
+    }
+    card.querySelector('.card-expand').setAttribute('aria-expanded', String(expanded.has(uid)));
   }
 });
-
-// Opens or closes one rule card where it stands (no redraw of the list).
-function setCardOpen(card, open) {
-  const uid = card.dataset.uid, body = card.querySelector('.card-body');
-  if (open) {
-    expanded.add(uid);
-    if (body && !body.firstChild) {        // build the detail body on first open
-      const hit = ruleByUid(uid);
-      if (hit) { body.innerHTML = bodyHtml(hit.rule, uid); renderCardPracticeActions(); }
-    }
-  } else expanded.delete(uid);
-  card.classList.toggle('open', open);
-  card.querySelector('.card-expand').setAttribute('aria-expanded', String(open));
-  if (open) renderCardNav();
-}
-
-/* ---- Previous / Next under an opened rule ----
-   Reading a book meant scrolling past the buttons under each rule to find the next
-   title. These two step straight to the neighbouring rule: this one closes, the
-   other opens at the top of the screen. The neighbour is the card you can see above
-   or below in the list as it is drawn — so inside a book it stops at the book's
-   first and last rule, and in a flat list (Focus, Starred, search results…) it
-   walks the whole list. */
-function cardNeighbour(card, dir) {
-  const next = (el) => dir > 0 ? el.nextElementSibling : el.previousElementSibling;
-  for (let el = next(card); el; el = next(el)) {
-    if (el.classList.contains('card')) return el;
-    if (el.classList.contains('section-header')) return null;   // another book starts here
-    if (el.id === 'more-cards') return el;                      // more of the list is waiting to be drawn
-  }
-  return null;
-}
-
-// Greys out Previous on the first rule and Next on the last one.
-function renderCardNav() {
-  for (const nav of $('grid').querySelectorAll('.card.open .card-nav')) {
-    const card = nav.closest('.card');
-    for (const btn of nav.querySelectorAll('[data-step]')) btn.disabled = !cardNeighbour(card, +btn.dataset.step);
-  }
-}
-
-function stepRule(card, dir) {
-  let target = cardNeighbour(card, dir);
-  if (target && target.id === 'more-cards') {   // the next rule is on the part of the list not drawn yet
-    const from = card.dataset.uid;
-    flatLimit += FLAT_STEP;
-    renderGrid();
-    card = $('card-' + cssId(from));
-    target = card && cardNeighbour(card, dir);
-    if (target && target.id === 'more-cards') target = null;
-  }
-  if (!target) return;
-  setCardOpen(card, false);
-  setCardOpen(target, true);
-  // Like turning a page: the rule starts at the top of the screen at once. (A smooth
-  // scroll would run backwards over the whole height of the rule that just closed.)
-  const root = document.documentElement, was = root.style.scrollBehavior;
-  root.style.scrollBehavior = 'auto';
-  target.scrollIntoView({ block: 'start' });
-  root.style.scrollBehavior = was;
-  target.querySelector('.card-expand').focus({ preventScroll: true });
-}
 
 function cssId(uid) { return uid.replace(/[^a-zA-Z0-9_-]/g, '_'); }
 

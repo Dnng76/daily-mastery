@@ -1,7 +1,7 @@
 /* Daily Mastery service worker — network-first for the app page so it always
    updates to the latest version when online, with an offline copy of the page
    and of every file the app ships with (icons, PDF reader, Firebase). */
-const VERSION = 'v53-2026-11-20';
+const VERSION = 'v54-2026-11-20';
 const CACHE = 'daily-mastery-' + VERSION;
 const SHELL = './index.html';
 const ASSETS = [
