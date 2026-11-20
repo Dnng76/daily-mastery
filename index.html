@@ -369,7 +369,12 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .filter-count { font-size: 0.72rem; font-variant-numeric: tabular-nums; padding: 2px 5px; border-radius: 4px; background: var(--count-bg); }
 
   /* ---------- Toolbar ---------- */
-  .book-navigation { margin: 0 0 24px; padding: 0 0 16px; border-bottom: 1px solid var(--border); }
+  .book-navigation { display: flex; gap: 10px; margin: 0 0 24px; padding: 0 0 16px; border-bottom: 1px solid var(--border); }
+  /* search button beside "Browse books": jumps to the search box further down the page */
+  #btn-browse { flex: 1 1 auto; min-width: 0; }
+  #btn-find { flex-shrink: 0; width: 52px; min-height: 52px; padding: 0; border-color: var(--browse-border); background: var(--browse-bg); }
+  #btn-find .ui-icon { color: var(--browse-icon); width: 22px; height: 22px; }
+  #btn-find:hover { background: var(--browse-hover); border-color: var(--cyan-edge); }
   #btn-browse { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 12px 16px; text-align: left; border-color: var(--browse-border); background: var(--browse-bg); }
   #btn-browse > .ui-icon:first-child { color: var(--browse-icon); width: 22px; height: 22px; }
   #btn-browse > .ui-icon:last-child { margin-left: auto; }
@@ -391,6 +396,15 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   }
   .toolbar input[type="search"]:focus { border-color: var(--cyan); }
   .toolbar { flex-wrap: nowrap; align-items: stretch; }
+  /* The search bar stays at the top of the screen while the rules scroll under it,
+     so searching (and More) never needs a scroll back up. The safe-area value keeps
+     it clear of an iPhone's status bar if the page ever runs underneath that. */
+  .toolbar {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
+    margin: -8px 0 4px; padding: 8px 0; background: var(--bg);
+  }
+  /* things the app scrolls to must stop below the pinned bar, not under it */
+  .chips, .card, .section-header { scroll-margin-top: 72px; }
   #btn-more { flex-shrink: 0; min-height: 44px; }
 
   /* ---------- More sheet ---------- */
@@ -1043,7 +1057,9 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .search-note .link-btn { color: var(--cyan); font-size: 0.84rem; text-decoration: underline; text-underline-offset: 3px; }
   .card-snippet { margin-top: 8px; font-size: 0.84rem; line-height: 1.5; color: var(--text-dim); overflow-wrap: anywhere; cursor: pointer; }
   .card.open .card-snippet { display: none; }   /* the full text is on show — no need for the excerpt */
-  .card-snippet mark { background: var(--mark-bg); color: var(--mark-text); border-radius: 3px; padding: 0 2px; }
+  .card-snippet mark, .card-title mark { background: var(--mark-bg); color: var(--mark-text); border-radius: 3px; padding: 0 2px; }
+  .similar-note { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
   .more-cards { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 56px; }
   .more-left { font-size: 0.74rem; font-weight: 400; color: var(--text-dim); }
   .count-note { font-size: 0.78rem; color: var(--text-faint); margin: 14px 0 0; text-align: center; }
@@ -1134,6 +1150,10 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
              margin-left: -16px; margin-right: -16px; padding: 0 16px 2px; scroll-padding: 0 16px; }
     .chips::-webkit-scrollbar { display: none; }
     .chips .chip { flex-shrink: 0; }
+    /* the row fades out at an edge that has more filters beyond it (set by chipEdges) */
+    .chips.more-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent); }
+    .chips.more-left { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 44px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 44px), transparent); }
+    .chips.more-left.more-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 44px, #000 calc(100% - 44px), transparent); mask-image: linear-gradient(to right, transparent, #000 44px, #000 calc(100% - 44px), transparent); }
   }
   /* any touch device (iPad included): 16px text so tapping the search box never zooms the page */
   @media (pointer: coarse) { .toolbar input[type="search"] { font-size: 1rem; } }
@@ -1220,13 +1240,14 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 
   <nav class="book-navigation" aria-label="Book navigation">
     <button id="btn-browse" aria-haspopup="dialog" aria-controls="book-picker"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#ui-Library"></use></svg><span>Browse books</span><span class="filter-count" id="browse-count">0</span><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#ui-ChevronRight"></use></svg></button>
+    <button id="btn-find" data-icon="Search" title="Search your principles" aria-label="Search your principles"></button>
   </nav>
 
   <div id="spotlight-box"></div>
   <div id="challenge-box"></div>
 
   <div class="toolbar">
-    <input type="search" id="search" placeholder="Search principles…" aria-label="Search principles" autocomplete="off">
+    <input type="search" id="search" placeholder="Search principles…" aria-label="Search principles" autocomplete="off" enterkeyhint="search">
     <button id="btn-more" data-icon="Ellipsis" aria-haspopup="dialog" aria-controls="more-modal" title="Add PDF, library, history, reminders, backup…">More</button>
   </div>
 
@@ -1435,7 +1456,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v48 · 2026-11-20 (light mode)';
+const APP_VERSION = 'v49 · 2026-11-20 (easier search)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -2542,6 +2563,25 @@ function chipHtml(c) {
     data-filter="${c.id}" aria-pressed="${active}" ${style}><span class="btn-content">${c.icon ? uiIcon(c.icon) : ''}<span>${esc(c.label)}</span>${c.count != null ? `<span class="filter-count">${esc(c.count)}</span>` : ''}</span></button>`;
 }
 
+// On a phone the filters are one row you swipe sideways. Two helpers keep it honest:
+// the lit filter is always brought into view, and the row fades at whichever edge
+// still has filters beyond it (classes more-left / more-right, see the styles).
+function chipEdges() {
+  const row = $('chips');
+  const max = row.scrollWidth - row.clientWidth;
+  row.classList.toggle('more-left', row.scrollLeft > 4);
+  row.classList.toggle('more-right', max - row.scrollLeft > 4);
+}
+function revealActiveChip() {
+  const row = $('chips'), chip = row.querySelector('.chip.active');
+  if (chip && row.scrollWidth > row.clientWidth) {
+    const r = row.getBoundingClientRect(), c = chip.getBoundingClientRect(), pad = 16;
+    if (c.left < r.left + pad) row.scrollLeft += c.left - r.left - pad;
+    else if (c.right > r.right - pad) row.scrollLeft += c.right - r.right + pad;
+  }
+  chipEdges();
+}
+
 function renderChips() {
   $('browse-count').textContent = data.books.length;
   const fp = focusProgress();
@@ -2560,17 +2600,20 @@ function renderChips() {
 
   // All books sit behind ONE chip (a wall of 60+ book chips was unreadable).
   // When a book is selected, the chip shows its name in its colour, plus ✕ to clear.
+  // It goes FIRST in the row: at the end it sat beyond the edge of a phone screen,
+  // so after choosing a book the row looked as if no filter was on at all.
   if (data.books.length) {
     const active = !searchingEverywhere() && data.books.find(b => b.id === filter);
     if (active) {
-      parts.push(`<button class="chip chip-book active" data-open-picker="1" aria-haspopup="dialog" aria-controls="book-picker"
+      parts.unshift(`<button class="chip chip-book active" data-open-picker="1" aria-haspopup="dialog" aria-controls="book-picker"
         style="background:${active.color};border-color:${active.color};color:var(--on-book)">
-        ${uiIcon('Library')}<span class="chip-book-label">${esc(prettyName(active.name))}</span>${uiIcon('ChevronDown')}</button>`);
-      parts.push(`<button class="chip chip-clear neutral" data-filter="all" title="Show all books" aria-label="Show all books">${uiIcon('X')}</button>`);
+        ${uiIcon('Library')}<span class="chip-book-label">${esc(prettyName(active.name))}</span>${uiIcon('ChevronDown')}</button>`,
+        `<button class="chip chip-clear neutral" data-filter="all" title="Show all books" aria-label="Show all books">${uiIcon('X')}</button>`);
     }
     // (no "Books" chip otherwise — the "Browse books" button at the top does that job)
   }
   $('chips').innerHTML = parts.join('');
+  revealActiveChip();
 
   for (const el of $('chips').querySelectorAll('.chip[data-filter]')) {
     // tapping a filter during a search narrows the search to that filter
@@ -2624,11 +2667,12 @@ function bookLetter(book) {
 
 // How many of a book's (non-hidden) rules contain every search word.
 function rulesMentioning(book, words) {
+  const needles = needlesOf(words);
   let n = 0;
   for (const r of book.rules) {
     if (isHidden(ruleUid(book, r))) continue;
     const text = searchText(r).all;
-    if (words.every(w => text.includes(w))) n++;
+    if (needles.every(x => needleHits(text, x))) n++;
   }
   return n;
 }
@@ -2818,6 +2862,131 @@ const normText = (s) => String(s || '').normalize('NFKD').replace(/\p{M}/gu, '')
 function searchWords() { return normText(searchTerm).trim().split(/\s+/).filter(Boolean); }
 function searchingEverywhere() { return searchAll && searchWords().length > 0; }
 
+// A search word also finds its other endings: "promises" finds "promise",
+// "disciplined" finds "discipline", "priority" finds "priorities". Each word is
+// cut back to a stem — the start of the word, never under 4 letters — and the
+// stem is what is looked for. Rules holding the word exactly as typed come first.
+function wordStem(w) {
+  if (w.length < 5 || /[^a-z]/.test(w)) return w;   // short words, numbers, other alphabets: exactly as typed
+  const cuts = w.endsWith('ies') ? [3]
+    : w.endsWith('ing') ? [3]
+    : w.endsWith('es') ? [2, 1]
+    : (w.endsWith('ed') || w.endsWith('ly')) ? [2]
+    : (w.endsWith('s') && !w.endsWith('ss')) ? [1]
+    : (w.endsWith('y') || w.endsWith('e')) ? [1] : [];
+  for (const cut of cuts) {
+    let s = w.slice(0, -cut);
+    // planning → plann → plan (but not pressing → pres: ss, ll, ff, zz belong to the word)
+    if (cut > 1 && s.length > 4 && s[s.length - 1] === s[s.length - 2] && !'slfz'.includes(s[s.length - 1])) s = s.slice(0, -1);
+    if (s.length >= 4) return s;
+  }
+  return w;
+}
+// What is looked for, per search word: the word as typed anywhere in the text (as
+// search always worked), or its stem at the START of a word — so "evening" also
+// finds "evenings" but not "seven" or "prevent".
+const needlesOf = (words) => words.map(w => {
+  const stem = wordStem(w);
+  return { w, stem, re: new RegExp('(?:^|[^\\p{L}])' + stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u') };
+});
+const needleHits = (text, n) => text.includes(n.w) || (n.stem !== n.w && n.re.test(text));
+function needleIndex(text, n) {   // where in the text the word was found, -1 if not
+  const i = text.indexOf(n.w);
+  if (i >= 0 || n.stem === n.w) return i;
+  const m = n.re.exec(text);
+  return m ? m.index + m[0].length - n.stem.length : -1;
+}
+function searchNeedles() { return needlesOf(searchWords()); }
+
+// A piece of text with every search word marked (the whole word, to its end).
+// Only when the tidied copy lines up letter for letter with the original;
+// text with accents folded away is shown plain rather than marked in the wrong place.
+function markWords(text, needles, from = 0, to = text.length) {
+  const norm = normText(text);
+  if (norm.length !== text.length) return esc(text.slice(from, to));
+  const spans = [];
+  for (const { w, stem } of needles) {
+    for (let i = norm.indexOf(stem, from); i >= 0 && i < to; i = norm.indexOf(stem, i + stem.length)) {
+      // same rule as the search itself: the stem counts at the start of a word, the typed word anywhere
+      if (i > 0 && /\p{L}/u.test(norm[i - 1]) && !norm.startsWith(w, i)) continue;
+      let end = i + stem.length;
+      while (end < to && /\p{L}/u.test(norm[end])) end++;
+      spans.push([i, Math.min(end, to)]);
+    }
+  }
+  if (!spans.length) return esc(text.slice(from, to));
+  spans.sort((a, b) => a[0] - b[0]);
+  let html = '', at = from;
+  for (const [a, b] of spans) {
+    if (b <= at) continue;                      // inside the previous mark
+    const start = Math.max(a, at);
+    html += esc(text.slice(at, start)) + '<mark>' + esc(text.slice(start, b)) + '</mark>';
+    at = b;
+  }
+  return html + esc(text.slice(at, to));
+}
+
+/* "Did you mean …?" — only worked out when a search finds nothing at all.
+   Every word in the library is listed once (with how often it appears); a search
+   word that is in no rule is swapped for the closest library word, one slip away
+   (two for long words): a wrong, missing, extra or swapped letter. */
+let _vocab = null, _vocabFor = null;
+function libraryWords() {
+  const rules = allRules();
+  if (_vocab && _vocabFor === rules) return _vocab;
+  const m = new Map();
+  for (const { rule } of rules) {
+    for (const w of searchText(rule).all.split(/[^\p{L}]+/u)) if (w.length >= 4) m.set(w, (m.get(w) || 0) + 1);
+  }
+  _vocab = m; _vocabFor = rules;
+  return m;
+}
+
+function editDistance(a, b, max) {   // stops counting once it passes max
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev2 = null, prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let best = i;
+    for (let j = 1; j <= b.length; j++) {
+      let v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (prev2 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, prev2[j - 2] + 1);   // two letters swapped
+      cur[j] = v;
+      if (v < best) best = v;
+    }
+    if (best > max) return max + 1;
+    prev2 = prev; prev = cur;
+  }
+  return prev[b.length];
+}
+
+function didYouMean() {
+  const needles = searchNeedles();
+  if (!needles.length || needles.length > 6) return '';
+  const vocab = libraryWords();
+  let changed = false;
+  const fixed = needles.map(({ w, stem }) => {
+    if (w.length < 4 || /[^a-z]/.test(w)) return w;
+    for (const v of vocab.keys()) if (v.startsWith(stem) || v.includes(w)) return w;   // the word is in the library: leave it alone
+    const max = w.length >= 8 ? 2 : 1;
+    let best = null, bestScore = Infinity;
+    for (const [v, n] of vocab) {
+      // compare with the library word and with its stem: "habbit" is one slip from "habit" even if the books only say "habits"
+      const vs = wordStem(v);
+      const d = Math.min(editDistance(w, v, max), vs === v ? max + 1 : editDistance(w, vs, max));
+      if (d > max) continue;
+      const score = d * 1000 - Math.min(n, 500) - (v[0] === w[0] ? 250 : 0);   // closest first, then same first letter, then the commoner word
+      if (score < bestScore) { bestScore = score; best = v; }
+    }
+    if (best) changed = true;
+    return best || w;
+  });
+  if (!changed) return '';
+  const tryNeedles = needlesOf(fixed);   // offered only if it really finds something
+  const found = allRules().some(({ rule, uid }) => !isHidden(uid) && tryNeedles.every(n => needleHits(searchText(rule).all, n)));
+  return found ? fixed.join(' ') : '';
+}
+
 // Every passage of a rule besides its title, in the order search should prefer them.
 function ruleTexts(rule) {
   return [rule.standard, rule.today, rule.meaning, ...(rule.examples || []), rule.remember,
@@ -2839,17 +3008,17 @@ function searchText(rule) {
 }
 
 // For a hit that isn't (only) in the title: the passage it was found in, word highlighted.
-function matchSnippet(rule, words) {
+function matchSnippet(rule, needles) {
   const title = searchText(rule).title;
-  const w = words.find(x => !title.includes(x));
-  if (!w) return '';
+  const miss = needles.find(n => !needleHits(title, n));
+  if (!miss) return '';
   for (const text of ruleTexts(rule)) {
     if (!text) continue;
-    const norm = normText(text), i = norm.indexOf(w);
+    const norm = normText(text), i = needleIndex(norm, miss);
     if (i < 0) continue;
     if (norm.length !== text.length) return `<div class="card-snippet">${esc(text.slice(0, 120))}${text.length > 120 ? '…' : ''}</div>`;
-    const from = Math.max(0, i - 45), to = Math.min(text.length, i + w.length + 70);
-    return `<div class="card-snippet">${from ? '…' : ''}${esc(text.slice(from, i))}<mark>${esc(text.slice(i, i + w.length))}</mark>${esc(text.slice(i + w.length, to))}${to < text.length ? '…' : ''}</div>`;
+    const from = Math.max(0, i - 45), to = Math.min(text.length, i + miss.stem.length + 70);
+    return `<div class="card-snippet">${from ? '…' : ''}${markWords(text, needles, from, to)}${to < text.length ? '…' : ''}</div>`;
   }
   return '';
 }
@@ -2862,8 +3031,10 @@ function filterLabel() {
 }
 
 // everywhere = true ignores the filter chips (hidden rules stay out unless you ask for them)
+// While searching, the list carries `.exact`: how many rules (the first ones) hold
+// every word exactly as typed; the rest matched on another ending of a word.
 function visibleRules(everywhere = searchingEverywhere()) {
-  const words = searchWords();
+  const words = searchWords(), needles = needlesOf(words);
   const focus = !everywhere && filter === 'focus' ? getDailyFocus() : null;
   const lived = !everywhere && filter === 'mastery' ? livedCounts() : null;
   const wantHidden = !everywhere && filter === 'hidden';
@@ -2877,20 +3048,27 @@ function visibleRules(everywhere = searchingEverywhere()) {
     else if (filter === 'todo' && isDone(uid)) return false;
     else if (filter === 'done' && !isDone(uid)) return false;
     else if (filter !== 'all' && filter !== 'todo' && filter !== 'done' && book.id !== filter) return false;
-    if (words.length) {
+    if (needles.length) {
       const text = searchText(rule).all;
-      for (const w of words) if (!text.includes(w)) return false;
+      for (const n of needles) if (!needleHits(text, n)) return false;
     }
     return true;
   });
   // Mastery view: the rules you've lived most, first (unless you've mixed the order)
   if (lived && !Array.isArray(mixOrder)) out.sort((a, b) => lived.get(b.uid) - lived.get(a.uid));
-  // Search: rules with the words in their TITLE come before ones that only mention them
+  // Search: rules with the words in their TITLE come before ones that only mention
+  // them, and both come before rules found through another ending of a word
   if (words.length) {
-    const inTitle = (r) => { const t = searchText(r.rule).title; return words.every(w => t.includes(w)); };
-    const top = [], rest = [];
-    for (const r of out) (inTitle(r) ? top : rest).push(r);
-    return [...top, ...rest];
+    const top = [], rest = [], close = [];
+    for (const r of out) {
+      const t = searchText(r.rule);
+      if (!words.every(w => t.all.includes(w))) close.push(r);
+      else if (words.every(w => t.title.includes(w))) top.push(r);
+      else rest.push(r);
+    }
+    const list = [...top, ...rest, ...close];
+    list.exact = top.length + rest.length;
+    return list;
   }
   return out;
 }
@@ -2970,7 +3148,8 @@ function renderCardPracticeActions() {
 // 3,500-rule grid scrollable on a phone.
 // showTag: only when the card isn't already under its book's section header
 // (repeating the book name on every card was pure noise).
-function cardHtml(book, rule, uid, showTag, snippet = '') {
+// needles given (a search is on) → the found words are marked in the title too
+function cardHtml(book, rule, uid, showTag, snippet = '', needles = null) {
   const done = isDone(uid);
   const open = expanded.has(uid);
   return `
@@ -2986,7 +3165,7 @@ function cardHtml(book, rule, uid, showTag, snippet = '') {
         ${isHidden(uid) ? '' : `<button class="tick ${done ? 'on' : ''}" data-tick="${uid}" title="Lived it today" aria-label="Lived rule ${rule.n} today" aria-pressed="${done}">${uiIcon('Check')}</button>`}
       </div>
     </div>
-    <button class="card-expand" aria-expanded="${open}" aria-controls="body-${cssId(uid)}"><span class="card-title">${esc(rule.title)}</span><span class="card-chevron" aria-hidden="true">${uiIcon('ChevronDown')}</span></button>
+    <button class="card-expand" aria-expanded="${open}" aria-controls="body-${cssId(uid)}"><span class="card-title">${needles ? markWords(rule.title, needles) : esc(rule.title)}</span><span class="card-chevron" aria-hidden="true">${uiIcon('ChevronDown')}</span></button>
     ${snippet}
     <div class="card-body" id="body-${cssId(uid)}">${open ? bodyHtml(rule, uid) : ''}</div>
   </div>`;
@@ -3012,8 +3191,11 @@ function renderGrid() {
 
   // Sections show unless mixing, searching, or in Focus (whose rules span books
   // and should read as one flat to-do list).
-  const words = searchWords();
+  const words = searchWords(), needles = needlesOf(words);
   const searching = words.length > 0;
+  // of the rules found, how many hold the words exactly as typed (they come first)
+  const exact = searching ? (rules.exact ?? rules.length) : rules.length;
+  const close = rules.length - exact;
   // Done is a short "what I lived today" list — show the rules themselves, not closed book headers.
   const showSections = !mixOrder && !searching && !['focus', 'mastery', 'done', 'starred', 'hidden'].includes(filter);
 
@@ -3047,7 +3229,9 @@ function renderGrid() {
   } else {
     // flat list (search / mixed): show the book tag since there's no header above
     const shown = rules.slice(0, flatLimit), left = rules.length - shown.length;
-    html = shown.map(({ book, rule, uid }) => cardHtml(book, rule, uid, true, searching ? matchSnippet(rule, words) : '')).join('');
+    html = shown.map(({ book, rule, uid }, i) =>
+      (searching && close && exact && i === exact ? `<div class="search-note similar-note">${close} more with a similar word</div>` : '')
+      + cardHtml(book, rule, uid, true, searching ? matchSnippet(rule, needles) : '', searching ? needles : null)).join('');
     if (left > 0) html += `<button class="more-cards" id="more-cards">${buttonContent('ChevronDown', `Show ${Math.min(FLAT_STEP, left)} more`)}<span class="more-left">${left} not shown yet</span></button>`;
   }
 
@@ -3055,7 +3239,9 @@ function renderGrid() {
   let widerCount = 0;
   if (searching && !searchAll) widerCount = visibleRules(true).length;
   if (searching && rules.length) {
-    const n = `${rules.length} match${rules.length === 1 ? '' : 'es'}`;
+    // "promises" typed, only "promise" in the books → say so rather than pass them off as exact
+    const n = exact ? `${exact} match${exact === 1 ? '' : 'es'}`
+                    : `${close} match${close === 1 ? '' : 'es'} for a similar word`;
     html = `<div class="search-note" role="status">${searchAll
       ? `${n} in your whole library`
       : `${n} in ${esc(filterLabel())}${widerCount > rules.length ? ` <button class="link-btn" id="search-all">Show all ${widerCount} in every book</button>` : ''}`}</div>` + html;
@@ -3090,8 +3276,10 @@ function renderGrid() {
   }
 
   // No matches for the current search/filter — explain instead of a blank page
+  let suggestion = '';
   if (!rules.length) {
     const term = searchTerm.trim();
+    if (term && !widerCount && !bookHits.length) suggestion = didYouMean();   // a slip of the finger? offer the nearest word
     html = (filter === 'starred' || filter === 'hidden') && !term
       ? `<div class="empty" style="grid-column:1/-1"><strong>${filter === 'starred' ? 'No starred principles yet' : 'No hidden principles'}</strong></div>`
       : (filter === 'done' && !term)
@@ -3115,7 +3303,10 @@ function renderGrid() {
       : `<div class="empty" style="grid-column:1/-1">
           <strong>No matching rules</strong>
           <p>${term ? `Nothing in your library matches “${esc(term)}”` : 'Nothing here with the current filter'}.</p>
-          <button id="clear-filters">Clear ${term ? 'search' : 'filter'}</button>
+          <div class="empty-actions">
+            ${suggestion ? `<button class="primary-btn" id="did-you-mean">${buttonContent('Search', `Search “${suggestion}” instead`)}</button>` : ''}
+            <button id="clear-filters">Clear ${term ? 'search' : 'filter'}</button>
+          </div>
         </div>`;
   }
 
@@ -3136,6 +3327,8 @@ function renderGrid() {
   };
   const wide = $('search-all');
   if (wide) wide.onclick = () => { searchAll = true; renderChips(); renderGrid(); };
+  const mean = $('did-you-mean');
+  if (mean) mean.onclick = () => { searchTerm = suggestion; $('search').value = suggestion; searchAll = true; renderChips(); renderGrid(); };
   const more = $('more-cards');
   if (more) more.onclick = () => { flatLimit += FLAT_STEP; renderGrid(); };
 
@@ -3681,7 +3874,10 @@ function jumpTo(uid) {
     if (at >= flatLimit) { flatLimit = Math.ceil((at + 1) / FLAT_STEP) * FLAT_STEP; renderGrid(); el = $('card-' + cssId(uid)); }
   }
   if (!el) { toast('Rule is hidden by the current filter'); return; }
-  el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+  // an opened rule is often taller than a phone screen: centring it pushed its title
+  // off the top (and now under the pinned search bar), so a tall card starts at the top
+  const tall = el.getBoundingClientRect().height > window.innerHeight - 100;
+  el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: tall ? 'start' : 'center' });
   el.classList.remove('flash');
   void el.offsetWidth;
   el.classList.add('flash');
@@ -5507,16 +5703,42 @@ document.addEventListener('keydown', (e) => {
 });
 
 let searchTimer = null;
+function applySearch(value) {
+  clearTimeout(searchTimer);
+  if (value === searchTerm) return;
+  const was = searchWords().length > 0;
+  searchTerm = value;
+  if (!was) searchAll = true;   // a new search always starts with the whole library
+  renderChips();                // the lit filter depends on whether a search is on
+  renderGrid();
+}
 $('search').addEventListener('input', (e) => {
   clearTimeout(searchTimer);   // debounce: render once you pause typing, not per keystroke
-  searchTimer = setTimeout(() => {
-    const was = searchWords().length > 0;
-    searchTerm = e.target.value;
-    if (!was) searchAll = true;   // a new search always starts with the whole library
-    renderChips();                // the lit filter depends on whether a search is on
-    renderGrid();
-  }, 180);
+  searchTimer = setTimeout(() => applySearch(e.target.value), 180);
 });
+$('search').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    applySearch(e.target.value);   // don't wait for the typing pause
+    // on a phone the keyboard covers half the results: the Search key puts it away
+    if (matchMedia('(pointer: coarse)').matches) e.target.blur();
+  } else if (e.key === 'Escape' && e.target.value) {
+    e.preventDefault();
+    e.target.value = '';
+    applySearch('');
+  }
+});
+// The search button beside "Browse books": the box itself can be more than a screen
+// down the page (below the mission and the challenge), so this takes you to it.
+// focus() comes first and in the tap itself — iPhone only opens the keyboard then.
+$('btn-find').onclick = () => {
+  const box = $('search');
+  box.focus({ preventScroll: true });
+  box.select();
+  document.querySelector('.toolbar').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+};
+$('chips').addEventListener('scroll', chipEdges, { passive: true });
+window.addEventListener('resize', chipEdges);
 $('btn-random').onclick = randomRule;
 $('btn-mix').onclick = mixCards;
 $('btn-order').onclick = orderCards;
