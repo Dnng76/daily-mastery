@@ -411,7 +411,14 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   }
   /* things the app scrolls to must stop below the pinned bar, not under it */
   .chips, .card, .section-header { scroll-margin-top: 72px; }
-  #btn-more { flex-shrink: 0; min-height: 44px; }
+  #btn-more, #btn-sort { flex-shrink: 0; min-height: 44px; }
+  /* Sort button: lit while the book list is in an order you chose, or shows one letter */
+  #btn-sort.on { color: var(--green-ink); background: var(--chip-on-bg); border-color: var(--chip-on-border); }
+  /* on all but the widest phones the search box needs the room: the button keeps only its icon */
+  @media (max-width: 423px) {
+    #btn-sort { width: 44px; padding: 0; }
+    #btn-sort .btn-label { display: none; }
+  }
 
   /* ---------- More sheet ---------- */
   .menu-group { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
@@ -436,6 +443,29 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     box-shadow: inset 0 0 0 1px var(--green); font-weight: 700;
   }
   .menu-setting .menu-note { padding: 8px 0 0; }
+
+  /* ---------- Sort & filter sheet ---------- */
+  .sort-label { font-size: 0.75rem; font-weight: 700; color: var(--text-faint); margin: 2px 2px 8px; }
+  /* an order: its name and what it does on the left, a tick on the chosen one on the right */
+  .sort-row { justify-content: space-between; align-items: center; gap: 12px; }
+  .sort-copy { display: block; min-width: 0; }
+  .sort-name { display: block; font-size: 0.94rem; }
+  .sort-sub { display: block; margin-top: 3px; font-size: 0.76rem; font-weight: 400; color: var(--text-dim); }
+  .sort-row > .ui-icon { color: var(--green); visibility: hidden; }
+  .sort-row[aria-pressed="true"], .sort-row[aria-pressed="true"]:hover { background: var(--chip-on-bg); }
+  .sort-row[aria-pressed="true"] .sort-name { color: var(--green-ink); font-weight: 700; }
+  .sort-row[aria-pressed="true"] > .ui-icon { visibility: visible; }
+  .sort-mixed { padding: 0 2px 12px; }
+  .letter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; margin-bottom: 4px; }
+  .letter-grid button { padding: 0; font-variant-numeric: tabular-nums; }
+  .letter-grid button[aria-pressed="true"] {
+    color: var(--green-ink); background: var(--chip-on-bg); border-color: var(--green);
+    box-shadow: inset 0 0 0 1px var(--green); font-weight: 700;
+  }
+  .sort-note { padding: 12px 2px 0; }
+  /* headings inside the sorted book list: a letter, or the day the books were added */
+  .list-group { grid-column: 1 / -1; margin: 6px 0 -6px; padding: 0 2px; font-size: 0.75rem; font-weight: 700; color: var(--text-faint); }
+  .list-group:first-child, .search-note + .list-group { margin-top: 0; }
   .streak-badge { cursor: pointer; }
   .streak-badge:hover { border-color: var(--amber-border); }
 
@@ -1218,6 +1248,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 <symbol id="ui-ChevronLeft" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></symbol>
 <symbol id="ui-Sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></symbol>
 <symbol id="ui-Moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></symbol>
+<symbol id="ui-ListFilter" viewBox="0 0 24 24"><path d="M2 5h20"></path><path d="M6 12h12"></path><path d="M9 19h6"></path></symbol>
 </svg>
 
 <div class="drop-overlay">Drop PDF to add to library</div>
@@ -1257,6 +1288,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 
   <div class="toolbar">
     <input type="search" id="search" placeholder="Search principles…" aria-label="Search principles" autocomplete="off" enterkeyhint="search">
+    <button id="btn-sort" data-icon="ListFilter" aria-haspopup="dialog" aria-controls="sort-modal" aria-label="Sort and filter your books" title="Sort your books: newest first, A–Z, or one letter">Sort</button>
     <button id="btn-more" data-icon="Ellipsis" aria-haspopup="dialog" aria-controls="more-modal" title="Add PDF, library, history, reminders, backup…">More</button>
   </div>
 
@@ -1339,6 +1371,20 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
       <div class="picker-options"><span class="book-results" id="picker-results" role="status"></span><label class="picker-sort-label">Sort<select id="picker-sort"><option value="name">A-Z</option><option value="newest">Recently added</option></select></label></div>
     </div>
     <div id="picker-list"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="sort-modal">
+  <div class="modal sort-modal" role="dialog" aria-modal="true" aria-labelledby="sort-title">
+    <div class="modal-heading"><h3 id="sort-title">Sort &amp; filter books</h3><button id="sort-close" data-icon="X" title="Close" aria-label="Close"></button></div>
+    <p class="sort-label" id="sort-order-label">Order of your books</p>
+    <div class="menu-group" id="sort-rows" role="group" aria-labelledby="sort-order-label"></div>
+    <p class="menu-note sort-mixed" id="sort-mixed" hidden>Your cards are mixed right now, so the books are not listed. Choosing an order puts the cards back.</p>
+    <div id="sort-letter-box">
+      <p class="sort-label" id="sort-letter-label">Show only books starting with</p>
+      <div class="letter-grid" id="sort-letters" role="group" aria-labelledby="sort-letter-label"></div>
+    </div>
+    <p class="menu-note sort-note">These change the list of books under All and To Do. The order is kept on this device only.</p>
   </div>
 </div>
 
@@ -1465,7 +1511,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v51 · 2026-11-20 (sections close at midnight)';
+const APP_VERSION = 'v52 · 2026-11-20 (sort your books)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -2816,6 +2862,7 @@ function selectBook(id) {
   searchTerm = '';
   $('search').value = '';
   filter = id;
+  pickedLetter = '';   // going to one book (or back to all of them) ends a letter picked in the Sort sheet
   if (id !== 'all') { openBooks.add(id); saveOpenBooks(); noteBookOpened(id); }
   closeBookPicker(false);
   closeLibrary(false);
@@ -2871,6 +2918,146 @@ function orderCards() {
   localStorage.removeItem(MIX_KEY);
   updateMixButtons();
   renderGrid();
+}
+
+/* ================= Sorting the book list =================
+   The Sort button beside the search box works on the list of BOOKS — the
+   sections under All and To Do. Three orders:
+     library — the order the books sit in (as imported, or as arranged in Manage library);
+     newest  — most recently added first, under a heading per day;
+     az      — by name, under a heading per letter (numbered books first, as in Browse books).
+   One letter can also be picked, to show only the books that start with it. A book
+   with a number in front ("03 Sleep Benefits") is found under 0–9 AND under the
+   letter of its first word (S) — either may be how you remember it.
+   The order is kept per device. The letter is not kept: a new visit shows every book. */
+const BOOK_SORT_KEY = 'mastery_book_sort';
+const BOOK_SORTS = [
+  { id: 'library', name: 'Library order', sub: 'The order set in Manage library' },
+  { id: 'newest', name: 'Recently added', sub: 'Newest books first, grouped by day' },
+  { id: 'az', name: 'A–Z', sub: 'By name, grouped by letter' }
+];
+let bookSort = 'library';
+try {
+  const saved = localStorage.getItem(BOOK_SORT_KEY);
+  if (BOOK_SORTS.some(s => s.id === saved)) bookSort = saved;
+} catch (e) { /* ignore */ }
+let pickedLetter = '';   // '' = every book; otherwise '0–9', 'A'…'Z' or '#'
+
+// True while the grid lists books (sections): not a search, not mixed cards, and a
+// view that is made of books. Only then do the order and the letter have any effect.
+function bookListShown() {   // the same test renderGrid uses to decide on sections
+  return !mixOrder && !searchWords().length && (filter === 'all' || filter === 'todo');
+}
+function unmixCards() {
+  if (!mixOrder) return;
+  mixOrder = null;
+  localStorage.removeItem(MIX_KEY);
+  updateMixButtons();
+}
+function letterInForce() { return pickedLetter && bookListShown() ? pickedLetter : ''; }
+
+// The index letters a book is found under: "Seven Habits" → S; "03 Sleep Benefits" → 0–9 and S.
+function bookInitials(book) {
+  const name = normText(prettyName(book.name)).trim();
+  const first = name.charAt(0), out = [];
+  if (/[0-9]/.test(first)) out.push('0–9');
+  else if (!/[a-z]/.test(first)) out.push('#');
+  const word = name.split(/[^a-z0-9]+/).find(w => /^[a-z]/.test(w));
+  if (word) out.push(word.charAt(0).toUpperCase());
+  return out;
+}
+
+// Every index letter in use → how many books sit under it, in the order 0–9, A…Z, #.
+function letterCounts() {
+  const counts = new Map();
+  for (const b of data.books) for (const l of bookInitials(b)) counts.set(l, (counts.get(l) || 0) + 1);
+  const rank = (l) => l === '0–9' ? 0 : l === '#' ? 999 : l.charCodeAt(0);
+  return new Map([...counts].sort((x, y) => rank(x[0]) - rank(y[0])));
+}
+
+function letterPhrase(letter) {
+  return letter === '0–9' ? 'starting with a number' : letter === '#' ? 'starting with a symbol' : `starting with “${letter}”`;
+}
+
+// The books on show, put in the chosen order (they arrive in library order).
+function sortBookList(books) {
+  if (bookSort === 'library') return books;
+  const az = new Map(sortedBooks().map((b, i) => [b.id, i]));   // the same A–Z as Browse books
+  const byName = (a, b) => az.get(a.id) - az.get(b.id);
+  return [...books].sort(bookSort === 'az' ? byName
+    : (a, b) => String(b.importedAt || '').localeCompare(String(a.importedAt || '')) || byName(a, b));
+}
+
+// Heading over the books added on one day, in the "Recently added" order.
+function addedLabel(day) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(day || ''))) return 'Date not recorded';
+  if (day === currentDay) return 'Added today';
+  if (day === addDays(currentDay, -1)) return 'Added yesterday';
+  return 'Added ' + friendlyDate(day, day.slice(0, 4) === currentDay.slice(0, 4)
+    ? { weekday: 'short', day: 'numeric', month: 'short' }
+    : { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// A letter whose books have all gone (removed, renamed) must not go on hiding the rest.
+function checkPickedLetter() {
+  if (pickedLetter && !data.books.some(b => bookInitials(b).includes(pickedLetter))) pickedLetter = '';
+}
+
+function updateSortButton() {
+  const now = [bookSort === 'newest' ? 'newest first' : bookSort === 'az' ? 'A to Z' : '',
+               pickedLetter ? `only books ${letterPhrase(pickedLetter)}` : ''].filter(Boolean).join(', ');
+  const btn = $('btn-sort');
+  btn.classList.toggle('on', !!now);
+  btn.title = now ? `Your books: ${now}. Tap to change.` : 'Sort your books: newest first, A–Z, or one letter';
+  btn.setAttribute('aria-label', now ? `Sort and filter your books (now: ${now})` : 'Sort and filter your books');
+}
+
+function renderSortSheet() {
+  const mixed = !!mixOrder;
+  $('sort-rows').innerHTML = BOOK_SORTS.map(s => `
+    <button class="menu-row sort-row" data-sort="${s.id}" aria-pressed="${!mixed && bookSort === s.id}">
+      <span class="sort-copy"><span class="sort-name">${esc(s.name)}</span><span class="sort-sub">${esc(s.sub)}</span></span>${uiIcon('Check')}
+    </button>`).join('');
+  $('sort-mixed').hidden = !mixed;
+  const counts = letterCounts();
+  $('sort-letter-box').hidden = !counts.size;
+  $('sort-letters').innerHTML =
+    `<button data-letter="" aria-pressed="${!pickedLetter}" aria-label="Every book" title="Every book">All</button>`
+    + [...counts].map(([l, n]) => {
+      const label = `${n} book${n === 1 ? '' : 's'} ${letterPhrase(l)}`;
+      return `<button data-letter="${esc(l)}" aria-pressed="${pickedLetter === l}" aria-label="${esc(label)}" title="${esc(label)}">${esc(l)}</button>`;
+    }).join('');
+}
+
+// Choosing an order or a letter is a wish to look at the books, so bring the book
+// list up: out of a search, out of mixed cards, out of a view that lists rules.
+function showBookList() {
+  unmixCards();
+  clearTimeout(searchTimer);
+  searchTerm = '';
+  $('search').value = '';
+  if (filter !== 'all' && filter !== 'todo') filter = 'all';
+}
+function scrollToBookList() {
+  if (!bookListShown()) return;
+  $('chips').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+}
+
+function setBookSort(id) {
+  if (!BOOK_SORTS.some(s => s.id === id)) return;
+  bookSort = id;
+  try { localStorage.setItem(BOOK_SORT_KEY, id); } catch (e) { /* ignore */ }
+  // "Library order" only puts things back; it does not pull you out of the view you are in
+  if (id !== 'library') showBookList(); else unmixCards();
+  renderAll();
+  scrollToBookList();
+}
+
+function setPickedLetter(letter) {
+  pickedLetter = letter;
+  if (letter) showBookList();
+  renderAll();
+  scrollToBookList();
 }
 
 /* ================= Search =================
@@ -3062,8 +3249,12 @@ function visibleRules(everywhere = searchingEverywhere()) {
   const focus = !everywhere && filter === 'focus' ? getDailyFocus() : null;
   const lived = !everywhere && filter === 'mastery' ? livedCounts() : null;
   const wantHidden = !everywhere && filter === 'hidden';
+  // a letter picked in the Sort sheet keeps only the books filed under it (book list only)
+  const letter = everywhere ? '' : letterInForce();
+  const inLetter = letter ? new Set(data.books.filter(b => bookInitials(b).includes(letter)).map(b => b.id)) : null;
   const out = applyMix(allRules()).filter(({ book, rule, uid }) => {
     if (wantHidden ? !isHidden(uid) : isHidden(uid)) return false;
+    if (inLetter && !inLetter.has(book.id)) return false;
     if (everywhere) { /* the whole library */ }
     else if (focus) { if (!focus.has(uid)) return false; }
     else if (lived) { if (!lived.get(uid)) return false; }
@@ -3196,6 +3387,8 @@ function cardHtml(book, rule, uid, showTag, snippet = '', needles = null) {
 }
 
 function renderGrid() {
+  checkPickedLetter();
+  updateSortButton();
   const rules = visibleRules();
   const total = allRules().length;
 
@@ -3236,7 +3429,19 @@ function renderGrid() {
       byBook.get(r.book.id).items.push(r);
     }
     const ds = doneSet();
-    for (const { book, items } of byBook.values()) {
+    // The list of books (All, To Do) follows the order chosen with the Sort button,
+    // under headings: the day the books were added, or their letter in a long A–Z list.
+    const listing = bookListShown(), letter = letterInForce();
+    const books = [...byBook.values()].map(g => g.book);
+    const ordered = listing ? sortBookList(books) : books;
+    const byDay = listing && bookSort === 'newest';
+    const byLetter = listing && bookSort === 'az' && !letter && ordered.length >= 12;
+    let heading = null;
+    if (letter) html += `<div class="search-note" role="status">${ordered.length} book${ordered.length === 1 ? '' : 's'} ${esc(letterPhrase(letter))} <button class="link-btn" id="letter-clear">Show every book</button></div>`;
+    for (const book of ordered) {
+      const items = byBook.get(book.id).items;
+      const group = byDay ? addedLabel(book.importedAt) : byLetter ? bookLetter(book) : null;
+      if (group !== null && group !== heading) { heading = group; html += `<div class="list-group" role="heading" aria-level="3">${esc(group)}</div>`; }
       const isOpen = openBooks.has(book.id);
       const done = items.reduce((n, r) => n + (ds.has(r.uid) ? 1 : 0), 0);
       const pct = items.length ? Math.round(done / items.length * 100) : 0;
@@ -3324,6 +3529,12 @@ function renderGrid() {
           <p>“${esc(term)}” appears in ${widerCount} rule${widerCount === 1 ? '' : 's'} elsewhere in your library.</p>
           <button class="primary-btn" id="search-all">${buttonContent('Search', `Show ${widerCount === 1 ? 'it' : `all ${widerCount}`}`)}</button>
         </div>`
+      : letterInForce()   // one letter is picked in the Sort sheet, and its books have nothing for this view
+      ? `<div class="empty" style="grid-column:1/-1">
+          <strong>${filter === 'todo' ? 'Nothing left to do here' : 'Nothing to show here'}</strong>
+          <p>Only the books ${esc(letterPhrase(pickedLetter))} are listed, and ${filter === 'todo' ? 'every rule in them is done for today' : 'all their rules are hidden'}.</p>
+          <div class="empty-actions"><button class="primary-btn" id="letter-clear">Show every book</button></div>
+        </div>`
       : `<div class="empty" style="grid-column:1/-1">
           <strong>No matching rules</strong>
           <p>${term ? `Nothing in your library matches “${esc(term)}”` : 'Nothing here with the current filter'}.</p>
@@ -3346,9 +3557,11 @@ function renderGrid() {
   const clr = $('clear-filters');
   if (clr) clr.onclick = () => {
     // clearing a search goes back to the view you were in; clearing a filter goes to All
-    if (searchTerm.trim()) { searchTerm = ''; $('search').value = ''; } else filter = 'all';
+    if (searchTerm.trim()) { searchTerm = ''; $('search').value = ''; } else { filter = 'all'; pickedLetter = ''; }
     renderAll();
   };
+  const everyBook = $('letter-clear');
+  if (everyBook) everyBook.onclick = () => setPickedLetter('');
   const wide = $('search-all');
   if (wide) wide.onclick = () => { searchAll = true; renderChips(); renderGrid(); };
   const mean = $('did-you-mean');
@@ -3918,6 +4131,8 @@ function randomRule() {
   }
   searchTerm = '';
   $('search').value = '';
+  // a letter picked in the Sort sheet must not hide the rule we are about to show
+  if (letterInForce() && !bookInitials(pick.book).includes(pickedLetter)) pickedLetter = '';
   renderAll();
   jumpTo(pick.uid);
 }
@@ -5667,7 +5882,7 @@ function closeModal(id) {
     sheetReturnFocus.focus({ preventScroll: true });
   }
 }
-for (const id of ['more-modal', 'history-modal', 'reminders-modal']) {
+for (const id of ['more-modal', 'sort-modal', 'history-modal', 'reminders-modal']) {
   $(id).addEventListener('keydown', e => bookDialogKeydown(e, $(id), () => closeModal(id)));
 }
 // While any sheet is open the page behind must not scroll (see body.modal-open).
@@ -5705,6 +5920,17 @@ $('more-modal').addEventListener('click', (e) => {
   if (e.target === $('more-modal') || e.target.closest('.menu-row')) closeModal('more-modal');
 }, true);
 
+// Sort sheet: a tap on an order or a letter applies it and closes the sheet
+$('btn-sort').onclick = () => { renderSortSheet(); openSheet('sort-modal'); };
+$('sort-close').onclick = () => closeModal('sort-modal');
+$('sort-modal').addEventListener('click', (e) => {
+  if (e.target === $('sort-modal')) { closeModal('sort-modal'); return; }
+  const order = e.target.closest('[data-sort]'), letter = e.target.closest('[data-letter]');
+  if (!order && !letter) return;
+  closeModal('sort-modal');
+  if (order) setBookSort(order.dataset.sort); else setPickedLetter(letter.dataset.letter);
+});
+
 $('btn-history').onclick = openHistory;
 $('streak').onclick = openHistory;
 $('history-close').onclick = () => closeModal('history-modal');
@@ -5731,7 +5957,7 @@ $('restore-input').addEventListener('change', (e) => {
 
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
-  for (const id of ['more-modal', 'history-modal', 'reminders-modal']) if ($(id).classList.contains('show')) closeModal(id);
+  for (const id of ['more-modal', 'sort-modal', 'history-modal', 'reminders-modal']) if ($(id).classList.contains('show')) closeModal(id);
 });
 
 let searchTimer = null;
