@@ -287,7 +287,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   header h1 span { color: var(--text-faint); font-weight: 400; }
   .ver-mark {
     display: inline-block;
-    font-size: 0.62rem;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     color: var(--green) !important;
@@ -296,7 +296,9 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     padding: 1px 7px;
     vertical-align: 2px;
   }
-  .day-left { font-size: 0.72rem; color: var(--text-faint); margin-top: 2px; }
+  /* No text in the app is smaller than 12px (0.75rem): the small labels — date line,
+     counts, "RULE 7", level badges, panel headings, day letters — were 10–11.5px. */
+  .day-left { font-size: 0.75rem; color: var(--text-faint); margin-top: 2px; }
   .day-left.urgent { color: var(--red); }
   .header-right { display: flex; align-items: center; gap: 12px; margin-left: auto; }
   .streak-badge {
@@ -312,7 +314,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 
   /* Progress ring */
   .ring-box { display: flex; align-items: center; gap: 10px; }
-  .ring { width: 48px; height: 48px; }
+  .ring { width: 52px; height: 52px; }   /* 52px: room for "15/15" at 12px inside the circle */
   .ring circle { fill: none; stroke-width: 4; }
   .ring .track { stroke: var(--surface-2); }
   .ring .bar {
@@ -324,12 +326,12 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   }
   .ring text {
     fill: var(--text);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     text-anchor: middle;
     dominant-baseline: central;
   }
-  .ring-label { font-size: 0.72rem; color: var(--text-dim); line-height: 1.3; white-space: nowrap; }
+  .ring-label { font-size: 0.75rem; color: var(--text-dim); line-height: 1.3; white-space: nowrap; }
   header h1 { white-space: nowrap; }
   header .ver-mark { display: none; }
 
@@ -366,7 +368,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   button[data-mission] .ui-icon { color: var(--cyan); }
   button[data-challenge] .ui-icon { color: var(--amber); }
   #btn-import, #btn-modal-import { border-color: var(--button-border-strong); color: var(--text); }
-  .filter-count { font-size: 0.72rem; font-variant-numeric: tabular-nums; padding: 2px 5px; border-radius: 4px; background: var(--count-bg); }
+  .filter-count { font-size: 0.75rem; font-variant-numeric: tabular-nums; padding: 2px 5px; border-radius: 4px; background: var(--count-bg); }
 
   /* ---------- Toolbar ---------- */
   .book-navigation { display: flex; gap: 10px; margin: 0 0 24px; padding: 0 0 16px; border-bottom: 1px solid var(--border); }
@@ -524,7 +526,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .hist-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
   .hist-nav button { width: 44px; padding: 0; }
   .hist-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
-  .hist-dow { text-align: center; font-size: 0.68rem; color: var(--text-faint); padding-bottom: 2px; }
+  .hist-dow { text-align: center; font-size: 0.75rem; color: var(--text-faint); padding-bottom: 2px; }
   .hist-day {
     aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 8px;
     font-size: 0.8rem; color: var(--text-dim); background: var(--surface-2); font-variant-numeric: tabular-nums;
@@ -635,7 +637,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     margin-bottom: 24px;
   }
   .spotlight .kicker {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -685,7 +687,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     margin: -10px 0 22px;
   }
   .challenge .ch-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .challenge .kicker { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--amber); }
+  .challenge .kicker { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--amber); }
   .challenge .ch-rule { margin: 8px 0 10px; font-size: 0.92rem; font-weight: 600; overflow-wrap: anywhere; }
   .challenge .ch-rule .book-tag { margin-right: 6px; vertical-align: 1px; }
   .ch-dots { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; max-width: 350px; }
@@ -699,7 +701,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .challenge-form .duration-rule { color: var(--text-dim); overflow-wrap: anywhere; }
   .duration-hint { color: var(--text-dim); font-size: 0.78rem; margin-top: 6px; }
   .duration-error { color: var(--red); font-size: 0.84rem; margin-top: 8px; }
-  .ch-dot { flex: 1; max-width: 44px; text-align: center; font-size: 0.62rem; color: var(--text-faint); }
+  .ch-dot { flex: 1; max-width: 44px; text-align: center; font-size: 0.75rem; color: var(--text-faint); }
   .ch-dot i {
     display: flex; align-items: center; justify-content: center;
     width: 100%; aspect-ratio: 1; max-width: 32px; margin: 0 auto 3px;
@@ -714,10 +716,36 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .challenge.finished { border-left-color: var(--green); }
   .challenge.finished h3 { font-size: 1.02rem; margin: 6px 0 4px; overflow-wrap: anywhere; }
   .challenge.finished p { font-size: 0.86rem; color: var(--text-dim); margin-bottom: 12px; }
+  .ch-head-btns { display: flex; align-items: center; flex-shrink: 0; }
+
+  /* ---------- Mission / challenge folded away once lived today ----------
+     One short row that keeps the panel's coloured edge; a tap opens the panel again. */
+  .today-fold {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;
+    text-align: left; font-weight: 400;
+    background: transparent; border: 0; border-radius: 0;
+    border-bottom: 1px solid var(--green-dim); border-left: 4px solid var(--green);
+    padding: 6px 4px 12px 20px; margin: 0 0 24px;
+  }
+  .today-fold:hover, .today-fold:active { background: transparent; border-color: var(--green-dim); border-left-color: var(--green); }
+  .today-fold > .ui-icon { color: var(--text-faint); }
+  .today-fold:hover > .ui-icon { color: var(--text); }
+  .fold-copy { display: block; min-width: 0; }
+  .today-fold .kicker { display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--green); }
+  .fold-title { display: block; margin-top: 3px; font-size: 0.9rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .challenge-fold, .challenge-fold:hover, .challenge-fold:active { border-bottom-color: var(--border); border-left-color: var(--amber-fill); }
+  .challenge-fold { margin: -10px 0 22px; padding-left: 16px; }
+  .challenge-fold .kicker { color: var(--amber); }
+  @media (max-width: 480px) { .mission-fold { padding-left: 14px; } }
+  /* the open panel of a lived mission / challenge day carries a small button to fold it again */
+  .fold-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .spotlight .fold-head .kicker { margin-bottom: 0; }
+  .fold-btn { min-width: 44px; padding: 8px; color: var(--text-faint); }
+  .fold-head .fold-btn { margin: -13px 0; }   /* a full-size tap target that does not make the heading row taller */
 
   /* ---------- Mastery levels ---------- */
   .lvl {
-    display: inline-block; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.03em;
+    display: inline-block; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.03em;
     padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap;
   }
   .lvl-learning { color: var(--text-dim); }
@@ -811,7 +839,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .card-top { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: start; gap: 12px; margin-bottom: 10px; }
   .card-top-left { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
   .card .book-tag { white-space: normal; }
-  .rule-n { font-size: 0.72rem; color: var(--text-faint); font-weight: 600; white-space: nowrap; }
+  .rule-n { font-size: 0.75rem; color: var(--text-faint); font-weight: 600; white-space: nowrap; }
   .card-title { font-size: 1rem; line-height: 1.5; font-weight: 600; letter-spacing: 0; overflow-wrap: anywhere; }
   .card-expand { display: flex; align-items: start; justify-content: space-between; gap: 12px; width: 100%; text-align: left; padding: 0; border: none; background: transparent; }
   .card-expand:hover, .card-expand:active { background: transparent; }
@@ -892,6 +920,11 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     padding: 2px 0 2px 14px;
     overflow-wrap: anywhere;
   }
+  /* Previous / Next at the end of an opened rule's text: step to the neighbouring rule */
+  .card-nav { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 10px; }
+  .card-nav button { min-height: 48px; padding: 10px 14px; }
+  .card-nav button[data-step="1"] { margin-left: auto; padding-right: 10px; }
+  .card-nav button[data-step="-1"] { padding-left: 10px; }
 
   /* ---------- Empty / drop zone ---------- */
   .empty {
@@ -985,7 +1018,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     border-bottom: 1px solid var(--border);
   }
   .focus-setting-label { font-size: 0.9rem; font-weight: 600; }
-  .focus-setting-note { font-size: 0.74rem; color: var(--text-dim); margin-top: 2px; }
+  .focus-setting-note { font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; }
   .focus-stepper { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
   .focus-stepper button { width: 44px; height: 44px; padding: 0; font-size: 1.1rem; font-weight: 700; }
   .focus-stepper span { min-width: 34px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -993,7 +1026,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .book-row-left > div { min-width: 0; }
   .book-dot { width: 12px; height: 12px; border-radius: 999px; flex-shrink: 0; }
   .book-row-name { font-size: 0.9rem; font-weight: 600; overflow-wrap: anywhere; }
-  .book-row-meta { font-size: 0.72rem; color: var(--text-faint); }
+  .book-row-meta { font-size: 0.75rem; color: var(--text-faint); }
   .modal-footer { margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end; }
   .modal h3.sync-title { margin: 22px 0 4px; }
   .sync-note { font-size: 0.78rem; color: var(--text-dim); margin: 6px 0 10px; }
@@ -1080,7 +1113,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   }
 
   .section-label {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -1097,7 +1130,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .similar-note { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--border); }
   .empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
   .more-cards { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 56px; }
-  .more-left { font-size: 0.74rem; font-weight: 400; color: var(--text-dim); }
+  .more-left { font-size: 0.75rem; font-weight: 400; color: var(--text-dim); }
   .count-note { font-size: 0.78rem; color: var(--text-faint); margin: 14px 0 0; text-align: center; }
 
   /* ---------- Import diagnostic banner ---------- */
@@ -1136,7 +1169,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .section-header:hover { background: var(--surface-2); }
   .section-header.sec-open { background: var(--surface-2); }
   .section-header .book-tag { flex: 1; min-width: 0; white-space: normal; }
-  .section-count { font-size: 0.74rem; color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .section-count { font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .sec-bar {
     flex: 1;
     min-width: 36px;
@@ -1195,7 +1228,10 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   @media (pointer: coarse) { .toolbar input[type="search"] { font-size: 1rem; } }
   @media (max-width: 480px) {
     .wrap { padding: 16px; }
-    header { padding-top: 4px; }
+    header { padding-top: 4px; gap: 8px; }
+    /* the 12px labels and the larger ring need a little room back, or the header
+       breaks into two rows on a 414px phone where it used to fit on one */
+    .brand, .header-right { gap: 8px; }
     .brand-icon { width: 34px; height: 34px; }
     .ring-box { gap: 6px; }
     .spotlight { padding-left: 14px; }
@@ -1265,10 +1301,10 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     <div class="header-right">
       <button class="streak-badge" id="streak" hidden aria-haspopup="dialog" aria-controls="history-modal"></button>
       <div class="ring-box" role="progressbar" aria-label="Today's focus" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-        <svg class="ring" viewBox="0 0 48 48">
-          <circle class="track" cx="24" cy="24" r="20"></circle>
-          <circle class="bar" id="ring-bar" cx="24" cy="24" r="20"></circle>
-          <text id="ring-text" x="24" y="24">0</text>
+        <svg class="ring" viewBox="0 0 52 52">
+          <circle class="track" cx="26" cy="26" r="22"></circle>
+          <circle class="bar" id="ring-bar" cx="26" cy="26" r="22"></circle>
+          <text id="ring-text" x="26" y="26">0</text>
         </svg>
         <div class="ring-label" id="ring-label">0 / 0<br>focus done</div>
       </div>
@@ -1511,7 +1547,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v52 · 2026-11-20 (sort your books)';
+const APP_VERSION = 'v53 · 2026-11-20 (easier reading)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -2427,15 +2463,14 @@ function renderProgress() {
   // The ring measures TODAY'S FOCUS, not the whole library (which would sit near 0%).
   const { done, total } = focusProgress();
   const pct = total ? Math.round(done / total * 100) : 0;
-  const r = 20, circ = 2 * Math.PI * r;
+  const r = 22, circ = 2 * Math.PI * r;   // r matches the circles in the header's <svg class="ring">
   const bar = $('ring-bar');
   bar.style.strokeDasharray = circ;
   bar.style.strokeDashoffset = total ? circ * (1 - done / total) : circ;
-  // The ring shows the count itself ("3/15") so it still reads when the side label
-  // is hidden on narrow phones; shrink the text when the numbers get long.
-  const t = $('ring-text');
-  t.textContent = `${done}/${total}`;
-  t.style.fontSize = t.textContent.length > 5 ? '8px' : t.textContent.length > 4 ? '9.5px' : '';
+  // The ring shows the count itself ("3/15"), always at 12px. Up to "99/99" fits
+  // inside the circle; a Focus of 100 or more shows the done count alone (the label
+  // beside the ring and the line under the title carry the rest).
+  $('ring-text').textContent = total >= 100 ? String(done) : `${done}/${total}`;
   $('ring-label').innerHTML = `${pct}% of<br>focus done`;
   $('ring-label').closest('.ring-box').title = `${done} of today's ${total} focus rules lived (${pct}%)`;
   $('ring-label').closest('.ring-box').setAttribute('aria-valuenow', String(pct));
@@ -2444,6 +2479,18 @@ function renderProgress() {
 
 let todayOpenUid = null;   // mission/suggestion card whose full rule text is expanded
 let planEditing = false;   // when–then form open on today's mission
+// Once today's mission is lived — and once today's day of a challenge is lived — its
+// panel has done its job: it folds down to one short row and gives the screen back
+// to the list. A tap opens it again. Ticking it in the panel itself leaves it open
+// (so you see it turn green) until the app is next put away, or you fold it yourself.
+let missionUnfolded = false, challengeUnfolded = false;
+function refoldToday() {
+  const reading = !!todayOpenUid || planEditing;   // a rule being read or a plan being typed stays as it is
+  if (!challengeUnfolded && (!missionUnfolded || reading)) return;
+  if (!reading) missionUnfolded = false;
+  challengeUnfolded = false;
+  renderToday();
+}
 
 // "When ___, I will ___": tie the mission to a concrete moment in your day.
 // Stored on the mission entry (plan().missions[day].when / .will) so it syncs.
@@ -2505,9 +2552,23 @@ function renderSpotlight() {
     if (done && planEditing && !mEntry.when && !mEntry.will && !(draft && (draft.when.trim() || draft.will.trim()))) {
       planEditing = false; draft = null;
     }
+    // Lived: one short row instead of the whole panel (see missionUnfolded above)
+    if (done && !missionUnfolded && !planEditing && todayOpenUid !== uid) {
+      box.innerHTML = `
+        <button class="today-fold mission-fold" id="mission-unfold" aria-expanded="false" title="Show today's mission">
+          <span class="fold-copy">
+            <span class="kicker">⚔️ Today's mission · ✓ accomplished</span>
+            <span class="fold-title">Rule ${rule.n} — ${esc(rule.title)}</span>
+          </span>${uiIcon('ChevronDown')}
+        </button>`;
+      $('mission-unfold').onclick = () => { missionUnfolded = true; renderSpotlight(); };
+      return;
+    }
     box.innerHTML = `
       <div class="spotlight mission ${done ? 'accomplished' : ''}" style="border-left-color:${done ? 'var(--green)' : book.color}">
-        <div class="kicker">⚔️ Today's mission · ${done ? '✓ accomplished' : 'live this one rule today'}</div>
+        ${done && !planEditing
+          ? `<div class="fold-head"><div class="kicker">⚔️ Today's mission · ✓ accomplished</div><button class="link-btn fold-btn" id="mission-fold" aria-expanded="true" title="Fold today's mission away" aria-label="Fold today's mission away">${uiIcon('ChevronUp')}</button></div>`
+          : `<div class="kicker">⚔️ Today's mission · ${done ? '✓ accomplished' : 'live this one rule today'}</div>`}
         <div class="mission-meta">${bookTag(book, uid)}${lvlBadge(uid)}</div>
         <h2>Rule ${rule.n} — ${esc(rule.title)}</h2>
         ${rule.standard ? `<div class="std">${esc(rule.standard)}</div>` : ''}
@@ -2532,8 +2593,11 @@ function renderSpotlight() {
       pf.onsubmit = (e) => { e.preventDefault(); saveMissionPlan(); };
       $('plan-skip').onclick = () => { planEditing = false; renderSpotlight(); };
     }
-    $('mission-lived').onclick = () => toggleTick(uid);
-    $('today-read').onclick = () => { todayOpenUid = todayOpenUid === uid ? null : uid; renderSpotlight(); };
+    const fold = $('mission-fold');
+    if (fold) fold.onclick = () => { missionUnfolded = false; todayOpenUid = null; renderSpotlight(); };
+    // ticked here → the panel stays open so you see it accomplished
+    $('mission-lived').onclick = () => { if (!done) missionUnfolded = true; toggleTick(uid); };
+    $('today-read').onclick = () => { missionUnfolded = true; todayOpenUid = todayOpenUid === uid ? null : uid; renderSpotlight(); };
     if (!isChallenge) $('mission-challenge').onclick = () => startChallenge(uid);
     $('mission-change').onclick = clearMission;
     return;
@@ -2593,6 +2657,18 @@ function renderChallenge() {
   }
 
   const todayDone = isDone(c.uid);
+  // Today's day is lived: one short row instead of the whole panel (see challengeUnfolded)
+  if (todayDone && !challengeUnfolded) {
+    box.innerHTML = `
+      <button class="today-fold challenge-fold" id="ch-unfold" aria-expanded="false" title="Show the challenge">
+        <span class="fold-copy">
+          <span class="kicker">🔥 ${c.duration}-day challenge · day ${c.dayIdx + 1} of ${c.duration} · ✓ lived today</span>
+          <span class="fold-title">${title}</span>
+        </span>${uiIcon('ChevronDown')}
+      </button>`;
+    $('ch-unfold').onclick = () => { challengeUnfolded = true; renderChallenge(); };
+    return;
+  }
   const rangeStart = Math.min(Math.floor(c.dayIdx / 7) * 7, Math.max(0, c.duration - 7));
   const visibleDays = c.days.slice(rangeStart, rangeStart + 7);
   const dots = visibleDays.map(d => {
@@ -2605,7 +2681,8 @@ function renderChallenge() {
     <div class="challenge">
       <div class="ch-head">
         <span class="kicker">🔥 ${c.duration}-day challenge · day ${c.dayIdx + 1} of ${c.duration}</span>
-        <button class="link-btn" id="ch-end">End</button>
+        <span class="ch-head-btns"><button class="link-btn" id="ch-end">End</button>${todayDone
+          ? `<button class="link-btn fold-btn" id="ch-fold" aria-expanded="true" title="Fold the challenge away" aria-label="Fold the challenge away">${uiIcon('ChevronUp')}</button>` : ''}</span>
       </div>
       <div class="ch-rule">${bookTag(c.book, c.uid)}${title}</div>
       <div class="ch-range">Ends ${friendlyDate(addDays(c.start, c.duration - 1))}${c.duration > 7 ? ` · Days ${rangeStart + 1}–${rangeStart + visibleDays.length}` : ''}</div>
@@ -2617,7 +2694,10 @@ function renderChallenge() {
         <button class="link-btn" id="ch-edit">${buttonContent('Pencil', 'Edit duration')}</button>
       </div>
     </div>`;
-  $('ch-lived').onclick = () => toggleTick(c.uid);
+  // ticked here → the panel stays open so you see the day turn green
+  $('ch-lived').onclick = () => { if (!todayDone) challengeUnfolded = true; toggleTick(c.uid); };
+  const chFold = $('ch-fold');
+  if (chFold) chFold.onclick = () => { challengeUnfolded = false; renderChallenge(); };
   $('ch-end').onclick = endChallenge;
   $('ch-edit').onclick = () => startChallenge(c.uid);
 }
@@ -3271,6 +3351,17 @@ function visibleRules(everywhere = searchingEverywhere()) {
   });
   // Mastery view: the rules you've lived most, first (unless you've mixed the order)
   if (lived && !Array.isArray(mixOrder)) out.sort((a, b) => lived.get(b.uid) - lived.get(a.uid));
+  // Focus view: what is still to live comes first; the rules lived today follow under
+  // a "Done today" heading (list.doneFrom = where they start). The order only changes
+  // when the list is next drawn — a rule you tick stays where it is, under your finger.
+  if (focus && !words.length && !Array.isArray(mixOrder)) {
+    const left = out.filter(r => !isDone(r.uid));
+    if (left.length < out.length) {
+      const list = [...left, ...out.filter(r => isDone(r.uid))];
+      list.doneFrom = left.length;
+      return list;
+    }
+  }
   // Search: rules with the words in their TITLE come before ones that only mention
   // them, and both come before rules found through another ending of a word
   if (words.length) {
@@ -3312,6 +3403,10 @@ function bodyHtml(rule, uid) {
         <p class="para">${esc(rule.why)}</p></section>` : ''}
       ${rule.standard && rule.standard !== rule.today && rule.standard !== rule.remember ? `<section class="rule-section rule-section-wide"><h4>The Standard</h4>
         <div class="standard-text">${esc(rule.standard)}</div></section>` : ''}
+      ${uid ? `<div class="card-nav" role="group" aria-label="Step to another rule">
+        <button data-step="-1" title="Close this rule and open the one before it">${buttonContent('ChevronLeft', 'Previous')}</button>
+        <button data-step="1" title="Close this rule and open the next one"><span class="btn-content"><span class="btn-label">Next rule</span>${uiIcon('ChevronRight')}</span></button>
+      </div>` : ''}
       ${uid ? `<div class="card-actions ${isHidden(uid) ? 'personal-only' : ''}">
         ${isHidden(uid) ? '' : `<div class="action-section action-section-today" role="group" aria-label="Today">
           <p class="action-label">Today</p>
@@ -3460,6 +3555,7 @@ function renderGrid() {
     const shown = rules.slice(0, flatLimit), left = rules.length - shown.length;
     html = shown.map(({ book, rule, uid }, i) =>
       (searching && close && exact && i === exact ? `<div class="search-note similar-note">${close} more with a similar word</div>` : '')
+      + (i === rules.doneFrom ? `<div class="list-group" role="heading" aria-level="3">Done today</div>` : '')   // Focus: lived rules come last
       + cardHtml(book, rule, uid, true, searching ? matchSnippet(rule, needles) : '', searching ? needles : null)).join('');
     if (left > 0) html += `<button class="more-cards" id="more-cards">${buttonContent('ChevronDown', `Show ${Math.min(FLAT_STEP, left)} more`)}<span class="more-left">${left} not shown yet</span></button>`;
   }
@@ -3547,6 +3643,7 @@ function renderGrid() {
 
   $('grid').innerHTML = booksHtml + html;
   renderCardPracticeActions();
+  renderCardNav();
   const moreBooks = $('more-books');
   if (moreBooks) moreBooks.onclick = () => {   // the full list of matching books lives in the Browse sheet
     const term = searchTerm.trim();
@@ -3605,23 +3702,74 @@ $('grid').addEventListener('click', (e) => {
   }
 
   const card = e.target.closest('.card');
+  const step = e.target.closest('[data-step]');             // Previous / Next under an opened rule
+  if (card && step) { stepRule(card, +step.dataset.step); return; }
   if (card && e.target.closest('.card-expand, .card-top, .card-snippet')) {
-    const uid = card.dataset.uid;
-    const body = card.querySelector('.card-body');
-    if (expanded.has(uid)) {
-      expanded.delete(uid);
-      card.classList.remove('open');
-    } else {
-      expanded.add(uid);
-      if (body && !body.firstChild) {        // build the detail body on first open
-        const hit = ruleByUid(uid);
-        if (hit) { body.innerHTML = bodyHtml(hit.rule, uid); renderCardPracticeActions(); }
-      }
-      card.classList.add('open');
-    }
-    card.querySelector('.card-expand').setAttribute('aria-expanded', String(expanded.has(uid)));
+    setCardOpen(card, !expanded.has(card.dataset.uid));
   }
 });
+
+// Opens or closes one rule card where it stands (no redraw of the list).
+function setCardOpen(card, open) {
+  const uid = card.dataset.uid, body = card.querySelector('.card-body');
+  if (open) {
+    expanded.add(uid);
+    if (body && !body.firstChild) {        // build the detail body on first open
+      const hit = ruleByUid(uid);
+      if (hit) { body.innerHTML = bodyHtml(hit.rule, uid); renderCardPracticeActions(); }
+    }
+  } else expanded.delete(uid);
+  card.classList.toggle('open', open);
+  card.querySelector('.card-expand').setAttribute('aria-expanded', String(open));
+  if (open) renderCardNav();
+}
+
+/* ---- Previous / Next under an opened rule ----
+   Reading a book meant scrolling past the buttons under each rule to find the next
+   title. These two step straight to the neighbouring rule: this one closes, the
+   other opens at the top of the screen. The neighbour is the card you can see above
+   or below in the list as it is drawn — so inside a book it stops at the book's
+   first and last rule, and in a flat list (Focus, Starred, search results…) it
+   walks the whole list. */
+function cardNeighbour(card, dir) {
+  const next = (el) => dir > 0 ? el.nextElementSibling : el.previousElementSibling;
+  for (let el = next(card); el; el = next(el)) {
+    if (el.classList.contains('card')) return el;
+    if (el.classList.contains('section-header')) return null;   // another book starts here
+    if (el.id === 'more-cards') return el;                      // more of the list is waiting to be drawn
+  }
+  return null;
+}
+
+// Greys out Previous on the first rule and Next on the last one.
+function renderCardNav() {
+  for (const nav of $('grid').querySelectorAll('.card.open .card-nav')) {
+    const card = nav.closest('.card');
+    for (const btn of nav.querySelectorAll('[data-step]')) btn.disabled = !cardNeighbour(card, +btn.dataset.step);
+  }
+}
+
+function stepRule(card, dir) {
+  let target = cardNeighbour(card, dir);
+  if (target && target.id === 'more-cards') {   // the next rule is on the part of the list not drawn yet
+    const from = card.dataset.uid;
+    flatLimit += FLAT_STEP;
+    renderGrid();
+    card = $('card-' + cssId(from));
+    target = card && cardNeighbour(card, dir);
+    if (target && target.id === 'more-cards') target = null;
+  }
+  if (!target) return;
+  setCardOpen(card, false);
+  setCardOpen(target, true);
+  // Like turning a page: the rule starts at the top of the screen at once. (A smooth
+  // scroll would run backwards over the whole height of the rule that just closed.)
+  const root = document.documentElement, was = root.style.scrollBehavior;
+  root.style.scrollBehavior = 'auto';
+  target.scrollIntoView({ block: 'start' });
+  root.style.scrollBehavior = was;
+  target.querySelector('.card-expand').focus({ preventScroll: true });
+}
 
 function cssId(uid) { return uid.replace(/[^a-zA-Z0-9_-]/g, '_'); }
 
@@ -4247,6 +4395,7 @@ function checkDayRollover() {
     _doneSet = null;
     planEditing = false;
     todayOpenUid = null;
+    missionUnfolded = false; challengeUnfolded = false;
     closeAllSections();   // 12 am: open book sections close for the new day
   }
 }
@@ -6100,7 +6249,7 @@ document.addEventListener('drop', (e) => {
 // Make sure any pending (debounced) save is written before the app closes/backgrounds.
 window.addEventListener('pagehide', flushSave);
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') flushSave();
+  if (document.visibilityState === 'hidden') { flushSave(); refoldToday(); }   // put away → lived panels fold again
   else refreshIfNewDay();   // back in view → never keep showing yesterday
 });
 window.addEventListener('pageshow', refreshIfNewDay);
