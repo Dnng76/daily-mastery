@@ -1235,6 +1235,41 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     .book-row { grid-template-columns: 34px minmax(0, 1fr); }
     .modal { padding: 18px; }
   }
+  /* ---------- Motion ----------
+     Short (under a third of a second) and only on things you just did, so nothing
+     waits on an animation. Reduce Motion on the device switches all of it off (below). */
+  @keyframes fade-in  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes sheet-up { from { opacity: 0; transform: translateY(32px); } to { opacity: 1; transform: none; } }
+  @keyframes sheet-pop { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
+  @keyframes rise-in  { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  @keyframes body-in  { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  @keyframes bump { 0% { transform: scale(1); } 35% { transform: scale(1.3); } 70% { transform: scale(0.94); } 100% { transform: scale(1); } }
+  @keyframes ring-cheer {
+    0% { transform: scale(1); filter: none; }
+    40% { transform: scale(1.14); filter: drop-shadow(0 0 8px var(--green)); }
+    100% { transform: scale(1); filter: none; }
+  }
+  @keyframes confetti {
+    0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+    60%  { transform: translate(var(--dx), var(--dy)) rotate(calc(var(--rot) * 0.6)); opacity: 1; }
+    100% { transform: translate(var(--dx), calc(var(--dy) + 46px)) rotate(var(--rot)); opacity: 0; }
+  }
+  .modal-backdrop.show { animation: fade-in 0.2s ease-out; }
+  .modal-backdrop.show > .modal { animation: sheet-up 0.32s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  @media (min-width: 560px) { .modal-backdrop.show > .modal { animation-name: sheet-pop; } }
+  .card.open .card-body { animation: body-in 0.25s ease-out; }
+  .rise:not(.flash) { animation: rise-in 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 30ms); }
+  .streak-badge.bump { animation: bump 0.5s ease; }
+  .ring-box.cheer .ring { animation: ring-cheer 0.9s ease; }
+  .confetti {
+    position: fixed; z-index: 150; width: 8px; height: 8px; margin: -4px 0 0 -4px;
+    border-radius: 2px; pointer-events: none;
+    animation: confetti 0.95s cubic-bezier(0.15, 0.7, 0.3, 1) forwards;
+  }
+  /* a tap on the sun/moon fades the colours across instead of flashing (class set for ½ s) */
+  html.theme-fade, html.theme-fade *, html.theme-fade *::before, html.theme-fade *::after {
+    transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease, fill 0.35s ease, stroke 0.35s ease;
+  }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -1542,7 +1577,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v55 · 2026-11-22 (page numbers removed)';
+const APP_VERSION = 'v56 · 2026-11-22 (recently added, animation)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -2454,9 +2489,74 @@ function bookTag(book, uid) {
     : `<span class="book-tag" style="background:${book.color}">${name}</span>`;
 }
 
+/* ================= Motion helpers =================
+   Each one does nothing when the device asks for reduced motion. */
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// The first rows/cards of a freshly drawn list slide up into place one after another
+// (only the first few: those are the ones on screen; the rest just appear).
+function riseIn(container, max = 10) {
+  if (!container || reduceMotion()) return;
+  const items = [...container.children].filter(el => !el.hidden).slice(0, max);
+  items.forEach((el, i) => { el.style.setProperty('--i', i); el.classList.add('rise'); });
+  setTimeout(() => items.forEach(el => { el.classList.remove('rise'); el.style.removeProperty('--i'); }), 340 + max * 30 + 120);
+}
+
+// A one-off animation class: added, run, taken off again (so it can run next time).
+function playOnce(el, cls, ms) {
+  if (!el || reduceMotion()) return;
+  el.classList.remove(cls);
+  void el.offsetWidth;   // restart the animation if it is still running
+  el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), ms);
+}
+
+// A small burst of confetti from an element — for a finished Focus, a lived
+// mission, a completed challenge. Pieces are removed again after a second.
+const CONFETTI_COLORS = ['var(--green)', 'var(--amber)', 'var(--cyan)', 'var(--violet)', 'var(--red)'];
+function burst(anchor, n = 22) {
+  if (!anchor || reduceMotion()) return;
+  const r = anchor.getBoundingClientRect();
+  if (!r.width || r.bottom < 0 || r.top > innerHeight) return;   // off screen: nobody would see it
+  burstAt(r.left + r.width / 2, r.top + r.height / 2, n);
+}
+// Where the last tap landed: finishing Focus usually happens far down the list, out
+// of sight of the ring at the top, so that cheer starts under your finger instead.
+let lastTap = null;
+document.addEventListener('pointerdown', (e) => { lastTap = { x: e.clientX, y: e.clientY, t: Date.now() }; }, { capture: true, passive: true });
+function recentTap() { return lastTap && Date.now() - lastTap.t < 1500 ? lastTap : null; }
+function burstAt(x, y, n = 22) {
+  if (reduceMotion()) return;
+  const pieces = [];
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement('span');
+    const a = (Math.PI * 2 * i) / n + Math.random() * 0.4, d = 46 + Math.random() * 56;
+    s.className = 'confetti';
+    s.setAttribute('aria-hidden', 'true');
+    s.style.cssText = `left:${x}px;top:${y}px;background:${CONFETTI_COLORS[i % CONFETTI_COLORS.length]};` +
+      `--dx:${(Math.cos(a) * d).toFixed(1)}px;--dy:${(Math.sin(a) * d - 24).toFixed(1)}px;--rot:${Math.round(Math.random() * 540 - 270)}deg`;
+    pieces.push(s);
+  }
+  document.body.append(...pieces);
+  setTimeout(() => pieces.forEach(p => p.remove()), 1100);
+}
+
+let lastProgress = null;   // { day, done, total } as last drawn → a cheer when Focus has just been finished
 function renderProgress() {
   // The ring measures TODAY'S FOCUS, not the whole library (which would sit near 0%).
   const { done, total } = focusProgress();
+  const prev = lastProgress;
+  lastProgress = { day: currentDay, done, total };
+  if (prev && prev.day === currentDay && prev.total === total && total > 0 && prev.done < total && done >= total) {
+    const box = $('ring-label').closest('.ring-box');
+    playOnce(box, 'cheer', 950);
+    const tap = recentTap();
+    if (tap) burstAt(tap.x, tap.y, 26); else burst(box.querySelector('.ring'), 26);
+    // a message too (the ring is often scrolled out of sight); joins a mission message shown this moment
+    const t = $('toast');
+    if (Date.now() - toastAt < 400 && t.classList.contains('show')) toast(`${t.textContent} · 🎯 Focus done`);
+    else toast(`🎯 Focus done — all ${total} lived today`);
+  }
   const pct = total ? Math.round(done / total * 100) : 0;
   const r = 22, circ = 2 * Math.PI * r;   // r matches the circles in the header's <svg class="ring">
   const bar = $('ring-bar');
@@ -2762,7 +2862,7 @@ function renderChips() {
 
   for (const el of $('chips').querySelectorAll('.chip[data-filter]')) {
     // tapping a filter during a search narrows the search to that filter
-    el.onclick = () => { filter = el.dataset.filter; if (searchWords().length) searchAll = false; renderAll(); };
+    el.onclick = () => { filter = el.dataset.filter; if (searchWords().length) searchAll = false; renderAll(); riseIn($('grid')); };
   }
   const pick = $('chips').querySelector('[data-open-picker]');
   if (pick) pick.onclick = openBookPicker;
@@ -2844,7 +2944,7 @@ function renderPickerList() {
     byContent.sort((x, y) => y.inside - x.inside);
     entries.push(...byContent);
   } else if (newest) {
-    entries.sort((x, y) => String(y.b.importedAt || '').localeCompare(String(x.b.importedAt || '')));
+    entries.sort((x, y) => newestFirst(x.b, y.b));   // stable: same moment → stays A–Z
   }
   $('picker-results').textContent = `${entries.length} of ${data.books.length} books`;
 
@@ -2852,18 +2952,25 @@ function renderPickerList() {
     const done = b.rules.reduce((n, r) => n + (ds.has(ruleUid(b, r)) ? 1 : 0), 0);
     const hidden = b.rules.reduce((n, r) => n + (isHidden(ruleUid(b, r)) ? 1 : 0), 0);
     const dup = nameCount.get(prettyName(b.name).toLowerCase()) > 1;
+    // In "Recently added" the day is the heading above, so a row adds the time when it is known.
+    const time = addedTime(b);
+    const addedNote = dup ? `${addedLabel(b.importedAt)}${time ? ', ' + time : ''} · same title`
+      : newest && time ? `Added at ${time}` : '';
     return `<button class="picker-row ${filter === b.id ? 'active' : ''}" data-pick="${b.id}" ${inside ? 'data-inside="1"' : ''} aria-current="${filter === b.id ? 'true' : 'false'}">
       <span class="book-dot" style="background:${b.color}"></span>
       <span class="picker-copy"><span class="picker-name">${esc(prettyName(b.name))}</span>
       ${inside ? `<span class="picker-meta inside">${inside} rule${inside === 1 ? ' mentions' : 's mention'} “${esc(term)}”</span>` : ''}
       <span class="picker-meta">${b.rules.length} rules · ${done} done today${hidden ? ` · ${hidden} hidden` : ''}</span>
-      ${dup || newest ? `<span class="picker-meta">Added ${esc(b.importedAt || 'date unknown')}${dup ? ' · same title' : ''}</span>` : ''}</span>
+      ${addedNote ? `<span class="picker-meta">${esc(addedNote)}</span>` : ''}</span>
       ${uiIcon(filter === b.id ? 'Check' : 'ChevronRight')}
     </button>`;
   };
 
-  // letter headings only earn their place in a long A–Z list
+  // letter headings only earn their place in a long A–Z list; "Recently added" is headed by day
   const letters = !term && !newest && data.books.length >= 12;
+  const days = !term && newest;
+  const perDay = new Map();
+  if (days) for (const { b } of entries) { const d = addedLabel(b.importedAt); perDay.set(d, (perDay.get(d) || 0) + 1); }
   let html = '';
   if (!term) {
     html += `
@@ -2872,16 +2979,22 @@ function renderPickerList() {
       <span class="picker-copy"><span class="picker-name">All books</span><span class="picker-meta">${data.books.length} books in your library</span></span>
       ${uiIcon(filter === 'all' ? 'Check' : 'ChevronRight')}
     </button>`;
-    const recent = recentBooks.map(id => data.books.find(b => b.id === id)).filter(Boolean).slice(0, 5);
+    // "Recently opened" helps find a book by name; above "Recently added" it would put
+    // books you opened in front of the ones you added last, so that order leaves it out.
+    const recent = newest ? [] : recentBooks.map(id => data.books.find(b => b.id === id)).filter(Boolean).slice(0, 5);
     if (recent.length && data.books.length > 5) {
       html += `<div class="picker-group">Recently opened</div>${recent.map(b => row(b)).join('')}`;
-      if (!letters) html += `<div class="picker-group">${newest ? 'All books, newest first' : 'All books A–Z'}</div>`;
+      if (!letters) html += `<div class="picker-group">All books A–Z</div>`;
     }
   }
-  let letter = null;
+  let group = null;
   html += entries.map(({ b, inside }) => {
+    const g = letters ? bookLetter(b) : days ? addedLabel(b.importedAt) : null;
     let heading = '';
-    if (letters && bookLetter(b) !== letter) { letter = bookLetter(b); heading = `<div class="picker-group">${letter}</div>`; }
+    if (g != null && g !== group) {
+      group = g;
+      heading = `<div class="picker-group">${esc(g)}${days ? ` · ${perDay.get(g)} book${perDay.get(g) === 1 ? '' : 's'}` : ''}</div>`;
+    }
     return heading + row(b, inside);
   }).join('');
   if (term && !entries.length) html = `<div class="picker-empty">No book is named, or mentions, “${esc(term)}”.</div>`;
@@ -2906,6 +3019,7 @@ function openBookPicker() {
   renderPickerList();
   $('book-picker').classList.add('show');
   $('book-picker').querySelector('.modal').scrollTop = 0;
+  riseIn($('picker-list'), 12);
   // auto-focus only with a real keyboard — on a phone it would pop the keyboard over the list
   const desktop = matchMedia('(hover: hover) and (pointer: fine)').matches;
   $(desktop ? 'picker-search' : 'picker-close').focus({ preventScroll: true });
@@ -2942,6 +3056,7 @@ function selectBook(id) {
   closeBookPicker(false);
   closeLibrary(false);
   renderAll();
+  riseIn($('grid'));
   $('chips').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   const destination = $('grid').querySelector('.collapse-arrow, .card-expand') || $('chips').querySelector('[data-filter="all"]');
   destination?.focus({ preventScroll: true });
@@ -3059,8 +3174,20 @@ function sortBookList(books) {
   if (bookSort === 'library') return books;
   const az = new Map(sortedBooks().map((b, i) => [b.id, i]));   // the same A–Z as Browse books
   const byName = (a, b) => az.get(a.id) - az.get(b.id);
-  return [...books].sort(bookSort === 'az' ? byName
-    : (a, b) => String(b.importedAt || '').localeCompare(String(a.importedAt || '')) || byName(a, b));
+  return [...books].sort(bookSort === 'az' ? byName : (a, b) => newestFirst(a, b) || byName(a, b));
+}
+
+// "Recently added": the newest day first; inside one day, books that carry the exact
+// moment they were added (every book imported from v56 on) newest first. Books added
+// earlier on the same day have only the date, so they follow in A–Z order.
+function newestFirst(a, b) {
+  return String(b.importedAt || '').localeCompare(String(a.importedAt || '')) ||
+    (Number(b.addedAt) || 0) - (Number(a.addedAt) || 0);
+}
+// "3:42 pm" — the time a book was added, when it is known.
+function addedTime(book) {
+  const t = Number(book.addedAt);
+  return t > 0 ? new Date(t).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
 }
 
 // Heading over the books added on one day, in the "Recently added" order.
@@ -3125,6 +3252,7 @@ function setBookSort(id) {
   // "Library order" only puts things back; it does not pull you out of the view you are in
   if (id !== 'library') showBookList(); else unmixCards();
   renderAll();
+  riseIn($('grid'));
   scrollToBookList();
 }
 
@@ -3132,6 +3260,7 @@ function setPickedLetter(letter) {
   pickedLetter = letter;
   if (letter) showBookList();
   renderAll();
+  riseIn($('grid'));
   scrollToBookList();
 }
 
@@ -3751,7 +3880,7 @@ function renderLibrary() {
           <div class="book-row-name">
             <button class="book-name-text" data-open-book="${b.id}" title="Open ${esc(prettyName(b.name))}">${esc(prettyName(b.name))}</button>
           </div>
-          <div class="book-row-meta">${b.rules.length} rules · imported ${esc(b.importedAt)}${looksMisread(b) ? '<br><span class="book-warn">⚠ Read wrongly by an older version — import its PDF again to repair it</span>' : ''}</div>
+          <div class="book-row-meta">${b.rules.length} rules · ${esc(addedLabel(b.importedAt).replace(/^Added /, 'added ').replace(/^Date not recorded$/, 'date added not recorded'))}${addedTime(b) ? ', ' + esc(addedTime(b)) : ''}${looksMisread(b) ? '<br><span class="book-warn">⚠ Read wrongly by an older version — import its PDF again to repair it</span>' : ''}</div>
         </div>
       </div>
       <div class="book-row-actions">
@@ -3869,10 +3998,14 @@ function bestStreak() {
   return best;
 }
 
+let lastStreakShown = null;
 function renderStreak() {
   const el = $('streak');
   if (!el) return;
   const s = computeStreak();
+  // the flame jumps when the streak has just gone up (never on opening the app)
+  if (lastStreakShown != null && s > lastStreakShown) playOnce(el, 'bump', 520);
+  lastStreakShown = s;
   // Always there once you have a book or any history: it is the way into the dashboard.
   if (s > 0 || data.books.length || Object.keys(data.daylog || {}).length) {
     el.hidden = false; el.textContent = `🔥 ${s}`;
@@ -4155,9 +4288,16 @@ function toggleTick(uid) {
     if (done) {
       for (const id of ['mission-lived', 'ch-lived']) { const b = $(id); if (b) popTick(b); }
       const c = isChallenge ? activeChallenge() : null;
-      if (c && c.finished && c.doneCount >= c.duration) toast(`🏆 ${c.duration} for ${c.duration} — challenge complete!`);
-      else if (c) toast(`🔥 Day ${Math.min(c.dayIdx + 1, c.duration)} of ${c.duration} — lived`);
-      else toast('⚔️ Mission accomplished');
+      if (c && c.finished && c.doneCount >= c.duration) {
+        toast(`🏆 ${c.duration} for ${c.duration} — challenge complete!`);
+        const tap = recentTap();
+        if (tap) burstAt(tap.x, tap.y, 30); else burst($('challenge-box'), 30);
+      } else if (c) toast(`🔥 Day ${Math.min(c.dayIdx + 1, c.duration)} of ${c.duration} — lived`);
+      else {
+        toast('⚔️ Mission accomplished');
+        const tap = recentTap();
+        if (tap) burstAt(tap.x, tap.y); else burst($('mission-lived') || $('spotlight-box'));
+      }
     }
   }
 
@@ -4893,6 +5033,7 @@ async function importPdf(file) {
     name: bookNameFromFile(file.name, coverLines),
     color: bookColor(data.books.length),
     importedAt: todayKey(),
+    addedAt: Date.now(),   // the exact moment, so "Recently added" can order books added the same day
     pdfHashes: completeHash ? [completeHash] : [],
     rules
   };
@@ -5813,10 +5954,11 @@ function renderSyncUI() {
 
 /* ================= Toast ================= */
 
-let toastTimer = null;
+let toastTimer = null, toastAt = 0;
 // ms = 0 keeps the message up until the next one replaces it (progress messages)
 function toast(msg, ms = 2800) {
   const t = $('toast');
+  toastAt = Date.now();
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(toastTimer);
@@ -5927,6 +6069,7 @@ function cleanBackupBook(b) {
     pdfHashes: list(b.pdfHashes),
     rules: []
   };
+  if (Number.isFinite(b.addedAt) && b.addedAt > 0) book.addedAt = b.addedAt;
   for (const r of b.rules) {
     if (!r || !Number.isFinite(r.n) || !str(r.title)) continue;
     const rule = { n: r.n, title: r.title, gain: list(r.gain), lose: list(r.lose),
@@ -6082,14 +6225,18 @@ function renderThemeSwitch() {
 $('theme-seg').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-theme-pref]');
   if (!b || !window.AppTheme) return;
+  fadeTheme();
   AppTheme.set(b.dataset.themePref);
   renderThemeSwitch();
 });
+// The colours glide to the new look instead of switching in one flash.
+function fadeTheme() { playOnce(document.documentElement, 'theme-fade', 450); }
 renderThemeSwitch();
 // The one-tap button at the top: flips to the other look and keeps it (so it leaves
 // "Auto"; More → Appearance → Auto goes back to following the device).
 $('btn-theme').onclick = () => {
   if (!window.AppTheme) return;
+  fadeTheme();
   AppTheme.set(AppTheme.resolved() === 'light' ? 'dark' : 'light');
   renderThemeSwitch();
 };
@@ -6231,7 +6378,18 @@ $('challenge-modal').addEventListener('keydown', e => {
 });
 
 $('picker-search').addEventListener('input', renderPickerList);
-$('picker-sort').addEventListener('change', renderPickerList);
+// The Browse sheet keeps the order you chose (per device), and a new order slides in from the top.
+const PICKER_SORT_KEY = 'mastery_picker_sort';
+try {
+  const saved = localStorage.getItem(PICKER_SORT_KEY);
+  if (saved === 'name' || saved === 'newest') $('picker-sort').value = saved;
+} catch (e) { /* ignore */ }
+$('picker-sort').addEventListener('change', () => {
+  try { localStorage.setItem(PICKER_SORT_KEY, $('picker-sort').value); } catch (e) { /* ignore */ }
+  renderPickerList();
+  $('book-picker').querySelector('.modal').scrollTop = 0;
+  riseIn($('picker-list'), 12);
+});
 $('picker-close').onclick = () => closeBookPicker();
 $('book-picker').addEventListener('keydown', e => bookDialogKeydown(e, $('book-picker'), closeBookPicker));
 $('book-picker').addEventListener('click', (e) => {
