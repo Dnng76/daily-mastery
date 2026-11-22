@@ -1542,7 +1542,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v54 · 2026-11-20 (previous/next removed)';
+const APP_VERSION = 'v55 · 2026-11-22 (page numbers removed)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -4381,6 +4381,15 @@ const COUNT_HEAD_RE = /^(?:PRINCIPLE|DAY|LESSON)\s+0*(\d{1,3})\s*(?:\/|of)\s*\d{
 const BARE_COUNT_RE = /^0*(\d{1,3})\s*\/\s*\d{1,3}$/;
 const HEAD_COUNT_RE = /^(?:\/|of)\s*\d{1,3}\b\s*/i;                   // the "/ 20" left after "RULE 2"
 const BAND_RE     = /^DAILY\s+MASTERY\s*[\/|·•—–-]\s*\S/i;            // footer band: "DAILY MASTERY / DAILY LEARNING 01 / 20"
+// A band that ends in the page's counter: "CONFIDENCE • PART 1 02 / 20" at the foot
+// of every page. The counter changes on each page, so the repeated-line filter
+// never caught it and it ran on into the last section ("Remember"). What repeats
+// is the label in front of the counter.
+const BAND_COUNTER = String.raw`0*\d{1,3}\s*\/\s*\d{1,3}`;
+const COUNTER_LINE_RE = new RegExp(String.raw`^(\S.{0,58}?)\s+${BAND_COUNTER}$`);          // a whole line
+const BAND_LABEL = String.raw`[A-Z][A-Z0-9&'’]*(?:(?:\s*[•·|\/—–-]\s*|\s+)[A-Z0-9][A-Z0-9&'’]*)*`;
+const BAND_TAIL_RE = new RegExp(String.raw`(?:^|\s)(${BAND_LABEL})\s+${BAND_COUNTER}$`);  // end of stored text
+const HEADING_WORD_RE = /^(?:RULE|PRINCIPLE|DAY|LESSON|LAW|SECRET|STEP|HABIT|TRUTH|NO\.?|#)$/i; // "PRINCIPLE 02 / 20" is a heading
 const HEAD_TAG_RE = /^\[[^\]]*\]\s*/;                                 // "[ DAILY PRINCIPLE ]" after the rule number
 const BULLET_START_RE = /^(?:[•▪●○◦‣·*✗✘×✕✖+]\s*|[\-–—]\s+)/;
 // lines that are only a bullet marker (+, ✗, ×, •, dash …) or page furniture
@@ -4647,7 +4656,27 @@ function parseByPage(pages) {
   return rules;
 }
 
+// The label of a "LABEL 02 / 20" page band, or null (headings never count).
+function counterBandLabel(line) {
+  const t = line.trim();
+  const c = t.charCodeAt(t.length - 1);
+  if (!(c >= 48 && c <= 57)) return null;             // a band ends in its counter
+  const m = t.match(COUNTER_LINE_RE);
+  if (!m || !/[A-Za-z]/.test(m[1]) || HEADING_WORD_RE.test(m[1].trim())) return null;
+  if (RULE_RE.test(t) || COUNT_HEAD_RE.test(t)) return null;
+  return m[1].trim();
+}
+
 function cleanPdfPages(pages) {
+  // labels standing in front of a page counter on 40%+ of the pages are a band
+  const bandFreq = new Map();
+  for (const lines of pages) {
+    for (const label of new Set(lines.map(counterBandLabel).filter(Boolean))) {
+      bandFreq.set(label, (bandFreq.get(label) || 0) + 1);
+    }
+  }
+  const bands = new Set();
+  if (pages.length > 3) for (const [label, n] of bandFreq) if (n >= pages.length * 0.4) bands.add(label);
   return pages.map(lines => {
     const labels = new Set();
     const furniture = new Set();
@@ -4665,6 +4694,7 @@ function cleanPdfPages(pages) {
     }
     return lines.filter(line => {
       if (furniture.has(line) || BAND_RE.test(line.trim())) return false;
+      if (bands.size && bands.has(counterBandLabel(line))) return false;
       const footer = line.trim().match(/^(.*?)\s+[-\u2013\u2014]\s+PRINCIPLE\s+\d+$/i);
       return !footer || !labels.has(footer[1]);
     });
@@ -4901,6 +4931,65 @@ function fillGaps(book, rules) {
     return { ...old, ...add };   // a new object, so cached search text is rebuilt
   });
   return n;
+}
+
+// Books read before v55 can carry a page band at the end of a section
+// ("…to begin building it. CONFIDENCE • PART 1 02 / 20"). A label that ends a
+// section in 40%+ of a book's rules (never fewer than two) is a band: it and its
+// counter come out wherever they stand. Titles are never touched (they identify
+// a rule). Returns true when the book changed.
+const BAND_TEXT_FIELDS = ['meaning', 'today', 'remember', 'standard', 'reality', 'choice', 'why'];
+const BAND_LIST_FIELDS = ['examples', 'gain', 'lose'];
+// Runs over the whole library at every start, so almost every text is turned
+// away by its last character (a band ends in its counter) before any regex runs.
+function bandTail(t) {
+  if (typeof t !== 'string' || !t) return null;
+  const c = t.charCodeAt(t.length - 1);
+  if (c < 48 || c > 57) return null;
+  const m = t.slice(-120).match(BAND_TAIL_RE);
+  return m && !HEADING_WORD_RE.test(m[1]) ? m[1] : null;
+}
+function stripPageBands(book) {
+  const rules = (book && Array.isArray(book.rules)) ? book.rules : [];
+  if (rules.length < 2) return false;
+  const count = new Map();
+  for (const r of rules) {
+    let seen = null;
+    for (const k of BAND_TEXT_FIELDS) {
+      const label = bandTail(r[k]);
+      if (label) (seen || (seen = new Set())).add(label);
+    }
+    for (const k of BAND_LIST_FIELDS) {
+      if (!Array.isArray(r[k])) continue;
+      for (const t of r[k]) { const label = bandTail(t); if (label) (seen || (seen = new Set())).add(label); }
+    }
+    if (seen) for (const label of seen) count.set(label, (count.get(label) || 0) + 1);
+  }
+  const labels = [...count].filter(([, n]) => n >= Math.max(2, rules.length * 0.4)).map(([label]) => label);
+  if (!labels.length) return false;
+  const re = new RegExp(String.raw`(^|\s)(?:${labels.map(l => l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\s+${BAND_COUNTER}(?=\s|$)`, 'g');
+  const tidy = s => { const v = s.replace(re, '$1'); return v === s ? s : v.replace(/\s{2,}/g, ' ').trim(); };
+  let changed = false;
+  book.rules = rules.map(r => {
+    const out = { ...r };
+    let touched = false;
+    for (const k of BAND_TEXT_FIELDS) {
+      if (typeof r[k] !== 'string') continue;
+      const v = tidy(r[k]);
+      if (v !== r[k]) { out[k] = v; touched = true; }
+    }
+    for (const k of BAND_LIST_FIELDS) {
+      if (!Array.isArray(r[k])) continue;
+      const v = r[k].map(x => (typeof x === 'string' ? tidy(x) : x)).filter(x => x !== '');
+      if (v.length !== r[k].length || v.some((x, i) => x !== r[k][i])) { out[k] = v; touched = true; }
+    }
+    if (!touched) return r;
+    for (const k of ['remember', 'meaning', 'why']) if (out[k] === '') delete out[k];
+    if (Array.isArray(out.examples) && !out.examples.length) delete out.examples;
+    changed = true;
+    return out;                  // a new object, so cached search text is rebuilt
+  });
+  return changed;
 }
 
 // A layout the importer doesn't know usually shows up as "titles" that swallowed
@@ -5458,7 +5547,8 @@ function onBooksSnapshot(snap) {
     for (const b of data.books) {
       if (!remoteIds.has(b.id) && !cloudDirtyBooks.has(b.id)) { cloudDirtyBooks.add(b.id); queued = true; }
     }
-    if (queued) pushBooks().then(syncOk).catch(onRemoteError);
+    // also upload book changes made before sync started (e.g. the page-band clean-up at startup)
+    if (queued || cloudDirtyBooks.size) pushBooks().then(syncOk).catch(onRemoteError);
   }
   syncOk();
 }
@@ -5468,6 +5558,7 @@ function onBooksSnapshot(snap) {
 function applyRemoteBook(book) {
   if ((data.deletedBooks || {})[book.id]) return false;   // tombstoned — stays gone
   if (cloudDirtyBooks.has(book.id)) return false;         // our newer copy is about to upload
+  stripPageBands(book);   // a copy from a device on an older version may still carry page bands
   const i = data.books.findIndex(b => b.id === book.id);
   if (i >= 0 && JSON.stringify(data.books[i]) === JSON.stringify(book)) return false;
   if (i >= 0) data.books[i] = book; else data.books.push(book);
@@ -5848,6 +5939,7 @@ function cleanBackupBook(b) {
     if (str(r.remember)) rule.remember = r.remember;
     book.rules.push(rule);
   }
+  stripPageBands(book);   // a backup made before v55 can carry page bands
   return book;
 }
 
@@ -6206,6 +6298,17 @@ $('ver-mark').title = APP_VERSION;
 // One library, no duplicate books: merge any copies now (keeps all their ticks).
 if (applyAliases()) save();
 const mergedAtStart = dedupeBooks();
+// Page bands an older version read into the text ("… CONFIDENCE • PART 1 02 / 20"):
+// take them out once per device. Later arrivals are cleaned one by one — a cloud
+// copy in applyRemoteBook, a backup in cleanBackupBook — and imports no longer read them.
+const BANDS_CHECKED_KEY = 'mastery_bands_checked';
+let bandsChecked = false;
+try { bandsChecked = localStorage.getItem(BANDS_CHECKED_KEY) === '1'; } catch (e) { /* ignore */ }
+if (!bandsChecked) {
+  const tidied = data.books.filter(stripPageBands).map(b => b.id);
+  if (tidied.length) { booksChanged(...tidied); save(); flushSave(); }
+  try { localStorage.setItem(BANDS_CHECKED_KEY, '1'); } catch (e) { /* ignore */ }
+}
 refreshDaylog();   // backfills the permanent day log from the tick history you already have
 // Days recorded before goals were stored: pin them to the Focus size in use now,
 // once, so history reads exactly as it does today and can't shift afterwards.
