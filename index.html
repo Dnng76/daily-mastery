@@ -49,6 +49,90 @@
   apply();
 })();
 </script>
+<!-- Opening faster: a quick-read copy of the library.
+     Your books live in this device's storage packed small (LZString), and
+     unpacking 130 books took most of the opening time. So a second, ready-to-read
+     copy of each book is kept in the device's database (IndexedDB), next to the
+     packed text it was made from. A copy is used only when that packed text still
+     equals what storage holds for the book now, so storage stays the one source
+     of truth and a copy always gives exactly the book that unpacking would.
+     A changed, new or missing book is unpacked as before and its copy renewed.
+     The copies are read here, at the very top, so the read runs while the rest of
+     the page loads; the app itself is run by the last lines of the page, as soon
+     as the copies are in (or without them, if the database hasn't answered
+     within 0.4 s of the page being ready, or isn't available). -->
+<script>
+(function () {
+  var DB = 'daily-mastery-fast', STORE = 'books', WAIT_MS = 400, FLUSH_MS = 600;
+  var db = null, dead = false, settled = false, wanted = false, started = false;
+  var ops = [], flushTimer = null, t0 = Date.now(), root = document.documentElement;
+  root.classList.add('booting');   // the page shows once the app has drawn it
+  setTimeout(function () { root.classList.remove('booting'); }, 4000);   // whatever happens
+  var lib = window.LibCache = {
+    entries: null,   // Map id → { id, raw, json } read at startup (released by the app once used)
+    how: 'none',     // 'copy' | 'empty' | 'late' | 'none' — for checking only
+    ms: 0,           // how long after the top of the page the app was run
+    put: function (id, raw, json) { if (!dead) { ops.push({ del: false, id: id, raw: raw, json: json }); later(); } },
+    drop: function (id) { if (!dead) { ops.push({ del: true, id: id }); later(); } },
+    run: function () {   // called at the end of the page
+      wanted = true;
+      if (settled) start();
+      else setTimeout(function () { if (!started) lib.how = 'late'; start(); }, WAIT_MS);
+    }
+  };
+  function later() { if (!flushTimer) flushTimer = setTimeout(flush, FLUSH_MS); }
+  function flush() {
+    flushTimer = null;
+    if (!db || !ops.length) return;   // not open yet: written once it is
+    var list = ops; ops = [];
+    try {
+      var st = db.transaction(STORE, 'readwrite').objectStore(STORE);
+      for (var i = 0; i < list.length; i++) {
+        var o = list[i];
+        if (o.del) st.delete(o.id);
+        else st.put({ id: o.id, raw: o.raw, json: o.json }, o.id);
+      }
+    } catch (e) { /* full or closed: the next start simply unpacks those books */ }
+  }
+  function giveUp() { dead = true; ops = []; db = null; }
+  function settle() { settled = true; if (wanted) start(); }
+  function start() {
+    if (started) return;
+    started = true;
+    lib.ms = Date.now() - t0;
+    try {
+      var code = document.getElementById('app-code'), s = document.createElement('script');
+      s.textContent = code.textContent;
+      code.parentNode.insertBefore(s, code);   // runs the app now
+      code.parentNode.removeChild(code);
+    } finally { root.classList.remove('booting'); }
+  }
+  try {
+    var req = indexedDB.open(DB, 1);
+    req.onupgradeneeded = function () { req.result.createObjectStore(STORE); };
+    req.onerror = function () { giveUp(); settle(); };
+    req.onsuccess = function () {
+      db = req.result;
+      db.onversionchange = function () { db.close(); giveUp(); };
+      if (started) { later(); return; }   // too late for this start; keep the copies up to date
+      try {
+        var get = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
+        get.onsuccess = function () {
+          if (!started) {
+            var m = new Map(), all = get.result || [];
+            for (var i = 0; i < all.length; i++) if (all[i] && all[i].id != null) m.set(all[i].id, all[i]);
+            lib.entries = m;
+            lib.how = m.size ? 'copy' : 'empty';
+          }
+          settle();
+          later();
+        };
+        get.onerror = settle;
+      } catch (e) { settle(); }
+    };
+  } catch (e) { giveUp(); settle(); }
+})();
+</script>
 <!-- No third-party <script> tags here on purpose: the PDF reader and Firebase are
      loaded on demand by loadLib() further down, so the app draws immediately and
      still starts when those files can't be reached (offline, blocked, outage). -->
@@ -268,6 +352,9 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
     min-height: 100vh;
     padding-bottom: 80px;
   }
+  /* For the split second before the app has run (see "Opening faster"), show only the
+     background, never a half-drawn page reading "0 / 0". */
+  html.booting body > * { visibility: hidden; }
   .wrap { max-width: 1120px; margin: 0 auto; padding: 20px; }
 
   /* ---------- Header ---------- */
@@ -493,6 +580,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .dash-unit { font-size: 0.95rem; font-weight: 600; color: var(--text-dim); }
   .dash-status { margin-top: 10px; font-size: 0.86rem; line-height: 1.45; color: var(--text-dim); }
   .dash-status b { color: var(--text); }
+  .dash-status.dash-rest { margin-top: 6px; }
+  .dash-axis .rest-mark { font-size: 0.62rem; }
   .dash-meter { margin-top: 14px; }
   .dash-meter-track { height: 8px; border-radius: 999px; background: var(--amber-track); overflow: hidden; }
   .dash-meter-fill { height: 100%; min-width: 4px; border-radius: 999px; background: var(--amber-fill); }
@@ -535,6 +624,9 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .hist-day.lv2 { background: var(--heat2-bg); color: var(--heat2-text); }
   .hist-day.lv3 { background: var(--green); color: var(--on-accent); font-weight: 700; }
   .hist-day.today { outline: 2px solid var(--amber-fill); outline-offset: -2px; }
+  /* a rest day: a day off that kept the streak going (see streakInfo) */
+  .hist-day.rest { position: relative; }
+  .hist-day.rest::after { content: "💤"; position: absolute; top: 1px; right: 2px; font-size: 0.55rem; line-height: 1; }
   .hist-day.future, .hist-day.blank { background: transparent; color: var(--text-faint); }
   /* past days are buttons: tap one to see what you lived (a tooltip is no use on a phone) */
   button.hist-day { width: 100%; min-height: 0; padding: 0; border: 0; font-weight: 400; }
@@ -563,6 +655,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .hist-legend span { display: flex; align-items: center; gap: 8px; }
   .hl { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
   .hl.lv1 { background: var(--heat1-bg); } .hl.lv2 { background: var(--heat2-bg); } .hl.lv3 { background: var(--green); }
+  .hl-rest { width: 14px; font-style: normal; font-size: 0.7rem; text-align: center; line-height: 1; }
 
   /* ---------- Reminders ---------- */
   .rem-row { display: grid; gap: 6px; margin: 12px 0; }
@@ -615,6 +708,8 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .picker-row > .ui-icon { color: var(--text-dim); }
   .picker-row.active > .ui-icon { color: var(--cyan); }
   .picker-meta .dup { color: var(--amber); }
+  .picker-row.series-row .picker-name { font-weight: 600; }
+  .picker-row.part-row { padding-left: 26px; }   /* a part, listed under its series' row */
   .picker-empty { padding: 18px 6px; color: var(--text-dim); font-size: 0.85rem; }
   /* group headings in the book list: "Recently opened", then A, B, C… */
   .picker-group { padding: 16px 6px 4px; font-size: 0.75rem; font-weight: 700; color: var(--text-faint); }
@@ -1176,6 +1271,9 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
   .sec-bar-fill { display: block; height: 100%; border-radius: 999px; transition: width 0.3s ease; }
   .collapse-arrow { padding: 2px 8px; font-size: 0.8rem; border: none; background: transparent; color: var(--text-faint); flex-shrink: 0; }
   .collapse-arrow:hover { background: transparent; color: var(--text); }
+  /* a series: one row for its parts; opened, the parts are listed under it, set in */
+  .series-parts { font-size: 0.72rem; color: var(--text-dim); white-space: nowrap; }
+  .section-header.part-header { margin-left: 18px; }
 
   /* ---------- Rename in library ---------- */
   .rename-btn { padding: 4px 8px; font-size: 0.95rem; line-height: 1; border: none; background: transparent; vertical-align: middle; margin-left: 2px; opacity: 0.75; }
@@ -1510,6 +1608,7 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
       <span><i class="hl lv3"></i>Mission lived + Focus done</span>
       <span><i class="hl lv2"></i>Mission lived or Focus done</span>
       <span><i class="hl lv1"></i>Lived some rules</span>
+      <span><i class="hl-rest" aria-hidden="true">💤</i>Rest day — one day off a week keeps your streak</span>
     </div>
   </div>
 </div>
@@ -1531,7 +1630,9 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 <input type="file" id="restore-input" accept="application/json,.json" hidden>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script>
+<!-- The app itself. It is not run here: the last lines of the page run it as soon as
+     the quick-read copy of your library is ready (see "Opening faster" at the top). -->
+<script id="app-code" type="text/x-daily-mastery">
 'use strict';
 
 /* ================= Libraries, loaded on demand =================
@@ -1577,7 +1678,7 @@ async function ensurePdfJs() {
 
 /* ================= Storage ================= */
 
-const APP_VERSION = 'v57 · 2026-11-22 (all page numbers removed)';
+const APP_VERSION = 'v58 · 2026-11-27 (faster opening, series, faster search, rest day)';
 const STORE_KEY = 'mastery_data';
 
 const PALETTE = [
@@ -1611,6 +1712,13 @@ const BOOK_PREFIX = 'mastery_book_';
 
 let needsLocalMigration = false; // true when load() read a legacy format
 
+// Quick-read copies (see "Opening faster" at the top of the page). A copy holds the
+// packed text it was unpacked from, and is used only when that text still equals
+// what storage holds for the book now, so it always gives exactly the same book
+// as unpacking would. Copies are renewed whenever a book is written.
+const libCache = window.LibCache || { entries: null, put() {}, drop() {} };
+function cacheBook(id, raw, json) { try { libCache.put(id, raw, json); } catch (e) { /* only a copy */ } }
+
 function load() {
   try {
     // Current per-book format
@@ -1618,11 +1726,19 @@ function load() {
     if (idxRaw != null) {
       const ids = JSON.parse(idxRaw) || [];
       const books = [];
+      const copies = libCache.entries;
+      libCache.entries = null;   // read once; don't keep a second library in memory
       for (const id of ids) {
         const raw = localStorage.getItem(BOOK_PREFIX + id);
         if (!raw) continue; // index/key drift — skip rather than fail the whole load
-        try { books.push(JSON.parse(LZString.decompressFromUTF16(raw))); } catch (e) { /* skip bad record */ }
+        const copy = copies && copies.get(id);
+        let json;
+        if (copy && copy.raw === raw && typeof copy.json === 'string') json = copy.json;
+        else { json = LZString.decompressFromUTF16(raw); if (json) cacheBook(id, raw, json); }
+        try { books.push(JSON.parse(json)); } catch (e) { /* skip bad record */ }
       }
+      // copies of books that are no longer stored: let them go
+      if (copies) { const kept = new Set(ids); for (const id of copies.keys()) if (!kept.has(id)) libCache.drop(id); }
       const tp = JSON.parse(localStorage.getItem(TICKS_KEY) || '{}') || {};
       return Object.assign({ deletedBooks: {} }, tp, { books });
     }
@@ -1743,12 +1859,14 @@ if (needsLocalMigration) for (const b of data.books) dirtyBookIds.add(b.id);
 
 function writeBooks() {
   try {
-    for (const id of removedBookIds) localStorage.removeItem(BOOK_PREFIX + id);
+    for (const id of removedBookIds) { localStorage.removeItem(BOOK_PREFIX + id); libCache.drop(id); }
     removedBookIds.clear();
     for (const id of dirtyBookIds) {
       const book = data.books.find(b => b.id === id);
-      if (!book) { localStorage.removeItem(BOOK_PREFIX + id); continue; }
-      localStorage.setItem(BOOK_PREFIX + id, LZString.compressToUTF16(JSON.stringify(book)));
+      if (!book) { localStorage.removeItem(BOOK_PREFIX + id); libCache.drop(id); continue; }
+      const json = JSON.stringify(book), raw = LZString.compressToUTF16(json);
+      localStorage.setItem(BOOK_PREFIX + id, raw);
+      cacheBook(id, raw, json);   // only once storage really holds it
     }
     dirtyBookIds.clear();
     localStorage.setItem(INDEX_KEY, JSON.stringify(data.books.map(b => b.id)));
@@ -1912,7 +2030,8 @@ function mergeTickDays(remote) {
 // Flat ordered list of every rule across every book.
 // Cached because it's read many times per render; invalidated on book changes.
 let _allRulesCache = null, _ruleByUid = null;
-function invalidateRules() { _allRulesCache = null; _ruleByUid = null; _focusCache = null; booksDirty = true; } // books changed → rewrite compressed blob
+let _series = null, _seriesOf = null, _seriesLen = -1;   // see seriesMap
+function invalidateRules() { _allRulesCache = null; _ruleByUid = null; _focusCache = null; _series = null; booksDirty = true; } // books changed → rewrite compressed blob
 
 // Local book edits (import/remove/rename) sync per-book: only the touched
 // records are recompressed and pushed, never the whole library.
@@ -2419,7 +2538,9 @@ function completedChallenges() { return plan().challengeLog.filter(c => c.days >
 let filter = 'focus';      // 'focus' | 'all' | 'todo' | 'done' | book id
 let searchTerm = '';
 const FLAT_STEP = 100;     // cards drawn per "page" of a flat list (search results, mixed order…)
-let flatLimit = FLAT_STEP, _flatKey = '';
+const FLAT_FIRST = 12;     // search results: the first page is about two screenfuls, so results show at
+                           // once; more follow, this many at a time, as you scroll toward them (showMoreCards)
+let flatLimit = FLAT_STEP, _flatKey = '', _flatList = null;
 const expanded = new Set();
 // Book sections start MINIMIZED: only books you open render their cards, which
 // keeps the grid fast with 70+ books. Open set persists per device, for ONE day:
@@ -2480,13 +2601,106 @@ function prettyName(name) {
   return ((m[1] || '') + word).replace(/\s+/g, ' ').trim();
 }
 
+/* ================= Series =================
+   Many books come in parts: "Daily Principles for Confidence", "… Part 2" … "Part 5".
+   The parts of one series are listed together under one row (Browse books, and the
+   All / To Do list), share one colour (the first part's), and go by a short name:
+   the title without the "Daily Principles for" every book starts with, then the
+   part, as in "Confidence · Part 3". A book without "Part n" whose title matches a
+   series is its Part 1. Nothing stored changes: names and colours stay as they are,
+   so a book renamed out of a series simply stands on its own again. */
+const PART_TAIL_RE = /^(.*?\S)[\s,:;–—-]*\(?\b(?:part|pt\.?|vol\.?|volume)\s*(\d{1,3})\)?$/i;
+const NAME_LEAD_RE = /^daily\s+principles\s+(?:for|of|on|to|from|about)\s+(?=\S)/i;
+function stripLead(name) {
+  const s = String(name).replace(NAME_LEAD_RE, '');
+  return s.length >= 2 ? s : String(name);
+}
+
+// book id → { series, part }, with series = { key, name, color, ids } (ids in part order).
+// Only groups of two or more books, at least one of them marked "Part n", make a series.
+function seriesMap() {
+  if (_series && _seriesOf === data.books && _seriesLen === data.books.length) return _series;
+  const groups = new Map();
+  data.books.forEach((b, index) => {
+    const name = prettyName(b.name).replace(/\s+/g, ' ').trim();
+    const m = name.match(PART_TAIL_RE);
+    const base = m ? m[1] : name;
+    const key = normText(stripLead(base)).replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!key) return;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push({ b, index, base, part: m ? Number(m[2]) : 0 });
+  });
+  const map = new Map();
+  for (const [key, list] of groups) {
+    if (list.length < 2 || !list.some(x => x.part > 0)) continue;
+    const plain = list.find(x => !x.part);   // the title as it is, without "Part n"
+    for (const x of list) if (!x.part) x.part = 1;
+    list.sort((x, y) => x.part - y.part || x.index - y.index);
+    const series = {
+      key,
+      name: stripLead((plain || list[0]).base),
+      color: list[0].b.color,
+      ids: list.map(x => x.b.id)
+    };
+    for (const x of list) map.set(x.b.id, { series, part: x.part });
+  }
+  _series = map; _seriesOf = data.books; _seriesLen = data.books.length;
+  return map;
+}
+function seriesOf(book) { const s = seriesMap().get(book.id); return s ? s.series : null; }
+// The name a book goes by on screen: "Confidence · Part 3", or its title without the lead words.
+function bookShort(book) {
+  const s = seriesMap().get(book.id);
+  return s ? `${s.series.name} · Part ${s.part}` : stripLead(prettyName(book.name));
+}
+// The colour a book is drawn in: its series' colour, or its own.
+function tint(book) {
+  const s = seriesMap().get(book.id);
+  return (s && s.series.color) || book.color;
+}
+function partOf(book) { const s = seriesMap().get(book.id); return s ? s.part : 0; }
+
+// A list of books (or of things that each hold a book: bookOf) → units in the same
+// order: { item } for a book on its own, { series, items } for two or more parts of a
+// series, which sit where the first of them was, in part order. split (optional)
+// keeps parts apart that it tells apart — the day they were added, in "Recently added".
+function groupSeries(list, bookOf, split = null) {
+  const map = seriesMap(), units = [], at = new Map();
+  for (const item of list) {
+    const s = map.get(bookOf(item).id);
+    if (!s) { units.push({ item }); continue; }
+    const k = s.series.key + (split ? '\u0001' + split(item) : '');
+    let u = at.get(k);
+    if (!u) { u = { series: s.series, items: [] }; at.set(k, u); units.push(u); }
+    u.items.push(item);
+  }
+  return units.map(u => {
+    if (!u.series) return u;
+    if (u.items.length === 1) return { item: u.items[0] };   // one part here: just that book
+    const rank = new Map(u.series.ids.map((id, i) => [id, i]));
+    u.items.sort((x, y) => rank.get(bookOf(x).id) - rank.get(bookOf(y).id));
+    return u;
+  });
+}
+
+// "Parts 1–5", or "Parts 1, 3, 4" when some are not in the list.
+function partsLabel(books) {
+  const parts = [...new Set(books.map(partOf))].sort((a, b) => a - b);
+  const run = parts.every((p, i) => !i || p === parts[i - 1] + 1);
+  return run ? `Parts ${parts[0]}–${parts[parts.length - 1]}` : `Parts ${parts.join(', ')}`;
+}
+
+// Series unfolded (true) or folded (false) by a tap in Browse books, until it is opened
+// again. Untouched, a series is unfolded only when it holds the book on show.
+const pickerSeriesOpen = new Map();
+
 // With a uid the tag is also a way into the book: tapping it opens that book
 // at that rule (see gotoRule). Used wherever a rule is shown away from its book.
 function bookTag(book, uid) {
-  const name = esc(prettyName(book.name));
+  const name = esc(bookShort(book)), color = tint(book);
   return uid
-    ? `<span class="book-tag book-link" role="link" tabindex="0" data-goto="${uid}" title="Open ${name}" style="background:${book.color}">${name}<span aria-hidden="true"> ›</span></span>`
-    : `<span class="book-tag" style="background:${book.color}">${name}</span>`;
+    ? `<span class="book-tag book-link" role="link" tabindex="0" data-goto="${uid}" title="Open ${name}" style="background:${color}">${name}<span aria-hidden="true"> ›</span></span>`
+    : `<span class="book-tag" style="background:${color}">${name}</span>`;
 }
 
 /* ================= Motion helpers =================
@@ -2660,7 +2874,7 @@ function renderSpotlight() {
       return;
     }
     box.innerHTML = `
-      <div class="spotlight mission ${done ? 'accomplished' : ''}" style="border-left-color:${done ? 'var(--green)' : book.color}">
+      <div class="spotlight mission ${done ? 'accomplished' : ''}" style="border-left-color:${done ? 'var(--green)' : tint(book)}">
         ${done && !planEditing
           ? `<div class="fold-head"><div class="kicker">⚔️ Today's mission · ✓ accomplished</div><button class="link-btn fold-btn" id="mission-fold" aria-expanded="true" title="Fold today's mission away" aria-label="Fold today's mission away">${uiIcon('ChevronUp')}</button></div>`
           : `<div class="kicker">⚔️ Today's mission · ${done ? '✓ accomplished' : 'live this one rule today'}</div>`}
@@ -2705,7 +2919,7 @@ function renderSpotlight() {
     : spot.score === 1 ? 'last lived yesterday'
     : `not lived in ${spot.score} days`;
   box.innerHTML = `
-    <div class="spotlight mission" style="border-left-color:${spot.book.color}">
+    <div class="spotlight mission" style="border-left-color:${tint(spot.book)}">
       <div class="kicker">⚔️ Today's suggested mission</div>
       <div class="mission-meta">${bookTag(spot.book, spot.uid)}${lvlBadge(spot.uid)}<span class="rule-n">Suggested · ${why}</span></div>
       <h2>Rule ${spot.rule.n} — ${esc(spot.rule.title)}</h2>
@@ -2851,8 +3065,8 @@ function renderChips() {
     const active = !searchingEverywhere() && data.books.find(b => b.id === filter);
     if (active) {
       parts.unshift(`<button class="chip chip-book active" data-open-picker="1" aria-haspopup="dialog" aria-controls="book-picker"
-        style="background:${active.color};border-color:${active.color};color:var(--on-book)">
-        ${uiIcon('Library')}<span class="chip-book-label">${esc(prettyName(active.name))}</span>${uiIcon('ChevronDown')}</button>`,
+        style="background:${tint(active)};border-color:${tint(active)};color:var(--on-book)">
+        ${uiIcon('Library')}<span class="chip-book-label">${esc(bookShort(active))}</span>${uiIcon('ChevronDown')}</button>`,
         `<button class="chip chip-clear neutral" data-filter="all" title="Show all books" aria-label="Show all books">${uiIcon('X')}</button>`);
     }
     // (no "Books" chip otherwise — the "Browse books" button at the top does that job)
@@ -2870,16 +3084,30 @@ function renderChips() {
 
 /* ================= Book picker ================= */
 
-// Natural A–Z: numbered books first in number order (2 before 10), then by name.
+// Natural A–Z by the name shown (so "Daily Principles for Confidence" files under C):
+// numbered books first in number order (2 before 10), a series in part order.
+// (one collator for every comparison: localeCompare with options builds a new one each time)
+const byNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+let _sorted = null, _sortedFor = null;
 function sortedBooks() {
-  return [...data.books].sort((a, b) =>
-    prettyName(a.name).localeCompare(prettyName(b.name), undefined, { numeric: true, sensitivity: 'base' }));
+  const map = seriesMap();   // rebuilt whenever books change, so it also tells when to sort again
+  if (_sorted && _sortedFor === map && _sorted.length === data.books.length) return [..._sorted];
+  const key = new Map(data.books.map(b => [b.id, bookShort(b)]));
+  _sorted = [...data.books].sort((a, b) => byNameCollator.compare(key.get(a.id), key.get(b.id)));
+  _sortedFor = map;
+  return [..._sorted];
 }
 
+const normName = value => String(value).normalize('NFKD').replace(/\p{M}/gu, '').replace(/[_-]+/g, ' ').toLowerCase();
+const _nameText = new WeakMap();   // book → [the names it is found by, tidied once]
 function bookMatches(book, term) {
-  const normalize = value => String(value).normalize('NFKD').replace(/\p{M}/gu, '').replace(/[_-]+/g, ' ').toLowerCase();
-  const name = normalize(prettyName(book.name) + ' ' + book.name);
-  return normalize(term).trim().split(/\s+/).every(word => name.includes(word));
+  const short = bookShort(book);
+  let t = _nameText.get(book);
+  if (!t || t[0] !== book.name || t[1] !== short) {
+    t = [book.name, short, normName(prettyName(book.name) + ' ' + book.name + ' ' + short)];
+    _nameText.set(book, t);
+  }
+  return normName(term).trim().split(/\s+/).every(word => t[2].includes(word));
 }
 
 /* ================= Finding a book =================
@@ -2906,7 +3134,7 @@ function noteBookOpened(id) {
 
 // Heading a book files under in the A–Z list: its first letter, or "0–9".
 function bookLetter(book) {
-  const c = normText(prettyName(book.name)).trim().charAt(0).toUpperCase();
+  const c = normText(bookShort(book)).trim().charAt(0).toUpperCase();
   return /[0-9]/.test(c) ? '0–9' : /[A-Z]/.test(c) ? c : '#';
 }
 
@@ -2948,7 +3176,8 @@ function renderPickerList() {
   }
   $('picker-results').textContent = `${entries.length} of ${data.books.length} books`;
 
-  const row = (b, inside = 0) => {
+  // label: what the row is called — a part inside its series row says just "Part 3"
+  const row = (b, inside = 0, label = bookShort(b)) => {
     const done = b.rules.reduce((n, r) => n + (ds.has(ruleUid(b, r)) ? 1 : 0), 0);
     const hidden = b.rules.reduce((n, r) => n + (isHidden(ruleUid(b, r)) ? 1 : 0), 0);
     const dup = nameCount.get(prettyName(b.name).toLowerCase()) > 1;
@@ -2956,9 +3185,10 @@ function renderPickerList() {
     const time = addedTime(b);
     const addedNote = dup ? `${addedLabel(b.importedAt)}${time ? ', ' + time : ''} · same title`
       : newest && time ? `Added at ${time}` : '';
-    return `<button class="picker-row ${filter === b.id ? 'active' : ''}" data-pick="${b.id}" ${inside ? 'data-inside="1"' : ''} aria-current="${filter === b.id ? 'true' : 'false'}">
-      <span class="book-dot" style="background:${b.color}"></span>
-      <span class="picker-copy"><span class="picker-name">${esc(prettyName(b.name))}</span>
+    const part = label !== bookShort(b);
+    return `<button class="picker-row ${part ? 'part-row' : ''} ${filter === b.id ? 'active' : ''}" data-pick="${b.id}" ${inside ? 'data-inside="1"' : ''} aria-current="${filter === b.id ? 'true' : 'false'}">
+      <span class="book-dot" style="background:${tint(b)}"></span>
+      <span class="picker-copy"><span class="picker-name">${esc(label)}</span>
       ${inside ? `<span class="picker-meta inside">${inside} rule${inside === 1 ? ' mentions' : 's mention'} “${esc(term)}”</span>` : ''}
       <span class="picker-meta">${b.rules.length} rules · ${done} done today${hidden ? ` · ${hidden} hidden` : ''}</span>
       ${addedNote ? `<span class="picker-meta">${esc(addedNote)}</span>` : ''}</span>
@@ -2988,14 +3218,30 @@ function renderPickerList() {
     }
   }
   let group = null;
-  html += entries.map(({ b, inside }) => {
-    const g = letters ? bookLetter(b) : days ? addedLabel(b.importedAt) : null;
+  // Not searching, the parts of a series fold into one row (in "Recently added", the parts
+  // added that day); a tap unfolds it. A search lists each book that matches on its own.
+  const units = term ? entries.map(e => ({ item: e }))
+    : groupSeries(entries, e => e.b, days ? e => addedLabel(e.b.importedAt) : null);
+  html += units.map(u => {
+    const first = u.item ? u.item.b : u.items[0].b;
+    const g = letters ? bookLetter(first) : days ? addedLabel(first.importedAt) : null;
     let heading = '';
     if (g != null && g !== group) {
       group = g;
       heading = `<div class="picker-group">${esc(g)}${days ? ` · ${perDay.get(g)} book${perDay.get(g) === 1 ? '' : 's'}` : ''}</div>`;
     }
-    return heading + row(b, inside);
+    if (u.item) return heading + row(u.item.b, u.item.inside);
+    const books = u.items.map(e => e.b);
+    // the series holding the book on show opens by itself, so its tick can be seen
+    const open = pickerSeriesOpen.has(u.series.key) ? pickerSeriesOpen.get(u.series.key) : books.some(b => b.id === filter);
+    let rules = 0, done = 0;
+    for (const b of books) for (const r of b.rules) { rules++; if (ds.has(ruleUid(b, r))) done++; }
+    return heading + `<button class="picker-row series-row" data-series-toggle="${esc(u.series.key)}" aria-expanded="${open}">
+      <span class="book-dot" style="background:${u.series.color}"></span>
+      <span class="picker-copy"><span class="picker-name">${esc(u.series.name)}</span>
+      <span class="picker-meta">${esc(partsLabel(books))} · ${rules} rules · ${done} done today</span></span>
+      ${uiIcon(open ? 'ChevronUp' : 'ChevronDown')}
+    </button>` + (open ? books.map(b => row(b, 0, `Part ${partOf(b)}`)).join('') : '');
   }).join('');
   if (term && !entries.length) html = `<div class="picker-empty">No book is named, or mentions, “${esc(term)}”.</div>`;
   if (!data.books.length) html = `<div class="picker-empty">No books imported yet.</div>`;
@@ -3016,6 +3262,7 @@ let libraryReturnFocus = null;
 function openBookPicker() {
   bookPickerReturnFocus = document.activeElement;
   $('picker-search').value = '';
+  pickerSeriesOpen.clear();
   renderPickerList();
   $('book-picker').classList.add('show');
   $('book-picker').querySelector('.modal').scrollTop = 0;
@@ -3148,7 +3395,7 @@ function letterInForce() { return pickedLetter && bookListShown() ? pickedLetter
 
 // The index letters a book is found under: "Seven Habits" → S; "03 Sleep Benefits" → 0–9 and S.
 function bookInitials(book) {
-  const name = normText(prettyName(book.name)).trim();
+  const name = normText(bookShort(book)).trim();
   const first = name.charAt(0), out = [];
   if (/[0-9]/.test(first)) out.push('0–9');
   else if (!/[a-z]/.test(first)) out.push('#');
@@ -3311,6 +3558,24 @@ function needleIndex(text, n) {   // where in the text the word was found, -1 if
   const m = n.re.exec(text);
   return m ? m.index + m[0].length - n.stem.length : -1;
 }
+
+// The rules each search word was found in, remembered. Typing "calm habits", the
+// library is searched for "calm" once, not again for every letter of "habits" and
+// every redraw (a tick, "Show all in every book", the next cards…). Forgotten
+// whenever the books change.
+let _hitSets = new Map(), _hitSetsFor = null;
+function rulesWith(n) {   // → Set of the uids of the rules that hold this search word
+  const rules = allRules();
+  if (_hitSetsFor !== rules) { _hitSets = new Map(); _hitSetsFor = rules; }
+  let set = _hitSets.get(n.w);
+  if (!set) {
+    set = new Set();
+    for (const { rule, uid } of rules) if (needleHits(searchText(rule).all, n)) set.add(uid);
+    if (_hitSets.size >= 40) _hitSets.delete(_hitSets.keys().next().value);   // the oldest goes
+    _hitSets.set(n.w, set);
+  }
+  return set;
+}
 function searchNeedles() { return needlesOf(searchWords()); }
 
 // A piece of text with every search word marked (the whole word, to its end).
@@ -3422,6 +3687,21 @@ function searchText(rule) {
   return t;
 }
 
+// Search reads a tidied copy of each rule's text (above). Making them all made the first
+// search of a visit slower than the rest, so after the app has opened they are made in
+// small batches while nothing else is going on. (A rule asked for sooner is made then.)
+function warmSearch() {
+  let i = 0;
+  const rules = allRules();
+  const step = () => {
+    if (rules !== _allRulesCache) return;   // the library changed meanwhile: copies are made as needed
+    const end = Math.min(rules.length, i + 250);
+    for (; i < end; i++) searchText(rules[i].rule);
+    if (i < rules.length) setTimeout(step, 25);
+  };
+  setTimeout(step, 1500);
+}
+
 // For a hit that isn't (only) in the title: the passage it was found in, word highlighted.
 function matchSnippet(rule, needles) {
   const title = searchText(rule).title;
@@ -3442,7 +3722,7 @@ function filterLabel() {
   const names = { focus: 'Focus', all: 'all books', todo: 'To Do', done: 'Done', starred: 'Starred', hidden: 'Hidden', mastery: 'Mastery' };
   if (names[filter]) return names[filter];
   const book = data.books.find(b => b.id === filter);
-  return book ? prettyName(book.name) : 'this view';
+  return book ? bookShort(book) : 'this view';
 }
 
 // everywhere = true ignores the filter chips (hidden rules stay out unless you ask for them)
@@ -3456,6 +3736,7 @@ function visibleRules(everywhere = searchingEverywhere()) {
   // a letter picked in the Sort sheet keeps only the books filed under it (book list only)
   const letter = everywhere ? '' : letterInForce();
   const inLetter = letter ? new Set(data.books.filter(b => bookInitials(b).includes(letter)).map(b => b.id)) : null;
+  const hitSets = needles.map(rulesWith);
   const out = applyMix(allRules()).filter(({ book, rule, uid }) => {
     if (wantHidden ? !isHidden(uid) : isHidden(uid)) return false;
     if (inLetter && !inLetter.has(book.id)) return false;
@@ -3467,10 +3748,7 @@ function visibleRules(everywhere = searchingEverywhere()) {
     else if (filter === 'todo' && isDone(uid)) return false;
     else if (filter === 'done' && !isDone(uid)) return false;
     else if (filter !== 'all' && filter !== 'todo' && filter !== 'done' && book.id !== filter) return false;
-    if (needles.length) {
-      const text = searchText(rule).all;
-      for (const n of needles) if (!needleHits(text, n)) return false;
-    }
+    for (const hits of hitSets) if (!hits.has(uid)) return false;
     return true;
   });
   // Mastery view: the rules you've lived most, first (unless you've mixed the order)
@@ -3584,7 +3862,7 @@ function cardHtml(book, rule, uid, showTag, snippet = '', needles = null) {
   const open = expanded.has(uid);
   return `
   <div class="card ${done ? 'done' : ''} ${open ? 'open' : ''} ${isStarred(uid) ? 'starred' : ''}"
-       id="card-${cssId(uid)}" data-uid="${uid}" style="border-left-color:${book.color}">
+       id="card-${cssId(uid)}" data-uid="${uid}" style="border-left-color:${tint(book)}">
     <div class="card-top">
       <div class="card-top-left">
         ${showTag ? bookTag(book, uid) : ''}
@@ -3599,6 +3877,49 @@ function cardHtml(book, rule, uid, showTag, snippet = '', needles = null) {
     ${snippet}
     <div class="card-body" id="body-${cssId(uid)}">${open ? bodyHtml(rule, uid) : ''}</div>
   </div>`;
+}
+
+// One card of a flat list (rules[i]), after the heading that starts there, if any.
+function flatItemHtml(rules, i, needles) {
+  const { book, rule, uid } = rules[i];
+  const searching = needles.length > 0;
+  const exact = searching ? (rules.exact ?? rules.length) : rules.length, close = rules.length - exact;
+  return (searching && close && exact && i === exact ? `<div class="search-note similar-note">${close} more with a similar word</div>` : '')
+    + (i === rules.doneFrom ? `<div class="list-group" role="heading" aria-level="3">Done today</div>` : '')   // Focus: lived rules come last
+    + cardHtml(book, rule, uid, true, searching ? matchSnippet(rule, needles) : '', searching ? needles : null);
+}
+function moreCardsHtml(left) {
+  return `<button class="more-cards" id="more-cards">${buttonContent('ChevronDown', `Show ${Math.min(FLAT_STEP, left)} more`)}<span class="more-left">${left} not shown yet</span></button>`;
+}
+
+// The next cards of a long flat list, added below the ones drawn (nothing above is redrawn).
+// A tap of "Show more" adds a page of them; scrolling near it adds a few at a time.
+function showMoreCards(count = FLAT_STEP) {
+  const more = $('more-cards'), rules = _flatList;
+  if (!more || !rules) return;
+  const needles = searchNeedles();
+  const to = Math.min(rules.length, flatLimit + count);
+  let html = '';
+  for (let i = flatLimit; i < to; i++) html += flatItemHtml(rules, i, needles);
+  flatLimit = to;
+  more.insertAdjacentHTML('beforebegin', html);
+  const left = rules.length - to;
+  if (left > 0) more.outerHTML = moreCardsHtml(left); else more.remove();
+  renderCardPracticeActions();
+  watchMoreCards();
+}
+let _moreWatch = null;
+function watchMoreCards() {
+  const more = $('more-cards');
+  if (_moreWatch) _moreWatch.disconnect();
+  if (!more) return;
+  more.onclick = () => showMoreCards(FLAT_STEP);
+  if (!('IntersectionObserver' in window)) return;
+  // a screenful ahead, so the next cards are there before you reach them
+  _moreWatch = _moreWatch || new IntersectionObserver(entries => {
+    if (entries.some(en => en.isIntersecting && en.target.isConnected)) showMoreCards(FLAT_FIRST);
+  }, { rootMargin: '0px 0px 900px 0px' });
+  _moreWatch.observe(more);
 }
 
 function renderGrid() {
@@ -3634,7 +3955,7 @@ function renderGrid() {
   // A flat list can be the whole library (a broad search, mixed order): draw it a
   // screenful at a time instead of thousands of cards at once.
   const listKey = [filter, searchTerm.trim(), searchAll, !!mixOrder].join('|');
-  if (listKey !== _flatKey) { _flatKey = listKey; flatLimit = FLAT_STEP; }
+  if (listKey !== _flatKey) { _flatKey = listKey; flatLimit = searching ? FLAT_FIRST : FLAT_STEP; }
 
   let html = '';
   if (showSections) {
@@ -3653,32 +3974,51 @@ function renderGrid() {
     const byLetter = listing && bookSort === 'az' && !letter && ordered.length >= 12;
     let heading = null;
     if (letter) html += `<div class="search-note" role="status">${ordered.length} book${ordered.length === 1 ? '' : 's'} ${esc(letterPhrase(letter))} <button class="link-btn" id="letter-clear">Show every book</button></div>`;
-    for (const book of ordered) {
+    const countText = (done, total) => `${done ? `${done}/${total}` : total}${done === total && done ? ' ✓' : ''}`;
+    // one book: its header (label: "Part 3" when it sits inside its series' row), and its rules when open
+    const bookSection = (book, label, part) => {
       const items = byBook.get(book.id).items;
-      const group = byDay ? addedLabel(book.importedAt) : byLetter ? bookLetter(book) : null;
-      if (group !== null && group !== heading) { heading = group; html += `<div class="list-group" role="heading" aria-level="3">${esc(group)}</div>`; }
-      const isOpen = openBooks.has(book.id);
+      const isOpen = openBooks.has(book.id), color = tint(book);
       const done = items.reduce((n, r) => n + (ds.has(r.uid) ? 1 : 0), 0);
       const pct = items.length ? Math.round(done / items.length * 100) : 0;
-      html += `<div class="section-header ${isOpen ? 'sec-open' : ''}" data-collapse="${book.id}" style="border-left-color:${book.color}">
-        <span class="book-tag" style="background:${book.color}">${esc(prettyName(book.name))}</span>
-        <span class="section-count">${done ? `${done}/${items.length}` : items.length}${done === items.length && done ? ' ✓' : ''}</span>
-        <span class="sec-bar"><span class="sec-bar-fill" style="width:${pct}%;background:${book.color}"></span></span>
-        <button class="collapse-arrow" aria-expanded="${isOpen}" aria-label="${isOpen ? 'Collapse' : 'Expand'} ${esc(prettyName(book.name))}">${uiIcon(isOpen ? 'ChevronUp' : 'ChevronDown')}</button>
+      let out = `<div class="section-header ${part ? 'part-header' : ''} ${isOpen ? 'sec-open' : ''}" data-collapse="${book.id}" style="border-left-color:${color}">
+        <span class="book-tag" style="background:${color}">${esc(label)}</span>
+        <span class="section-count">${countText(done, items.length)}</span>
+        <span class="sec-bar"><span class="sec-bar-fill" style="width:${pct}%;background:${color}"></span></span>
+        <button class="collapse-arrow" aria-expanded="${isOpen}" aria-label="${isOpen ? 'Collapse' : 'Expand'} ${esc(bookShort(book))}">${uiIcon(isOpen ? 'ChevronUp' : 'ChevronDown')}</button>
       </div>`;
-      if (isOpen) {
-        for (const { book: b, rule, uid } of items) html += cardHtml(b, rule, uid, false);
-      }
+      if (isOpen) for (const { book: b, rule, uid } of items) out += cardHtml(b, rule, uid, false);
+      return out;
+    };
+    // In the list of books, the parts of a series sit in one row that opens to list them
+    // (in "Recently added", the parts added that day).
+    const units = listing ? groupSeries(ordered, b => b, byDay ? b => addedLabel(b.importedAt) : null)
+      : ordered.map(b => ({ item: b }));
+    for (const u of units) {
+      const first = u.item || u.items[0];
+      const group = byDay ? addedLabel(first.importedAt) : byLetter ? bookLetter(first) : null;
+      if (group !== null && group !== heading) { heading = group; html += `<div class="list-group" role="heading" aria-level="3">${esc(group)}</div>`; }
+      if (u.item) { html += bookSection(u.item, bookShort(u.item), false); continue; }
+      const s = u.series, isOpen = openBooks.has('s:' + s.key);
+      let done = 0, total = 0;
+      for (const b of u.items) for (const r of byBook.get(b.id).items) { total++; if (ds.has(r.uid)) done++; }
+      const pct = total ? Math.round(done / total * 100) : 0;
+      html += `<div class="section-header series-header ${isOpen ? 'sec-open' : ''}" data-series="${esc(s.key)}" data-books="${u.items.map(b => b.id).join(' ')}" style="border-left-color:${s.color}">
+        <span class="book-tag" style="background:${s.color}">${esc(s.name)}</span>
+        <span class="series-parts">${esc(partsLabel(u.items))}</span>
+        <span class="section-count">${countText(done, total)}</span>
+        <span class="sec-bar"><span class="sec-bar-fill" style="width:${pct}%;background:${s.color}"></span></span>
+        <button class="collapse-arrow" aria-expanded="${isOpen}" aria-label="${isOpen ? 'Collapse' : 'Expand'} ${esc(s.name)}, ${esc(partsLabel(u.items))}">${uiIcon(isOpen ? 'ChevronUp' : 'ChevronDown')}</button>
+      </div>`;
+      if (isOpen) for (const b of u.items) html += bookSection(b, `Part ${partOf(b)}`, true);
     }
   } else {
     // flat list (search / mixed): show the book tag since there's no header above
-    const shown = rules.slice(0, flatLimit), left = rules.length - shown.length;
-    html = shown.map(({ book, rule, uid }, i) =>
-      (searching && close && exact && i === exact ? `<div class="search-note similar-note">${close} more with a similar word</div>` : '')
-      + (i === rules.doneFrom ? `<div class="list-group" role="heading" aria-level="3">Done today</div>` : '')   // Focus: lived rules come last
-      + cardHtml(book, rule, uid, true, searching ? matchSnippet(rule, needles) : '', searching ? needles : null)).join('');
-    if (left > 0) html += `<button class="more-cards" id="more-cards">${buttonContent('ChevronDown', `Show ${Math.min(FLAT_STEP, left)} more`)}<span class="more-left">${left} not shown yet</span></button>`;
+    const shown = Math.min(rules.length, flatLimit), left = rules.length - shown;
+    for (let i = 0; i < shown; i++) html += flatItemHtml(rules, i, needles);
+    if (left > 0) html += moreCardsHtml(left);
   }
+  _flatList = showSections ? null : rules;   // what showMoreCards continues
 
   // Searching: say how many were found and WHERE the search looked, with one tap to widen it
   let widerCount = 0;
@@ -3700,10 +4040,10 @@ function renderGrid() {
     if (bookHits.length) {
       const SHOW = 6;
       booksHtml = `<div class="search-note" role="status">${bookHits.length} book${bookHits.length === 1 ? '' : 's'} named “${esc(term)}”</div>`
-        + bookHits.slice(0, SHOW).map(b => `<div class="section-header book-hit" data-open-book="${b.id}" style="border-left-color:${b.color}">
-            <span class="book-tag" style="background:${b.color}">${esc(prettyName(b.name))}</span>
+        + bookHits.slice(0, SHOW).map(b => `<div class="section-header book-hit" data-open-book="${b.id}" style="border-left-color:${tint(b)}">
+            <span class="book-tag" style="background:${tint(b)}">${esc(bookShort(b))}</span>
             <span class="section-count">${b.rules.length} rules</span>
-            <button class="collapse-arrow" aria-label="Open ${esc(prettyName(b.name))}">${uiIcon('ChevronRight')}</button>
+            <button class="collapse-arrow" aria-label="Open ${esc(bookShort(b))}">${uiIcon('ChevronRight')}</button>
           </div>`).join('')
         + (bookHits.length > SHOW ? `<button class="more-cards" id="more-books">${buttonContent('Library', `See all ${bookHits.length} books`)}</button>` : '');
     }
@@ -3782,8 +4122,7 @@ function renderGrid() {
   if (wide) wide.onclick = () => { searchAll = true; renderChips(); renderGrid(); };
   const mean = $('did-you-mean');
   if (mean) mean.onclick = () => { searchTerm = suggestion; $('search').value = suggestion; searchAll = true; renderChips(); renderGrid(); };
-  const more = $('more-cards');
-  if (more) more.onclick = () => { flatLimit += FLAT_STEP; renderGrid(); };
+  watchMoreCards();
 
   const base = rules.length === total
     ? `${total} rules · ${data.books.length} book${data.books.length === 1 ? '' : 's'}`
@@ -3812,6 +4151,13 @@ $('grid').addEventListener('click', (e) => {
   if (bookHit) { selectBook(bookHit.dataset.openBook); return; }
 
   const hdr = e.target.closest('.section-header');
+  if (hdr && hdr.dataset.series != null) {   // a series' row: show or fold its parts
+    const id = 's:' + hdr.dataset.series;
+    if (openBooks.has(id)) openBooks.delete(id); else openBooks.add(id);
+    saveOpenBooks();
+    renderGrid();
+    return;
+  }
   if (hdr) {
     const id = hdr.dataset.collapse;
     if (openBooks.has(id)) openBooks.delete(id); else { openBooks.add(id); noteBookOpened(id); }
@@ -3875,7 +4221,7 @@ function renderLibrary() {
         <button class="reorder-btn" data-down="${b.id}" ${i === nBooks - 1 ? 'disabled' : ''} title="Move down" aria-label="Move book down">${uiIcon('ChevronDown')}</button>
       </div>
       <div class="book-row-left">
-        <span class="book-dot" style="background:${b.color}"></span>
+        <span class="book-dot" style="background:${tint(b)}"></span>
         <div>
           <div class="book-row-name">
             <button class="book-name-text" data-open-book="${b.id}" title="Open ${esc(prettyName(b.name))}">${esc(prettyName(b.name))}</button>
@@ -3980,22 +4326,45 @@ function renderCountdown() {
 // A day counts when you LIVED YOUR MISSION or finished your Focus (see dayCounts).
 // Read from the permanent day log, so the streak can grow past the 60 days of
 // detailed tick history. Today only adds once achieved — it never breaks it early.
-function computeStreak() {
+//
+// Rest day: one day off a week doesn't end the streak. A single day that didn't count,
+// right after a day that did, is a rest day when the streak has had none in the 6 days
+// before it: the streak carries on (the rest day itself adds nothing). Two days off in
+// a row, or a second one within a week, end it as before. The days are walked in order
+// from the first one on record, so a day is a rest day or not for good, the same on
+// every device.
+const REST_GAP = 7;   // a rest day at most once in any 7 days
+function streakInfo() {
   refreshDaylog();
-  let streak = dayCounts(currentDay) ? 1 : 0;
-  for (let day = addDays(currentDay, -1); dayCounts(day); day = addDays(day, -1)) streak++;
-  return streak;
-}
-
-function bestStreak() {
-  const days = Object.keys(data.daylog || {}).filter(dayCounts).sort();
-  let best = 0, run = 0, prev = null;
-  for (const d of days) {
-    run = (prev && addDays(prev, 1) === d) ? run + 1 : 1;
-    best = Math.max(best, run);
-    prev = d;
+  const info = { current: 0, best: 0, rests: new Set(), pending: null, lastRest: null };
+  let day = Object.keys(data.daylog || {}).filter(d => d <= currentDay && dayCounts(d)).sort()[0];
+  if (!day) return info;
+  let run = 0, lastRest = null, pending = null;
+  for (; day <= currentDay; day = addDays(day, 1)) {
+    if (dayCounts(day)) {
+      if (pending) { info.rests.add(pending); lastRest = pending; pending = null; }
+      run++;
+      if (run > info.best) info.best = run;
+    } else if (day === currentDay) {
+      // today isn't over: not a day off (yet)
+    } else if (run && !pending && (!lastRest || daysBetween(lastRest, day) >= REST_GAP)) {
+      pending = day;   // a rest day, as long as the next day counts (or is today)
+    } else { run = 0; pending = null; lastRest = null; }
   }
-  return best;
+  info.current = run;
+  // a day off yesterday, with today still to go: the streak waits on today
+  if (pending) info.rests.add(pending);
+  info.pending = pending;
+  info.lastRest = pending || lastRest;   // the streak's latest rest day, if it has had one
+  return info;
+}
+function computeStreak() { return streakInfo().current; }
+function bestStreak() { return streakInfo().best; }
+// The first day the streak could take its next rest day ('' = today already could).
+function nextRestFree(info) {
+  if (!info.lastRest || !info.current) return '';
+  const free = addDays(info.lastRest, REST_GAP);
+  return free > currentDay ? free : '';
 }
 
 let lastStreakShown = null;
@@ -4010,7 +4379,7 @@ function renderStreak() {
   if (s > 0 || data.books.length || Object.keys(data.daylog || {}).length) {
     el.hidden = false; el.textContent = `🔥 ${s}`;
     el.classList.toggle('zero', s === 0);
-    el.title = `${s}-day streak — days you lived your mission or finished Focus. Tap for your dashboard.`;
+    el.title = `${s}-day streak — days you lived your mission or finished Focus; one day off a week is a rest day that keeps it going. Tap for your dashboard.`;
     el.setAttribute('aria-label', `${s}-day streak. Open dashboard`);
   } else el.hidden = true;
 }
@@ -4041,13 +4410,14 @@ function dayLevel(day) {
 const STREAK_MILESTONES = [3, 7, 14, 21, 30, 50, 75, 100, 150, 200, 250, 300, 365, 500, 730, 1000];
 const DASH_DAYS = 14;
 
-// "12 rules lived · mission lived · counts toward your streak"
-function daySummary(day) {
+// "12 rules lived · mission lived · counts toward your streak" (rests: the streak's rest days)
+function daySummary(day, rests = streakInfo().rests) {
   const r = (data.daylog || {})[day];
   const t = (r && r.t) || 0;
   const parts = [`<b>${t}</b> rule${t === 1 ? '' : 's'} lived`];
   if (r && r.m) parts.push('mission lived');
-  parts.push(dayCounts(day) ? 'counts toward your streak ✓' : day === currentDay ? 'not counted yet' : 'did not count');
+  parts.push(dayCounts(day) ? 'counts toward your streak ✓' : day === currentDay ? 'not counted yet'
+    : rests.has(day) ? 'rest day — your streak carried on 💤' : 'did not count');
   return parts.join(' · ');
 }
 
@@ -4056,7 +4426,7 @@ function dashSelectedDay(days) { return days.includes(histDay) ? histDay : curre
 function renderDashboard() {
   const log = data.daylog || {};
   const allDays = Object.keys(log).sort();
-  const streak = computeStreak(), best = bestStreak();
+  const info = streakInfo(), streak = info.current, best = info.best, rests = info.rests;
   const { done, total } = focusProgress();
 
   // --- the streak, and what today needs ---
@@ -4065,12 +4435,19 @@ function renderDashboard() {
   const how = total ? `Live your mission or finish Focus (${done} of ${total})` : 'Live your mission';
   const status = !data.books.length && !allDays.length ? 'Import a book, then live your mission or finish your daily Focus — each day you do adds one to your streak.'
     : dayCounts(currentDay) ? `<b>✓ Today is counted.</b>${streak > 1 && streak === best ? ' This is your best streak so far.' : ''}`
+    : info.pending ? `<b>Yesterday was your rest day.</b> ${how} today to keep your streak going — a second day off in a row would end it.`
     : streak > 0 ? `<b>Today isn’t counted yet.</b> ${how} before midnight to make it ${streak + 1}.`
     : `No streak right now. ${how} today to start one.`;
+  // the weekly rest day: whether one is free, or when the last one was
+  const free = nextRestFree(info);
+  const restLine = !streak || info.pending ? ''
+    : free ? `💤 Rest day used ${esc(info.lastRest === addDays(currentDay, -1) ? 'yesterday' : friendlyDate(info.lastRest))} · the next one is free from ${esc(friendlyDate(free))}.`
+    : '💤 Rest day free: one day off this week won’t end your streak.';
   $('dash-hero').innerHTML = `
     <div class="dash-hero">
-      <div class="dash-hero-row"><span class="dash-num">🔥 ${streak}</span><span class="dash-unit">day${streak === 1 ? '' : 's'} in a row</span></div>
+      <div class="dash-hero-row"><span class="dash-num">🔥 ${streak}</span><span class="dash-unit">day streak</span></div>
       <div class="dash-status">${status}</div>
+      ${restLine ? `<div class="dash-status dash-rest">${restLine}</div>` : ''}
       <div class="dash-meter" role="progressbar" aria-valuemin="0" aria-valuemax="${next}" aria-valuenow="${streak}" aria-label="Progress to a ${next}-day streak">
         <div class="dash-meter-track"><div class="dash-meter-fill" style="width:${Math.round(streak / next * 100)}%"></div></div>
         <div class="dash-meter-label"><span>${toGo} day${toGo === 1 ? '' : 's'} to a ${next}-day streak</span><span>${streak} / ${next}</span></div>
@@ -4097,16 +4474,16 @@ function renderDashboard() {
   $('dash-chart').innerHTML = `
     <div class="dash-h-row"><h4 class="dash-h">Rules lived each day</h4><span class="dash-note" style="margin:0">last ${DASH_DAYS} days · most in a day: ${Math.max(0, ...counts)}</span></div>
     <div class="dash-bars" id="dash-bars">${days.map((k, i) => {
-      const label = `${friendlyDate(k)}: ${daySummary(k).replace(/<\/?b>/g, '')}`;
+      const label = `${friendlyDate(k)}: ${daySummary(k, rests).replace(/<\/?b>/g, '')}`;
       return `<button class="dash-col ${dayCounts(k) ? 'counted' : ''} ${k === sel ? 'sel' : ''}" data-day="${k}" aria-pressed="${k === sel}" title="${esc(label)}" aria-label="${esc(label)}"><span class="dash-bar" style="height:${counts[i] ? Math.max(4, Math.round(counts[i] / max * 100)) : 0}%"></span></button>`;
     }).join('')}</div>
     <div class="dash-axis" aria-hidden="true">${days.map(k => {
       const [yy, mm, dd] = k.split('-').map(Number);
-      return `<span class="${k === currentDay ? 'today' : ''} ${k === sel ? 'sel' : ''}">${'SMTWTFS'[new Date(yy, mm - 1, dd).getDay()]}<i>${dayCounts(k) ? '✓' : ''}</i></span>`;
+      return `<span class="${k === currentDay ? 'today' : ''} ${k === sel ? 'sel' : ''}">${'SMTWTFS'[new Date(yy, mm - 1, dd).getDay()]}<i>${dayCounts(k) ? '✓' : rests.has(k) ? '<span class="rest-mark">💤</span>' : ''}</i></span>`;
     }).join('')}</div>
     <div class="dash-readout" id="dash-readout" aria-live="polite"></div>
-    <p class="dash-note">Columns with a ✓ are days that counted toward your streak. Tap a day to see what you lived.</p>`;
-  const readout = (k) => { $('dash-readout').innerHTML = `${daySummary(k)} — ${esc(k === currentDay ? 'today' : friendlyDate(k))}`; };
+    <p class="dash-note">Columns with a ✓ are days that counted toward your streak; 💤 is a rest day — one day off a week keeps your streak going (it doesn't add to it). Tap a day to see what you lived.</p>`;
+  const readout = (k) => { $('dash-readout').innerHTML = `${daySummary(k, rests)} — ${esc(k === currentDay ? 'today' : friendlyDate(k))}`; };
   readout(sel);
   const bars = $('dash-bars');
   for (const col of bars.querySelectorAll('.dash-col')) {
@@ -4167,19 +4544,22 @@ function renderHistory() {
   const daysInMonth = new Date(y, m, 0).getDate();
   let html = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(d => `<div class="hist-dow" aria-hidden="true">${d}</div>`).join('');
   for (let i = 0; i < lead; i++) html += '<div class="hist-day blank"></div>';
+  const rests = streakInfo().rests;
   for (let d = 1; d <= daysInMonth; d++) {
     const key = `${histMonth}-${String(d).padStart(2, '0')}`;
     const r = log[key];
     const lv = dayLevel(key);
     const future = key > currentDay;
+    const rest = rests.has(key);
     const parts = [];
     if (r && r.t) parts.push(`${r.t} rule${r.t === 1 ? '' : 's'} lived`);
     if (r && r.m) parts.push('mission lived');
     if (!future && !parts.length) parts.push('nothing lived');
+    if (rest) parts.push('rest day, streak kept');
     const label = `${friendlyDate(key)}${parts.length ? ': ' + parts.join(', ') : ''}`;
     html += future
       ? `<div class="hist-day future" aria-label="${esc(label)}">${d}</div>`
-      : `<button class="hist-day lv${lv} ${key === currentDay ? 'today' : ''} ${key === histDay ? 'sel' : ''}" data-day="${key}" aria-pressed="${key === histDay}" title="${esc(label)}" aria-label="${esc(label)}">${d}</button>`;
+      : `<button class="hist-day lv${lv} ${rest ? 'rest' : ''} ${key === currentDay ? 'today' : ''} ${key === histDay ? 'sel' : ''}" data-day="${key}" aria-pressed="${key === histDay}" title="${esc(label)}" aria-label="${esc(label)}">${d}</button>`;
   }
   $('hist-grid').innerHTML = html;
   renderHistDetail();
@@ -4199,6 +4579,7 @@ function renderHistDetail() {
   if (r.t) sum.push(`${r.t} rule${r.t === 1 ? '' : 's'} lived`);
   if (r.m) sum.push('⚔️ mission lived');
   if (r.t && r.t >= dayGoal(r)) sum.push('🎯 Focus done');
+  if (streakInfo().rests.has(histDay)) sum.push('💤 rest day — your streak carried on');
   let html = `<strong>${esc(friendlyDate(histDay, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</strong>
     <p class="hist-sum">${sum.length ? sum.join(' · ') : histDay === currentDay ? 'Nothing lived yet today.' : 'Nothing lived on this day.'}</p>`;
   // the day's mission(s): the current one, plus any lived earlier that day before it was changed
@@ -4213,7 +4594,7 @@ function renderHistDetail() {
     const known = ticks.map(uid => ruleByUid(uid)).filter(Boolean), gone = ticks.length - known.length;
     const SHOW = 40;
     html += `<ul class="hist-list">${known.slice(0, SHOW).map(({ book, rule, uid }) =>
-      `<li class="${missionUids.includes(uid) ? 'is-mission' : ''}"><span class="book-dot" style="background:${book.color}" title="${esc(prettyName(book.name))}"></span><span>Rule ${rule.n} — ${esc(rule.title)}</span></li>`).join('')}</ul>`;
+      `<li class="${missionUids.includes(uid) ? 'is-mission' : ''}"><span class="book-dot" style="background:${tint(book)}" title="${esc(bookShort(book))}"></span><span>Rule ${rule.n} — ${esc(rule.title)}</span></li>`).join('')}</ul>`;
     const extra = [];
     if (known.length > SHOW) extra.push(`${known.length - SHOW} more`);
     if (gone) extra.push(`${gone} from a book that is no longer in your library`);
@@ -4313,23 +4694,43 @@ function toggleTick(uid) {
 }
 
 // Keep the book header's count + progress bar in step with ticks without a grid rebuild.
+// The row of its series, when that is on screen, keeps in step too.
 function updateSectionHeader(bookId) {
-  const hdr = document.querySelector(`.section-header[data-collapse="${bookId}"]`);
-  if (!hdr) return;
   const book = data.books.find(b => b.id === bookId);
   if (!book) return;
   const ds = doneSet();
-  const total = book.rules.length;
-  const done = book.rules.reduce((n, r) => n + (ds.has(ruleUid(book, r)) ? 1 : 0), 0);
-  const cnt = hdr.querySelector('.section-count');
-  if (cnt) cnt.textContent = (done ? `${done}/${total}` : String(total)) + (done === total && done ? ' ✓' : '');
-  const fill = hdr.querySelector('.sec-bar-fill');
-  if (fill) fill.style.width = (total ? Math.round(done / total * 100) : 0) + '%';
+  // a header counts the rules listed under it: hidden ones are not (as when it was drawn)
+  const tally = (b, sum) => {
+    for (const r of b.rules) {
+      const uid = ruleUid(b, r);
+      if (isHidden(uid)) continue;
+      sum.total++;
+      if (ds.has(uid)) sum.done++;
+    }
+    return sum;
+  };
+  const paint = (hdr, { done, total }) => {
+    const cnt = hdr.querySelector('.section-count');
+    if (cnt) cnt.textContent = (done ? `${done}/${total}` : String(total)) + (done === total && done ? ' ✓' : '');
+    const fill = hdr.querySelector('.sec-bar-fill');
+    if (fill) fill.style.width = (total ? Math.round(done / total * 100) : 0) + '%';
+  };
+  const hdr = document.querySelector(`.section-header[data-collapse="${bookId}"]`);
+  if (hdr) paint(hdr, tally(book, { done: 0, total: 0 }));
+  for (const sh of document.querySelectorAll('.section-header[data-books]')) {
+    const ids = sh.dataset.books.split(' ');
+    if (!ids.includes(bookId)) continue;
+    const sum = { done: 0, total: 0 };
+    for (const id of ids) { const b = data.books.find(x => x.id === id); if (b) tally(b, sum); }
+    paint(sh, sum);
+  }
 }
 
 function jumpTo(uid) {
   const bookId = uid.slice(0, uid.lastIndexOf(':'));
   if (!openBooks.has(bookId)) { openBooks.add(bookId); saveOpenBooks(); }
+  const book = data.books.find(b => b.id === bookId), s = book && seriesOf(book);
+  if (s && !openBooks.has('s:' + s.key)) { openBooks.add('s:' + s.key); saveOpenBooks(); }   // and its series' row
   expanded.add(uid);
   renderGrid();
   let el = $('card-' + cssId(uid));
@@ -6322,7 +6723,8 @@ function applySearch(value) {
   const was = searchWords().length > 0;
   searchTerm = value;
   if (!was) searchAll = true;   // a new search always starts with the whole library
-  renderChips();                // the lit filter depends on whether a search is on
+  // the lit filter depends on whether a search is on: the chips are redrawn when that changes
+  if (was !== searchWords().length > 0) renderChips();
   renderGrid();
 }
 $('search').addEventListener('input', (e) => {
@@ -6422,6 +6824,14 @@ $('picker-close').onclick = () => closeBookPicker();
 $('book-picker').addEventListener('keydown', e => bookDialogKeydown(e, $('book-picker'), closeBookPicker));
 $('book-picker').addEventListener('click', (e) => {
   if (e.target === $('book-picker')) { closeBookPicker(); return; }
+  const fold = e.target.closest('[data-series-toggle]');   // a series row unfolds its parts
+  if (fold) {
+    const key = fold.dataset.seriesToggle;
+    pickerSeriesOpen.set(key, fold.getAttribute('aria-expanded') !== 'true');
+    renderPickerList();
+    $('picker-list').querySelector(`[data-series-toggle="${CSS.escape(key)}"]`)?.focus({ preventScroll: true });
+    return;
+  }
   const row = e.target.closest('[data-pick]');
   if (!row) return;
   // a book found by what it SAYS opens showing just the rules that say it
@@ -6506,6 +6916,7 @@ writeTicks();
 
 renderAll();
 loadFirebase();   // after the first render, so sync never delays the screen
+warmSearch();
 if (mergedAtStart) setTimeout(() => toast(duplicateToast(mergedAtStart)), 600);
 
 // Service worker: keeps the installed (home-screen) app updating to the latest
@@ -6519,7 +6930,7 @@ if ('serviceWorker' in navigator) {
     reloadedForUpdate = true;
     window.location.reload();
   });
-  window.addEventListener('load', () => {
+  const registerWorker = () => {
     navigator.serviceWorker.register('sw.js').then(reg => {
       const check = () => reg.update().catch(() => { /* offline — try again next time */ });
       check(); // look for a newer sw.js right now
@@ -6538,8 +6949,21 @@ if ('serviceWorker' in navigator) {
         });
       });
     }).catch(() => { /* ignore */ });
-  });
+  };
+  // the app now starts a moment after the page has loaded, so the 'load' event may be over
+  if (document.readyState === 'complete') registerWorker();
+  else window.addEventListener('load', registerWorker);
 }
+</script>
+<!-- Start the app (it waits a moment for the quick-read copy — see the top of the page). -->
+<script>
+(function () {
+  if (window.LibCache && window.LibCache.run) { window.LibCache.run(); return; }
+  var code = document.getElementById('app-code'), s = document.createElement('script');
+  s.textContent = code.textContent;
+  code.parentNode.insertBefore(s, code);
+  code.parentNode.removeChild(code);
+})();
 </script>
 </body>
 </html>
